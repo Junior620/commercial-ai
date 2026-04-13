@@ -1,0 +1,292 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ─── Enums ───────────────────────────────────────────────
+
+enum UserRole {
+  ADMIN
+  COMMERCIAL
+  ASSISTANT
+  DIRECTION
+}
+
+enum ProspectStatus {
+  NEW
+  CONTACTED
+  IN_DISCUSSION
+  CONVERTED
+  COLD
+  UNSUBSCRIBED
+}
+
+enum Priority {
+  HIGH
+  MEDIUM
+  LOW
+}
+
+enum CampaignStatus {
+  DRAFT
+  ACTIVE
+  PAUSED
+  COMPLETED
+}
+
+enum EmailStatus {
+  PENDING
+  SENT
+  DELIVERED
+  OPENED
+  CLICKED
+  BOUNCED
+  REPLIED
+  FAILED
+}
+
+enum EmailType {
+  INITIAL
+  FOLLOWUP_1
+  FOLLOWUP_2
+  FOLLOWUP_3
+}
+
+enum ResponseClassification {
+  POSITIVE
+  INFO_REQUEST
+  PRICE_REQUEST
+  MEETING_REQUEST
+  NEGATIVE
+  NO_INTEREST
+  UNSUBSCRIBE
+  UNKNOWN
+}
+
+enum ScrapingJobStatus {
+  PENDING
+  RUNNING
+  COMPLETED
+  FAILED
+}
+
+enum Tone {
+  FORMAL
+  FRIENDLY
+  TECHNICAL
+  PREMIUM
+}
+
+// ─── Models ──────────────────────────────────────────────
+
+model User {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  name      String?
+  role      UserRole @default(COMMERCIAL)
+  avatarUrl String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  campaigns Campaign[]
+  notes     ProspectNote[]
+
+  @@map("users")
+}
+
+model Prospect {
+  id              String         @id @default(cuid())
+  company         String
+  contact         String?
+  email           String         @unique
+  phone           String?
+  country         String
+  sector          String?
+  clientType      String?
+  product         String?
+  status          ProspectStatus @default(NEW)
+  language        String         @default("en")
+  priority        Priority       @default(MEDIUM)
+  score           Int            @default(0)
+  website         String?
+  source          String?
+  notes           String?
+  lastContactedAt DateTime?
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+
+  emails          Email[]
+  responses       Response[]
+  prospectNotes   ProspectNote[]
+  segmentLinks    ProspectSegment[]
+
+  @@index([country])
+  @@index([status])
+  @@index([score])
+  @@index([sector])
+  @@map("prospects")
+}
+
+model Segment {
+  id          String   @id @default(cuid())
+  name        String
+  description String?
+  filters     Json
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  campaigns    Campaign[]
+  prospectLinks ProspectSegment[]
+
+  @@map("segments")
+}
+
+model ProspectSegment {
+  prospectId String
+  segmentId  String
+  prospect   Prospect @relation(fields: [prospectId], references: [id], onDelete: Cascade)
+  segment    Segment  @relation(fields: [segmentId], references: [id], onDelete: Cascade)
+
+  @@id([prospectId, segmentId])
+  @@map("prospect_segments")
+}
+
+model Campaign {
+  id               String         @id @default(cuid())
+  name             String
+  segmentId        String?
+  segment          Segment?       @relation(fields: [segmentId], references: [id])
+  product          String?
+  language         String         @default("en")
+  tone             Tone           @default(FORMAL)
+  status           CampaignStatus @default(DRAFT)
+  maxFollowUps     Int            @default(2)
+  followUpDelayDays Int           @default(4)
+  dailyLimit       Int            @default(50)
+  subjectTemplate  String?
+  bodyTemplate     String?
+  signature        String?
+
+  sentCount        Int            @default(0)
+  deliveredCount   Int            @default(0)
+  openCount        Int            @default(0)
+  clickCount       Int            @default(0)
+  replyCount       Int            @default(0)
+  bounceCount      Int            @default(0)
+
+  createdById      String?
+  createdBy        User?          @relation(fields: [createdById], references: [id])
+  createdAt        DateTime       @default(now())
+  updatedAt        DateTime       @updatedAt
+
+  emails           Email[]
+
+  @@index([status])
+  @@map("campaigns")
+}
+
+model Email {
+  id           String      @id @default(cuid())
+  campaignId   String
+  campaign     Campaign    @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  prospectId   String
+  prospect     Prospect    @relation(fields: [prospectId], references: [id], onDelete: Cascade)
+  subject      String
+  body         String
+  status       EmailStatus @default(PENDING)
+  type         EmailType   @default(INITIAL)
+  resendId     String?
+  sentAt       DateTime?
+  deliveredAt  DateTime?
+  openedAt     DateTime?
+  clickedAt    DateTime?
+  repliedAt    DateTime?
+  scheduledFor DateTime?
+  createdAt    DateTime    @default(now())
+  updatedAt    DateTime    @updatedAt
+
+  responses    Response[]
+
+  @@index([campaignId])
+  @@index([prospectId])
+  @@index([status])
+  @@index([scheduledFor])
+  @@map("emails")
+}
+
+model Response {
+  id             String                 @id @default(cuid())
+  emailId        String
+  email          Email                  @relation(fields: [emailId], references: [id], onDelete: Cascade)
+  prospectId     String
+  prospect       Prospect               @relation(fields: [prospectId], references: [id], onDelete: Cascade)
+  content        String
+  classification ResponseClassification @default(UNKNOWN)
+  suggestedReply String?
+  processedAt    DateTime?
+  createdAt      DateTime               @default(now())
+
+  @@index([classification])
+  @@map("responses")
+}
+
+model ProspectNote {
+  id         String   @id @default(cuid())
+  prospectId String
+  prospect   Prospect @relation(fields: [prospectId], references: [id], onDelete: Cascade)
+  authorId   String
+  author     User     @relation(fields: [authorId], references: [id])
+  content    String
+  createdAt  DateTime @default(now())
+
+  @@index([prospectId])
+  @@map("prospect_notes")
+}
+
+model ScrapingJob {
+  id           String           @id @default(cuid())
+  keywords     Json
+  countries    Json?
+  categories   Json?
+  status       ScrapingJobStatus @default(PENDING)
+  apifyRunId   String?
+  resultsCount Int              @default(0)
+  errorMessage String?
+  startedAt    DateTime?
+  completedAt  DateTime?
+  createdAt    DateTime         @default(now())
+
+  @@index([status])
+  @@map("scraping_jobs")
+}
+
+model EmailTemplate {
+  id        String   @id @default(cuid())
+  name      String
+  subject   String
+  body      String
+  language  String   @default("en")
+  tone      Tone     @default(FORMAL)
+  product   String?
+  isDefault Boolean  @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("email_templates")
+}
+
+model AppSettings {
+  id                  String @id @default("default")
+  dailyEmailLimit     Int    @default(50)
+  emailSpacingSeconds Int    @default(30)
+  defaultSignature    String?
+  companyName         String?
+  senderName          String?
+  senderEmail         String?
+
+  @@map("app_settings")
+}

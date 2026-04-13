@@ -1,0 +1,25 @@
+import { NextRequest, NextResponse } from "next/server";
+import { generateEmail } from "@/lib/claude";
+
+export async function POST(req: NextRequest) {
+  try {
+    const body = await req.json();
+    const result = await generateEmail({
+      prospectName: body.prospectName,
+      companyName: body.companyName,
+      country: body.country || "",
+      sector: body.sector || "",
+      product: body.product || "",
+      language: body.language || "en",
+      tone: body.tone || "FORMAL",
+      campaignProduct: body.campaignProduct || "cocoa products",
+      customInstructions: body.customInstructions,
+    });
+    return NextResponse.json(result);
+  } catch (err) {
+    return NextResponse.json(
+      { error: err instanceof Error ? err.message : "Erreur de generation" },
+      { status: 500 }
+    );
+  }
+}
