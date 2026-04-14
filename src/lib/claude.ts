@@ -96,7 +96,7 @@ async function runWithOpenAI(prompt: string): Promise<string> {
 
   const completion = await client.chat.completions.create({
     model: openaiModel,
-    max_tokens: 1024,
+    max_completion_tokens: 1024,
     temperature: 0.7,
     response_format: { type: "json_object" },
     messages: [

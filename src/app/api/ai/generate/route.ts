@@ -17,9 +17,8 @@ export async function POST(req: NextRequest) {
     });
     return NextResponse.json(result);
   } catch (err) {
-    return NextResponse.json(
-      { error: err instanceof Error ? err.message : "Erreur de generation" },
-      { status: 500 }
-    );
+    const message = err instanceof Error ? err.message : "Erreur de generation";
+    console.error("[AI Generate]", message, err);
+    return NextResponse.json({ error: message }, { status: 500 });
   }
 }
