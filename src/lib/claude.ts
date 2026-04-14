@@ -1,8 +1,5 @@
 import Anthropic from "@anthropic-ai/sdk";
-
-const anthropic = new Anthropic({
-  apiKey: process.env.ANTHROPIC_API_KEY,
-});
+import OpenAI from "openai";
 
 interface GenerateEmailParams {
   prospectName: string;
@@ -23,7 +20,12 @@ interface GeneratedEmail {
   body: string;
 }
 
-const TONE_MAP = {
+type ClassificationResult = {
+  classification: string;
+  suggestedReply: string;
+};
+
+const TONE_MAP: Record<string, string> = {
   FORMAL: "formel et professionnel",
   FRIENDLY: "amical et chaleureux, tout en restant professionnel",
   TECHNICAL: "technique et precis, oriente specifications produit",
@@ -39,21 +41,119 @@ const LANG_MAP: Record<string, string> = {
   ar: "arabe",
 };
 
+const SYSTEM_PROMPT =
+  "Tu es un expert en prospection commerciale B2B dans le secteur du cacao et de ses derives (beurre de cacao, poudre de cacao, masse de cacao, feves de cacao). Tu reponds UNIQUEMENT en JSON valide, sans texte avant ni apres.";
+
+// ─── Lazy singleton clients ──────────────────────────────────────
+
+let _anthropic: Anthropic | null = null;
+let _openai: OpenAI | null = null;
+
+function getAnthropicClient(): Anthropic | null {
+  if (_anthropic) return _anthropic;
+  const key = process.env.ANTHROPIC_API_KEY?.trim();
+  if (!key) return null;
+  _anthropic = new Anthropic({ apiKey: key });
+  return _anthropic;
+}
+
+function getOpenAIClient(): OpenAI | null {
+  if (_openai) return _openai;
+  const key = process.env.OPENAI_API_KEY?.trim();
+  if (!key) return null;
+  _openai = new OpenAI({ apiKey: key });
+  return _openai;
+}
+
+// ─── Provider helpers ────────────────────────────────────────────
+
+const anthropicModel =
+  process.env.ANTHROPIC_MODEL?.trim() || "claude-sonnet-4-20250514";
+const openaiModel = process.env.OPENAI_MODEL?.trim() || "gpt-5.4";
+
+async function runWithAnthropic(prompt: string): Promise<string> {
+  const client = getAnthropicClient();
+  if (!client) throw new Error("ANTHROPIC_API_KEY is not set");
+
+  const message = await client.messages.create({
+    model: anthropicModel,
+    max_tokens: 1024,
+    temperature: 0.7,
+    system: SYSTEM_PROMPT,
+    messages: [{ role: "user", content: prompt }],
+  });
+
+  const block = message.content[0];
+  if (!block || block.type !== "text") {
+    throw new Error("Unexpected Anthropic response type");
+  }
+  return block.text;
+}
+
+async function runWithOpenAI(prompt: string): Promise<string> {
+  const client = getOpenAIClient();
+  if (!client) throw new Error("OPENAI_API_KEY is not set");
+
+  const completion = await client.chat.completions.create({
+    model: openaiModel,
+    max_tokens: 1024,
+    temperature: 0.7,
+    response_format: { type: "json_object" },
+    messages: [
+      { role: "system", content: SYSTEM_PROMPT },
+      { role: "user", content: prompt },
+    ],
+  });
+
+  const content = completion.choices[0]?.message?.content;
+  if (!content) throw new Error("Empty OpenAI response");
+  return content;
+}
+
+// ─── Fallback orchestrator ───────────────────────────────────────
+
+async function runLLM(prompt: string): Promise<string> {
+  const hasAnthropic = !!process.env.ANTHROPIC_API_KEY?.trim();
+  const hasOpenAI = !!process.env.OPENAI_API_KEY?.trim();
+
+  if (!hasAnthropic && !hasOpenAI) {
+    throw new Error(
+      "Aucune cle IA configuree. Definissez ANTHROPIC_API_KEY ou OPENAI_API_KEY."
+    );
+  }
+
+  if (hasAnthropic) {
+    try {
+      return await runWithAnthropic(prompt);
+    } catch (err) {
+      if (!hasOpenAI) throw err;
+      console.warn(
+        "[AI] Anthropic failed, falling back to OpenAI:",
+        err instanceof Error ? err.message : err
+      );
+    }
+  }
+
+  return await runWithOpenAI(prompt);
+}
+
+// ─── JSON parsing ────────────────────────────────────────────────
+
+function parseJson<T>(raw: string): T {
+  const match = raw.match(/\{[\s\S]*\}/);
+  if (!match) throw new Error("Could not extract JSON from AI response");
+  return JSON.parse(match[0]) as T;
+}
+
+// ─── Public API ──────────────────────────────────────────────────
+
 export async function generateEmail(
   params: GenerateEmailParams
 ): Promise<GeneratedEmail> {
   const tonDesc = TONE_MAP[params.tone] || TONE_MAP.FORMAL;
   const langDesc = LANG_MAP[params.language] || params.language;
 
-  const message = await anthropic.messages.create({
-    model: "claude-sonnet-4-20250514",
-    max_tokens: 1024,
-    messages: [
-      {
-        role: "user",
-        content: `Tu es un expert en redaction d'emails commerciaux B2B dans le secteur du cacao et de ses derives (beurre de cacao, poudre de cacao, masse de cacao, feves de cacao).
-
-Genere un email de prospection commerciale avec les parametres suivants :
+  const prompt = `Genere un email de prospection commerciale avec les parametres suivants :
 
 - Destinataire : ${params.prospectName} de ${params.companyName} (${params.country})
 - Secteur d'activite : ${params.sector}
@@ -75,18 +175,10 @@ Reponds UNIQUEMENT au format JSON :
 {
   "subject": "l'objet du mail",
   "body": "le corps du mail complet avec salutation et signature"
-}`,
-      },
-    ],
-  });
+}`;
 
-  const content = message.content[0];
-  if (content.type !== "text") throw new Error("Unexpected response type");
-
-  const jsonMatch = content.text.match(/\{[\s\S]*\}/);
-  if (!jsonMatch) throw new Error("Could not parse email JSON");
-
-  return JSON.parse(jsonMatch[0]) as GeneratedEmail;
+  const raw = await runLLM(prompt);
+  return parseJson<GeneratedEmail>(raw);
 }
 
 export async function generateFollowUp(
@@ -100,15 +192,7 @@ export async function generateFollowUp(
   const tonDesc = TONE_MAP[tone] || TONE_MAP.FORMAL;
   const langDesc = LANG_MAP[language] || language;
 
-  const message = await anthropic.messages.create({
-    model: "claude-sonnet-4-20250514",
-    max_tokens: 1024,
-    messages: [
-      {
-        role: "user",
-        content: `Tu es un expert en relances commerciales B2B dans le secteur du cacao.
-
-Voici l'email initial envoye :
+  const prompt = `Voici l'email initial envoye :
 Objet: ${originalSubject}
 Corps: ${originalBody}
 
@@ -127,34 +211,17 @@ Reponds UNIQUEMENT au format JSON :
 {
   "subject": "l'objet du mail de relance",
   "body": "le corps du mail de relance"
-}`,
-      },
-    ],
-  });
+}`;
 
-  const content = message.content[0];
-  if (content.type !== "text") throw new Error("Unexpected response type");
-
-  const jsonMatch = content.text.match(/\{[\s\S]*\}/);
-  if (!jsonMatch) throw new Error("Could not parse follow-up JSON");
-
-  return JSON.parse(jsonMatch[0]) as GeneratedEmail;
+  const raw = await runLLM(prompt);
+  return parseJson<GeneratedEmail>(raw);
 }
 
 export async function classifyResponse(
   responseContent: string,
   originalEmailSubject: string
-): Promise<{
-  classification: string;
-  suggestedReply: string;
-}> {
-  const message = await anthropic.messages.create({
-    model: "claude-sonnet-4-20250514",
-    max_tokens: 1024,
-    messages: [
-      {
-        role: "user",
-        content: `Analyse cette reponse a un email commercial B2B (secteur cacao) :
+): Promise<ClassificationResult> {
+  const prompt = `Analyse cette reponse a un email commercial B2B (secteur cacao) :
 
 Email original (objet) : ${originalEmailSubject}
 Reponse recue : ${responseContent}
@@ -175,16 +242,8 @@ Reponds UNIQUEMENT au format JSON :
 {
   "classification": "LA_CATEGORIE",
   "suggestedReply": "le brouillon de reponse"
-}`,
-      },
-    ],
-  });
+}`;
 
-  const content = message.content[0];
-  if (content.type !== "text") throw new Error("Unexpected response type");
-
-  const jsonMatch = content.text.match(/\{[\s\S]*\}/);
-  if (!jsonMatch) throw new Error("Could not parse classification JSON");
-
-  return JSON.parse(jsonMatch[0]);
+  const raw = await runLLM(prompt);
+  return parseJson<ClassificationResult>(raw);
 }

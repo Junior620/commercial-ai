@@ -121,6 +121,11 @@ DATABASE_URL=
 
 # Claude (Anthropic)
 ANTHROPIC_API_KEY=
+ANTHROPIC_MODEL=claude-sonnet-4-20250514
+
+# OpenAI (fallback)
+OPENAI_API_KEY=
+OPENAI_MODEL=gpt-4.1
 
 # Resend
 RESEND_API_KEY=
@@ -142,7 +147,8 @@ NEXT_PUBLIC_APP_URL=http://localhost:3000
 - `DATABASE_URL` doit pointer vers ta base PostgreSQL Supabase.
 - Sans `RESEND_API_KEY`, l'app ne casse pas, mais les envois sont simules.
 - Sans `DATABASE_URL`, les routes base de donnees ne fonctionneront pas.
-- Sans `ANTHROPIC_API_KEY`, la generation IA echouera.
+- Sans `ANTHROPIC_API_KEY`, le systeme bascule automatiquement sur OpenAI si `OPENAI_API_KEY` est disponible.
+- Si `ANTHROPIC_API_KEY` et `OPENAI_API_KEY` sont absents, la generation IA echouera.
 - Sans `APIFY_API_TOKEN`, le scraping ne pourra pas demarrer.
 
 ## 7) Base de donnees (Prisma + Supabase)
@@ -252,6 +258,7 @@ Modele principal:
 - `NEXT_PUBLIC_SUPABASE_ANON_KEY`
 - `SUPABASE_SERVICE_ROLE_KEY`
 - `ANTHROPIC_API_KEY`
+- `OPENAI_API_KEY` (obligatoire si fallback voulu)
 - `RESEND_API_KEY`
 - `RESEND_FROM_EMAIL`
 - `APIFY_API_TOKEN`
