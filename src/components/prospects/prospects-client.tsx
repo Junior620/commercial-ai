@@ -34,7 +34,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Upload, Plus, Search, Download } from "lucide-react";
+import { Upload, Plus, Search, Download, Trash2, Pencil } from "lucide-react";
 import { toast } from "sonner";
 import { PageTitle } from "@/components/layout/page-title";
 
@@ -80,6 +80,8 @@ export function ProspectsClient({
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [addOpen, setAddOpen] = useState(false);
+  const [editOpen, setEditOpen] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [formData, setFormData] = useState({
     company: "",
@@ -93,6 +95,94 @@ export function ProspectsClient({
     language: "en",
     priority: "MEDIUM",
   });
+  const [editFormData, setEditFormData] = useState({
+    company: "",
+    contact: "",
+    email: "",
+    phone: "",
+    country: "",
+    sector: "",
+    clientType: "",
+    product: "",
+    language: "en",
+    priority: "MEDIUM",
+    status: "NEW",
+  });
+
+  const openEdit = (p: Prospect) => {
+    setEditingId(p.id);
+    setEditFormData({
+      company: p.company,
+      contact: p.contact ?? "",
+      email: p.email,
+      phone: p.phone ?? "",
+      country: p.country,
+      sector: p.sector ?? "",
+      clientType: p.clientType ?? "",
+      product: p.product ?? "",
+      language: p.language,
+      priority: p.priority,
+      status: p.status,
+    });
+    setEditOpen(true);
+  };
+
+  const handleUpdateProspect = async () => {
+    if (!editingId) return;
+    try {
+      const res = await fetch(`/api/prospects/${editingId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          company: editFormData.company,
+          contact: editFormData.contact || null,
+          email: editFormData.email,
+          phone: editFormData.phone || null,
+          country: editFormData.country,
+          sector: editFormData.sector || null,
+          clientType: editFormData.clientType || null,
+          product: editFormData.product || null,
+          language: editFormData.language,
+          priority: editFormData.priority,
+          status: editFormData.status,
+        }),
+      });
+      if (!res.ok) {
+        const err = await res.json();
+        throw new Error(err.error || "Erreur");
+      }
+      const updated = await res.json();
+      setProspects(
+        prospects.map((x) => (x.id === editingId ? { ...x, ...updated } : x))
+      );
+      setEditOpen(false);
+      setEditingId(null);
+      toast.success("Prospect mis a jour");
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Erreur");
+    }
+  };
+
+  const handleDeleteProspect = async (p: Prospect) => {
+    if (
+      !confirm(
+        `Supprimer le prospect « ${p.company} » ? Cette action est irreversible.`
+      )
+    ) {
+      return;
+    }
+    try {
+      const res = await fetch(`/api/prospects/${p.id}`, { method: "DELETE" });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.error || "Erreur");
+      }
+      setProspects(prospects.filter((x) => x.id !== p.id));
+      toast.success("Prospect supprime");
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Erreur");
+    }
+  };
 
   const filtered = prospects.filter((p) => {
     const matchSearch =
@@ -390,6 +480,228 @@ export function ProspectsClient({
               </Button>
             </DialogContent>
           </Dialog>
+          <Dialog open={editOpen} onOpenChange={setEditOpen}>
+            <DialogContent className="max-w-lg">
+              <DialogHeader>
+                <DialogTitle>Modifier le prospect</DialogTitle>
+              </DialogHeader>
+              <div className="grid gap-4 py-4">
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label>Entreprise *</Label>
+                    <Input
+                      value={editFormData.company}
+                      onChange={(e) =>
+                        setEditFormData({
+                          ...editFormData,
+                          company: e.target.value,
+                        })
+                      }
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Contact</Label>
+                    <Input
+                      value={editFormData.contact}
+                      onChange={(e) =>
+                        setEditFormData({
+                          ...editFormData,
+                          contact: e.target.value,
+                        })
+                      }
+                    />
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label>Email *</Label>
+                    <Input
+                      type="email"
+                      value={editFormData.email}
+                      onChange={(e) =>
+                        setEditFormData({
+                          ...editFormData,
+                          email: e.target.value,
+                        })
+                      }
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Telephone</Label>
+                    <Input
+                      value={editFormData.phone}
+                      onChange={(e) =>
+                        setEditFormData({
+                          ...editFormData,
+                          phone: e.target.value,
+                        })
+                      }
+                    />
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label>Pays *</Label>
+                    <Input
+                      value={editFormData.country}
+                      onChange={(e) =>
+                        setEditFormData({
+                          ...editFormData,
+                          country: e.target.value,
+                        })
+                      }
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Secteur</Label>
+                    <Input
+                      value={editFormData.sector}
+                      onChange={(e) =>
+                        setEditFormData({
+                          ...editFormData,
+                          sector: e.target.value,
+                        })
+                      }
+                    />
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label>Type client</Label>
+                    <Select
+                      value={editFormData.clientType || "__ct_none__"}
+                      onValueChange={(v) =>
+                        setEditFormData({
+                          ...editFormData,
+                          clientType: v === "__ct_none__" ? "" : (v ?? ""),
+                        })
+                      }
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Selectionner" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="__ct_none__">Non defini</SelectItem>
+                        <SelectItem value="importer">Importateur</SelectItem>
+                        <SelectItem value="distributor">
+                          Distributeur
+                        </SelectItem>
+                        <SelectItem value="manufacturer">Fabricant</SelectItem>
+                        <SelectItem value="trader">Trader</SelectItem>
+                        <SelectItem value="wholesaler">Grossiste</SelectItem>
+                        <SelectItem value="retailer">Detaillant</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Produit</Label>
+                    <Select
+                      value={editFormData.product || "__pr_none__"}
+                      onValueChange={(v) =>
+                        setEditFormData({
+                          ...editFormData,
+                          product: v === "__pr_none__" ? "" : (v ?? ""),
+                        })
+                      }
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Selectionner" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="__pr_none__">Non defini</SelectItem>
+                        <SelectItem value="cocoa_beans">
+                          Feves de cacao
+                        </SelectItem>
+                        <SelectItem value="cocoa_butter">
+                          Beurre de cacao
+                        </SelectItem>
+                        <SelectItem value="cocoa_powder">
+                          Poudre de cacao
+                        </SelectItem>
+                        <SelectItem value="cocoa_mass">
+                          Masse de cacao
+                        </SelectItem>
+                        <SelectItem value="derivatives">Derives</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label>Langue</Label>
+                    <Select
+                      value={editFormData.language}
+                      onValueChange={(v) =>
+                        setEditFormData({
+                          ...editFormData,
+                          language: v ?? "en",
+                        })
+                      }
+                    >
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="en">Anglais</SelectItem>
+                        <SelectItem value="fr">Francais</SelectItem>
+                        <SelectItem value="es">Espagnol</SelectItem>
+                        <SelectItem value="pt">Portugais</SelectItem>
+                        <SelectItem value="de">Allemand</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Priorite</Label>
+                    <Select
+                      value={editFormData.priority}
+                      onValueChange={(v) =>
+                        setEditFormData({
+                          ...editFormData,
+                          priority: v ?? "MEDIUM",
+                        })
+                      }
+                    >
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="HIGH">Haute</SelectItem>
+                        <SelectItem value="MEDIUM">Moyenne</SelectItem>
+                        <SelectItem value="LOW">Basse</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  <Label>Statut</Label>
+                  <Select
+                    value={editFormData.status}
+                    onValueChange={(v) =>
+                      setEditFormData({
+                        ...editFormData,
+                        status: v ?? "NEW",
+                      })
+                    }
+                  >
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="NEW">Nouveau</SelectItem>
+                      <SelectItem value="CONTACTED">Contacte</SelectItem>
+                      <SelectItem value="IN_DISCUSSION">En discussion</SelectItem>
+                      <SelectItem value="CONVERTED">Converti</SelectItem>
+                      <SelectItem value="COLD">Froid</SelectItem>
+                      <SelectItem value="UNSUBSCRIBED">Desabonne</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+              <Button onClick={handleUpdateProspect} className="w-full">
+                Enregistrer
+              </Button>
+            </DialogContent>
+          </Dialog>
         </div>
       </div>
 
@@ -444,6 +756,7 @@ export function ProspectsClient({
                     <TableHead>Score</TableHead>
                     <TableHead>Statut</TableHead>
                     <TableHead>Priorite</TableHead>
+                    <TableHead className="w-[100px] text-right">Actions</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -492,6 +805,30 @@ export function ProspectsClient({
                         >
                           {prospect.priority}
                         </Badge>
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <div className="flex justify-end gap-1">
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon-sm"
+                            className="h-8 w-8"
+                            onClick={() => openEdit(prospect)}
+                            aria-label="Modifier"
+                          >
+                            <Pencil className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon-sm"
+                            className="h-8 w-8 text-destructive hover:text-destructive"
+                            onClick={() => handleDeleteProspect(prospect)}
+                            aria-label="Supprimer"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </div>
                       </TableCell>
                     </TableRow>
                   ))}

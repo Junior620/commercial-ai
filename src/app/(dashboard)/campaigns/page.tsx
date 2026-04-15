@@ -10,7 +10,8 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Plus, Mail, Play, Pause, Eye } from "lucide-react";
+import { Plus, Mail, Play, Pause, Eye, Pencil, Trash2 } from "lucide-react";
+import { toast } from "sonner";
 import Link from "next/link";
 import { PageTitle } from "@/components/layout/page-title";
 
@@ -62,6 +63,27 @@ export default function CampaignsPage() {
       fetchCampaigns();
     } catch {
       // ignore
+    }
+  };
+
+  const deleteCampaign = async (c: Campaign) => {
+    if (
+      !confirm(
+        `Supprimer la campagne « ${c.name} » ? Tous les emails associes seront supprimes.`
+      )
+    ) {
+      return;
+    }
+    try {
+      const res = await fetch(`/api/campaigns/${c.id}`, { method: "DELETE" });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.error || "Erreur");
+      }
+      setCampaigns((prev) => prev.filter((x) => x.id !== c.id));
+      toast.success("Campagne supprimee");
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Erreur");
     }
   };
 
@@ -125,11 +147,16 @@ export default function CampaignsPage() {
                     <p className="text-xs text-muted-foreground">Reponses</p>
                   </div>
                 </div>
-                <div className="flex gap-2">
-                  <Link href={`/campaigns/${campaign.id}`} className="flex-1">
+                <div className="flex flex-wrap gap-2">
+                  <Link href={`/campaigns/${campaign.id}`} className="min-w-0 flex-1">
                     <Button variant="outline" className="w-full" size="sm">
                       <Eye className="mr-2 h-3 w-3" />
                       Voir
+                    </Button>
+                  </Link>
+                  <Link href={`/campaigns/${campaign.id}/edit`}>
+                    <Button variant="outline" size="sm" title="Modifier">
+                      <Pencil className="h-3 w-3" />
                     </Button>
                   </Link>
                   {(campaign.status === "ACTIVE" ||
@@ -148,6 +175,15 @@ export default function CampaignsPage() {
                       )}
                     </Button>
                   )}
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="text-destructive hover:text-destructive"
+                    title="Supprimer"
+                    onClick={() => deleteCampaign(campaign)}
+                  >
+                    <Trash2 className="h-3 w-3" />
+                  </Button>
                 </div>
               </CardContent>
             </Card>

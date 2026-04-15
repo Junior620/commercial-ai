@@ -1,7 +1,10 @@
 "use client";
 
 import { useState, useEffect, use } from "react";
-import { Button } from "@/components/ui/button";
+import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { Button, buttonVariants } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 import {
   Card,
   CardContent,
@@ -18,7 +21,16 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Play, Pause, Bot, Send, RefreshCw, BarChart3 } from "lucide-react";
+import {
+  Play,
+  Pause,
+  Bot,
+  Send,
+  RefreshCw,
+  BarChart3,
+  Pencil,
+  Trash2,
+} from "lucide-react";
 import { toast } from "sonner";
 import { PageTitle } from "@/components/layout/page-title";
 
@@ -53,6 +65,7 @@ export default function CampaignDetailPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = use(params);
+  const router = useRouter();
   const [campaign, setCampaign] = useState<CampaignDetail | null>(null);
   const [generating, setGenerating] = useState(false);
   const [sending, setSending] = useState(false);
@@ -115,6 +128,28 @@ export default function CampaignDetailPage({
     fetchCampaign();
   };
 
+  const handleDeleteCampaign = async () => {
+    if (!campaign) return;
+    if (
+      !confirm(
+        `Supprimer la campagne « ${campaign.name} » ? Tous les emails associes seront supprimes.`
+      )
+    ) {
+      return;
+    }
+    try {
+      const res = await fetch(`/api/campaigns/${id}`, { method: "DELETE" });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.error || "Erreur");
+      }
+      toast.success("Campagne supprimee");
+      router.push("/campaigns");
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Erreur");
+    }
+  };
+
   if (!campaign) {
     return (
       <div className="flex items-center justify-center py-12">
@@ -142,7 +177,17 @@ export default function CampaignDetailPage({
           description={`${campaign.segment?.name || "Sans segment"} — ${campaign.language.toUpperCase()} — ${campaign.tone}`}
           icon={BarChart3}
         />
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2">
+          <Link
+            href={`/campaigns/${id}/edit`}
+            className={cn(
+              buttonVariants({ variant: "outline" }),
+              "inline-flex items-center"
+            )}
+          >
+            <Pencil className="mr-2 h-4 w-4" />
+            Modifier
+          </Link>
           <Button
             variant="outline"
             onClick={handleGenerateEmails}
@@ -166,6 +211,14 @@ export default function CampaignDetailPage({
               <Play className="mr-2 h-4 w-4" />
             )}
             {campaign.status === "ACTIVE" ? "Pause" : "Activer"}
+          </Button>
+          <Button
+            variant="outline"
+            className="text-destructive hover:text-destructive"
+            onClick={handleDeleteCampaign}
+          >
+            <Trash2 className="mr-2 h-4 w-4" />
+            Supprimer
           </Button>
         </div>
       </div>
