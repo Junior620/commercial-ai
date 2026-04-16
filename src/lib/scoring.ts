@@ -21,16 +21,22 @@ const B2B_KEYWORDS = [
   "distributor",
   "wholesaler",
   "trader",
+  "trading",
+  "broker",
+  "brokerage",
   "factory",
   "industrial",
   "processing",
   "bulk",
   "B2B",
+  "commodity",
   "fabricant",
   "fournisseur",
   "exportateur",
   "importateur",
   "grossiste",
+  "negociant",
+  "courtier",
 ];
 
 const RETAIL_KEYWORDS = [
@@ -143,6 +149,9 @@ export function calculateLeadScore(input: ScoreInput): {
       "ingredient",
       "cosmetic",
       "manufacturing",
+      "trading",
+      "commodity",
+      "broker",
     ];
     if (relevantCategories.some((rc) => cat.includes(rc))) {
       score += 20;
@@ -163,7 +172,7 @@ const CLIENT_TYPE_RULES: { keywords: string[]; type: string }[] = [
   { keywords: ["importer", "importateur", "import"], type: "importer" },
   { keywords: ["distributor", "distributeur", "distribution"], type: "distributor" },
   { keywords: ["manufacturer", "fabricant", "factory", "usine", "manufacturing", "processing"], type: "manufacturer" },
-  { keywords: ["trader", "trading", "negoce", "negociant"], type: "trader" },
+  { keywords: ["trader", "trading", "negoce", "negociant", "broker", "brokerage", "courtier", "commodity trader", "trade house"], type: "trader" },
   { keywords: ["wholesaler", "grossiste", "wholesale", "bulk", "en gros"], type: "wholesaler" },
   { keywords: ["retailer", "detaillant", "retail", "shop", "boutique", "store", "magasin"], type: "retailer" },
 ];

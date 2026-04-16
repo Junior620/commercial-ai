@@ -42,6 +42,7 @@ import { PageTitle } from "@/components/layout/page-title";
 
 const KEYWORD_CATEGORIES = [
   { id: "buyer", label: "Acheteurs (buyers)" },
+  { id: "trader", label: "Traders de cacao" },
   { id: "general", label: "General (cocoa companies)" },
   { id: "product", label: "Produits specifiques" },
   { id: "linkedin_role", label: "Roles LinkedIn" },

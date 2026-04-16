@@ -281,3 +281,56 @@ product,derivatives,en,seller,cocoa ingredients exporter,global,,Product keyword
 product,derivatives,en,seller,cocoa products manufacturer,global,,Product keyword
 product,derivatives,en,seller,cocoa semi finished products supplier,global,,Product keyword
 product,derivatives,en,seller,semi finished cocoa products supplier,global,,Product keyword
+trader,trading,en,trader,cocoa trading company,global,,Trader keyword
+trader,trading,en,trader,cocoa trader,global,,Trader keyword
+trader,trading,en,trader,cacao trading company,global,,Trader keyword
+trader,trading,en,trader,cocoa commodity trader,global,,Trader keyword
+trader,trading,en,trader,cocoa commodity trading,global,,Trader keyword
+trader,trading,en,trader,cocoa beans trading company,global,,Trader keyword
+trader,trading,en,trader,cocoa butter trading company,global,,Trader keyword
+trader,trading,en,trader,cocoa powder trading company,global,,Trader keyword
+trader,trading,en,trader,soft commodity trader cocoa,global,,Trader keyword
+trader,trading,en,trader,agricultural commodity trader cocoa,global,,Trader keyword
+trader,trading,en,trader,commodity trading house cocoa,global,,Trader keyword
+trader,trading,en,trader,cocoa broker,global,,Trader keyword
+trader,trading,en,trader,cocoa brokerage,global,,Trader keyword
+trader,trading,en,trader,cocoa trade house,global,,Trader keyword
+trader,trading,en,trader,bulk cocoa trader,global,,Trader keyword
+trader,trading,en,trader,international cocoa trader,global,,Trader keyword
+trader,trading,en,trader,cocoa raw material trader,global,,Trader keyword
+trader,trading,en,trader,cocoa futures trader,global,,Trader keyword
+trader,trading,en,trader,physical cocoa trader,global,,Trader keyword
+trader,trading,fr,trader,negociant cacao,global,,Trader keyword FR
+trader,trading,fr,trader,societe de negoce cacao,global,,Trader keyword FR
+trader,trading,fr,trader,trader cacao,global,,Trader keyword FR
+trader,trading,fr,trader,courtier cacao,global,,Trader keyword FR
+trader,trading,fr,trader,maison de negoce cacao,global,,Trader keyword FR
+trader,trading,fr,trader,negoce matieres premieres cacao,global,,Trader keyword FR
+trader,trading,es,trader,comerciante de cacao,global,,Trader keyword ES
+trader,trading,es,trader,empresa de trading cacao,global,,Trader keyword ES
+trader,trading,es,trader,corredor de cacao,global,,Trader keyword ES
+trader,trading,pt,trader,comerciante de cacau,global,,Trader keyword PT
+trader,trading,pt,trader,empresa de trading cacau,global,,Trader keyword PT
+trader,trading,en,trader,cocoa trading company in Belgium,country,Belgium,Geo-targeted trader
+trader,trading,en,trader,cocoa trading company in Egypt,country,Egypt,Geo-targeted trader
+trader,trading,en,trader,cocoa trading company in France,country,France,Geo-targeted trader
+trader,trading,en,trader,cocoa trading company in Germany,country,Germany,Geo-targeted trader
+trader,trading,en,trader,cocoa trading company in Italy,country,Italy,Geo-targeted trader
+trader,trading,en,trader,cocoa trading company in Morocco,country,Morocco,Geo-targeted trader
+trader,trading,en,trader,cocoa trading company in Netherlands,country,Netherlands,Geo-targeted trader
+trader,trading,en,trader,cocoa trading company in Poland,country,Poland,Geo-targeted trader
+trader,trading,en,trader,cocoa trading company in Portugal,country,Portugal,Geo-targeted trader
+trader,trading,en,trader,cocoa trading company in Saudi Arabia,country,Saudi Arabia,Geo-targeted trader
+trader,trading,en,trader,cocoa trading company in Spain,country,Spain,Geo-targeted trader
+trader,trading,en,trader,cocoa trading company in Switzerland,country,Switzerland,Geo-targeted trader
+trader,trading,en,trader,cocoa trading company in Tunisia,country,Tunisia,Geo-targeted trader
+trader,trading,en,trader,cocoa trading company in Turkey,country,Turkey,Geo-targeted trader
+trader,trading,en,trader,cocoa trading company in UAE,country,UAE,Geo-targeted trader
+trader,trading,en,trader,cocoa trading company in UK,country,UK,Geo-targeted trader
+trader,trading,en,trader,cocoa broker in Belgium,country,Belgium,Geo-targeted trader
+trader,trading,en,trader,cocoa broker in France,country,France,Geo-targeted trader
+trader,trading,en,trader,cocoa broker in Germany,country,Germany,Geo-targeted trader
+trader,trading,en,trader,cocoa broker in Netherlands,country,Netherlands,Geo-targeted trader
+trader,trading,en,trader,cocoa broker in Switzerland,country,Switzerland,Geo-targeted trader
+trader,trading,en,trader,cocoa broker in UK,country,UK,Geo-targeted trader
+trader,trading,en,trader,cocoa broker in UAE,country,UAE,Geo-targeted trader
