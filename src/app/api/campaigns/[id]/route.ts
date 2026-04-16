@@ -46,7 +46,12 @@ export async function GET(
     );
   }
 
-  return NextResponse.json(campaign);
+  const failedCount = campaign.emails.filter((email) => email.status === "FAILED").length;
+
+  return NextResponse.json({
+    ...campaign,
+    failedCount,
+  });
 }
 
 export async function PATCH(

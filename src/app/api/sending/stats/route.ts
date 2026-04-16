@@ -15,6 +15,7 @@ export async function GET() {
     deliveredToday,
     openedToday,
     bouncedToday,
+    failedToday,
     activeCampaigns,
   ] = await Promise.all([
     prisma.email.count({ where: { status: "PENDING" } }),
@@ -42,6 +43,12 @@ export async function GET() {
         updatedAt: { gte: today },
       },
     }),
+    prisma.email.count({
+      where: {
+        status: "FAILED",
+        updatedAt: { gte: today },
+      },
+    }),
     prisma.campaign.count({ where: { status: "ACTIVE" } }),
   ]);
 
@@ -55,6 +62,7 @@ export async function GET() {
     deliveredToday,
     openedToday,
     bouncedToday,
+    failedToday,
     openRate,
     bounceRate,
     dailyLimit: settings?.dailyEmailLimit ?? 50,

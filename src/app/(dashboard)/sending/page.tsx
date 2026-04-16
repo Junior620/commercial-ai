@@ -10,7 +10,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
-import { Send, Loader2, MailOpen, MailCheck, MailX } from "lucide-react";
+import { Send, Loader2, MailOpen, MailCheck, MailX, CircleAlert } from "lucide-react";
 import { toast } from "sonner";
 import { PageTitle } from "@/components/layout/page-title";
 
@@ -20,6 +20,7 @@ interface SendingStats {
   deliveredToday: number;
   openedToday: number;
   bouncedToday: number;
+  failedToday: number;
   openRate: number;
   bounceRate: number;
   dailyLimit: number;
@@ -116,7 +117,7 @@ export default function SendingPage() {
         </Card>
       </div>
 
-      <div className="grid gap-4 md:grid-cols-3">
+      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
         <Card>
           <CardHeader className="pb-2">
             <CardTitle className="text-sm text-muted-foreground">
@@ -158,6 +159,17 @@ export default function SendingPage() {
               </p>
             </div>
             <MailX className="h-5 w-5 text-red-600" />
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm text-muted-foreground">
+              Failed aujourd&apos;hui
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="flex items-center justify-between">
+            <p className="text-2xl font-bold">{stats?.failedToday ?? 0}</p>
+            <CircleAlert className="h-5 w-5 text-amber-600" />
           </CardContent>
         </Card>
       </div>

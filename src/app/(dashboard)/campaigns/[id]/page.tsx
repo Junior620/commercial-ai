@@ -70,6 +70,7 @@ interface CampaignDetail {
   openCount: number;
   replyCount: number;
   bounceCount: number;
+  failedCount: number;
   segment: { name: string; id: string } | null;
   emails: Array<{
     id: string;
@@ -321,13 +322,14 @@ export default function CampaignDetailPage({
         </div>
       </div>
 
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
+      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-6">
         {[
           { label: "Envoyes", value: campaign.sentCount },
           { label: "Livres", value: campaign.deliveredCount ?? 0 },
           { label: "Ouverts", value: campaign.openCount },
           { label: "Reponses", value: campaign.replyCount },
           { label: "Rebonds", value: campaign.bounceCount },
+          { label: "Failed", value: campaign.failedCount ?? 0 },
         ].map((kpi) => (
           <Card key={kpi.label}>
             <CardContent className="pt-6">
