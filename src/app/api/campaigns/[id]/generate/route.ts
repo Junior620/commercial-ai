@@ -2,6 +2,29 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { generateEmail } from "@/lib/claude";
 
+function sanitizeContactName(
+  contact: string | null | undefined,
+  companyFallback: string
+): string {
+  if (!contact || contact.trim().length === 0) {
+    return `${companyFallback} Team`;
+  }
+  const cleaned = contact.trim();
+  if (/^\+?\d[\d\s\-().]{5,}$/.test(cleaned)) {
+    return `${companyFallback} Team`;
+  }
+  if (/^[\d@.]+$/.test(cleaned)) {
+    return `${companyFallback} Team`;
+  }
+  if (cleaned.includes("@")) {
+    return `${companyFallback} Team`;
+  }
+  if (cleaned.length < 2 || cleaned.length > 80) {
+    return `${companyFallback} Team`;
+  }
+  return cleaned;
+}
+
 export async function POST(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
@@ -51,8 +74,13 @@ export async function POST(
 
     for (const prospect of prospects) {
       try {
+        const contactName = sanitizeContactName(
+          prospect.contact,
+          prospect.company
+        );
+
         const emailContent = await generateEmail({
-          prospectName: prospect.contact || prospect.company,
+          prospectName: contactName,
           companyName: prospect.company,
           country: prospect.country,
           sector: prospect.sector || "",
@@ -60,6 +88,8 @@ export async function POST(
           language: campaign.language,
           tone: campaign.tone as "FORMAL" | "FRIENDLY" | "TECHNICAL" | "PREMIUM",
           campaignProduct: campaign.product || "cocoa products",
+          senderName: process.env.SENDER_NAME?.trim(),
+          senderCompany: process.env.SENDER_COMPANY?.trim(),
         });
 
         await prisma.email.create({

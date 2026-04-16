@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -31,8 +31,34 @@ export default function SettingsPage() {
     fullName: "",
   });
   const [creatingUser, setCreatingUser] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    const loadSettings = async () => {
+      try {
+        const res = await fetch("/api/settings", { cache: "no-store" });
+        if (!res.ok) throw new Error("Erreur de chargement");
+        const data = await res.json();
+        setSettings({
+          companyName: data.companyName || "",
+          senderName: data.senderName || "",
+          senderEmail: data.senderEmail || "",
+          dailyEmailLimit: String(data.dailyEmailLimit ?? 50),
+          emailSpacingSeconds: String(data.emailSpacingSeconds ?? 30),
+          defaultSignature: data.defaultSignature || "",
+        });
+      } catch {
+        toast.error("Impossible de charger les paramètres");
+      } finally {
+        setLoading(false);
+      }
+    };
+    loadSettings();
+  }, []);
 
   const handleSave = async () => {
+    setSaving(true);
     try {
       const res = await fetch("/api/settings", {
         method: "PUT",
@@ -44,9 +70,21 @@ export default function SettingsPage() {
         }),
       });
       if (!res.ok) throw new Error("Erreur");
+      // Re-sync with persisted values
+      const saved = await res.json();
+      setSettings({
+        companyName: saved.companyName || "",
+        senderName: saved.senderName || "",
+        senderEmail: saved.senderEmail || "",
+        dailyEmailLimit: String(saved.dailyEmailLimit ?? 50),
+        emailSpacingSeconds: String(saved.emailSpacingSeconds ?? 30),
+        defaultSignature: saved.defaultSignature || "",
+      });
       toast.success("Parametres sauvegardes");
     } catch {
       toast.error("Erreur de sauvegarde");
+    } finally {
+      setSaving(false);
     }
   };
 
@@ -245,8 +283,8 @@ export default function SettingsPage() {
         </CardContent>
       </Card>
 
-      <Button onClick={handleSave} className="w-full">
-        Sauvegarder les parametres
+      <Button onClick={handleSave} className="w-full" disabled={loading || saving}>
+        {loading ? "Chargement..." : saving ? "Sauvegarde..." : "Sauvegarder les parametres"}
       </Button>
     </div>
   );

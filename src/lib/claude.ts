@@ -25,6 +25,16 @@ type ClassificationResult = {
   suggestedReply: string;
 };
 
+function getSenderInfo() {
+  return {
+    name: process.env.SENDER_NAME?.trim() || "The Team",
+    position: process.env.SENDER_POSITION?.trim() || "",
+    company: process.env.SENDER_COMPANY?.trim() || "Our Company",
+    phone: process.env.SENDER_PHONE?.trim() || "",
+    website: process.env.SENDER_WEBSITE?.trim() || "",
+  };
+}
+
 const TONE_MAP: Record<string, string> = {
   FORMAL: "formel et professionnel",
   FRIENDLY: "amical et chaleureux, tout en restant professionnel",
@@ -152,29 +162,48 @@ export async function generateEmail(
 ): Promise<GeneratedEmail> {
   const tonDesc = TONE_MAP[params.tone] || TONE_MAP.FORMAL;
   const langDesc = LANG_MAP[params.language] || params.language;
+  const sender = getSenderInfo();
 
-  const prompt = `Genere un email de prospection commerciale avec les parametres suivants :
+  const senderName = params.senderName || sender.name;
+  const senderCompany = params.senderCompany || sender.company;
+  const senderPosition = sender.position;
 
-- Destinataire : ${params.prospectName} de ${params.companyName} (${params.country})
-- Secteur d'activite : ${params.sector}
-- Produit d'interet du prospect : ${params.product}
+  const prompt = `Genere un email de prospection commerciale B2B avec ces parametres :
+
+DESTINATAIRE :
+- Nom du contact : ${params.prospectName}
+- Entreprise : ${params.companyName}
+- Pays : ${params.country}
+- Secteur : ${params.sector || "non specifie"}
+- Produit d'interet : ${params.product || "non specifie"}
+
+EXPEDITEUR :
+- Nom : ${senderName}
+- Poste : ${senderPosition}
+- Entreprise : ${senderCompany}
+
+CAMPAGNE :
 - Produit a promouvoir : ${params.campaignProduct}
 - Ton : ${tonDesc}
 - Langue : ${langDesc}
-${params.senderName ? `- Expediteur : ${params.senderName}${params.senderCompany ? ` de ${params.senderCompany}` : ""}` : ""}
-${params.customInstructions ? `- Instructions supplementaires : ${params.customInstructions}` : ""}
+${params.customInstructions ? `- Instructions specifiques : ${params.customInstructions}` : ""}
 
-Regles :
-1. L'email doit paraitre naturel, ecrit par un humain, jamais robotique
-2. Personnalise selon le profil du prospect
-3. Inclus un appel a l'action clair
-4. Ne depasse pas 200 mots pour le corps
-5. L'objet doit etre accrocheur et court (max 60 caracteres)
+REGLES STRICTES :
+1. L'email doit paraitre 100% naturel, comme ecrit par un humain. Pas de langage robotique.
+2. Personnalise l'email selon le profil du prospect (son secteur, ses produits, son pays).
+3. L'accroche doit etre engageante et specifique au prospect, PAS generique.
+4. Inclus un appel a l'action clair et precis (appel, envoi de specs, etc.)
+5. Le corps fait 120-180 mots maximum — concis et impactant.
+6. L'objet doit etre accrocheur, specifique et court (max 50 caracteres). PAS de "Partnership Opportunity" ou cliches generiques.
+7. NE METS JAMAIS de placeholders comme [Your Name], [Company], [Phone Number], [Position], etc. La signature sera ajoutee automatiquement. Termine le corps AVANT la signature (pas de "Best regards," ni de nom a la fin).
+8. Commence directement par "Dear [nom du contact]," ou "Dear [nom entreprise] Team," — PAS "Dear Sir/Madam".
+9. Ne repete pas le nom de l'entreprise du prospect plus de 2 fois dans le mail.
+10. Mentionne des avantages concrets : qualite constante, livraison fiable, prix competitifs, certifications, etc.
 
-Reponds UNIQUEMENT au format JSON :
+FORMAT DE REPONSE (JSON uniquement) :
 {
-  "subject": "l'objet du mail",
-  "body": "le corps du mail complet avec salutation et signature"
+  "subject": "objet court et accrocheur",
+  "body": "corps du mail SANS signature finale"
 }`;
 
   const raw = await runLLM(prompt);
@@ -191,26 +220,31 @@ export async function generateFollowUp(
 ): Promise<GeneratedEmail> {
   const tonDesc = TONE_MAP[tone] || TONE_MAP.FORMAL;
   const langDesc = LANG_MAP[language] || language;
+  const sender = getSenderInfo();
 
   const prompt = `Voici l'email initial envoye :
 Objet: ${originalSubject}
 Corps: ${originalBody}
 
 Genere la relance numero ${followUpNumber} pour ${prospectName}.
+- Expediteur : ${sender.name}, ${sender.position} chez ${sender.company}
 - Ton : ${tonDesc}
 - Langue : ${langDesc}
 
-Regles :
+REGLES STRICTES :
 1. Change completement l'angle d'approche par rapport au mail precedent
-2. Reste bref (max 100 mots)
-3. Ne sois pas insistant, reste courtois
-4. Ajoute une nouvelle proposition de valeur
-5. L'objet doit mentionner que c'est un suivi sans etre repetitif
+2. Reste bref (80-120 mots max)
+3. Ne sois pas insistant, reste courtois et professionnel
+4. Ajoute une nouvelle proposition de valeur ou un angle different
+5. L'objet doit etre court et different du precedent (pas de "Following up" ou "Just checking in")
+6. NE METS JAMAIS de placeholders comme [Your Name], [Company], etc. La signature sera ajoutee automatiquement.
+7. Termine le corps AVANT la signature.
+8. Commence par "Dear ${prospectName}," ou "Hi ${prospectName},"
 
-Reponds UNIQUEMENT au format JSON :
+FORMAT DE REPONSE (JSON uniquement) :
 {
-  "subject": "l'objet du mail de relance",
-  "body": "le corps du mail de relance"
+  "subject": "objet court",
+  "body": "corps du mail de relance SANS signature"
 }`;
 
   const raw = await runLLM(prompt);

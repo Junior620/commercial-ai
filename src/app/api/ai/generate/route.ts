@@ -13,6 +13,8 @@ export async function POST(req: NextRequest) {
       language: body.language || "en",
       tone: body.tone || "FORMAL",
       campaignProduct: body.campaignProduct || "cocoa products",
+      senderName: process.env.SENDER_NAME?.trim(),
+      senderCompany: process.env.SENDER_COMPANY?.trim(),
       customInstructions: body.customInstructions,
     });
     return NextResponse.json(result);
