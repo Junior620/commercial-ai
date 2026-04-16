@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { Resend } from "resend";
 import { prisma } from "@/lib/prisma";
 
 function normalizeEventType(type: string | undefined): string {
@@ -33,7 +34,39 @@ function resolveAppEmailId(data: {
 
 export async function POST(req: NextRequest) {
   try {
-    const body = await req.json();
+    const rawBody = await req.text();
+    const webhookSecret = process.env.RESEND_WEBHOOK_SECRET?.trim();
+
+    let body: unknown;
+    if (webhookSecret) {
+      const svixId = req.headers.get("svix-id");
+      const svixTimestamp = req.headers.get("svix-timestamp");
+      const svixSignature = req.headers.get("svix-signature");
+      if (!svixId || !svixTimestamp || !svixSignature) {
+        return NextResponse.json(
+          { error: "Missing webhook signature headers" },
+          { status: 400 }
+        );
+      }
+      const resend = new Resend(process.env.RESEND_API_KEY || "re_placeholder");
+      body = resend.webhooks.verify({
+        payload: rawBody,
+        headers: {
+          id: svixId,
+          timestamp: svixTimestamp,
+          signature: svixSignature,
+        },
+        webhookSecret,
+      });
+    } else {
+      body = JSON.parse(rawBody);
+      if (process.env.NODE_ENV === "development") {
+        console.warn(
+          "[webhook resend] RESEND_WEBHOOK_SECRET absent: verification signature desactivee"
+        );
+      }
+    }
+
     const { type, data } = body as {
       type?: string;
       data?: {
@@ -163,7 +196,10 @@ export async function POST(req: NextRequest) {
     }
 
     return NextResponse.json({ ok: true });
-  } catch {
-    return NextResponse.json({ ok: true });
+  } catch (error) {
+    if (process.env.NODE_ENV === "development") {
+      console.error("[webhook resend] verification/processing error:", error);
+    }
+    return NextResponse.json({ error: "Invalid webhook" }, { status: 400 });
   }
 }
