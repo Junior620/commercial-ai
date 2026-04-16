@@ -1,6 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 
+function normalizeEventType(type: string | undefined): string {
+  if (!type) return "";
+  return type.toLowerCase().replace(/^email\./, "");
+}
+
 function prismaIdFromTags(tags: unknown): string | undefined {
   if (tags == null) return undefined;
   if (typeof tags === "object" && !Array.isArray(tags)) {
@@ -66,19 +71,34 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ ok: true });
     }
 
-    switch (type) {
-      case "email.delivered":
-        await prisma.email.update({
-          where: { id: email.id },
-          data: { status: "DELIVERED", deliveredAt: new Date() },
-        });
-        await prisma.campaign.update({
-          where: { id: email.campaignId },
-          data: { deliveredCount: { increment: 1 } },
-        });
+    const evt = normalizeEventType(type);
+
+    switch (evt) {
+      case "sent":
+      case "scheduled":
+      case "queued":
+        if (email.status === "PENDING") {
+          await prisma.email.update({
+            where: { id: email.id },
+            data: { status: "SENT", sentAt: email.sentAt ?? new Date() },
+          });
+        }
         break;
 
-      case "email.opened":
+      case "delivered":
+        if (email.status === "SENT" || email.status === "PENDING") {
+          await prisma.email.update({
+            where: { id: email.id },
+            data: { status: "DELIVERED", deliveredAt: new Date() },
+          });
+          await prisma.campaign.update({
+            where: { id: email.campaignId },
+            data: { deliveredCount: { increment: 1 } },
+          });
+        }
+        break;
+
+      case "opened":
         if (email.status !== "OPENED" && email.status !== "CLICKED" && email.status !== "REPLIED") {
           await prisma.email.update({
             where: { id: email.id },
@@ -91,26 +111,54 @@ export async function POST(req: NextRequest) {
         }
         break;
 
-      case "email.clicked":
-        await prisma.email.update({
-          where: { id: email.id },
-          data: { status: "CLICKED", clickedAt: new Date() },
-        });
-        await prisma.campaign.update({
-          where: { id: email.campaignId },
-          data: { clickCount: { increment: 1 } },
-        });
+      case "clicked":
+        if (email.status !== "CLICKED" && email.status !== "REPLIED") {
+          await prisma.email.update({
+            where: { id: email.id },
+            data: { status: "CLICKED", clickedAt: new Date() },
+          });
+          await prisma.campaign.update({
+            where: { id: email.campaignId },
+            data: { clickCount: { increment: 1 } },
+          });
+        }
         break;
 
-      case "email.bounced":
-        await prisma.email.update({
-          where: { id: email.id },
-          data: { status: "BOUNCED" },
-        });
-        await prisma.campaign.update({
-          where: { id: email.campaignId },
-          data: { bounceCount: { increment: 1 } },
-        });
+      case "bounced":
+        if (email.status !== "BOUNCED") {
+          await prisma.email.update({
+            where: { id: email.id },
+            data: { status: "BOUNCED" },
+          });
+          await prisma.campaign.update({
+            where: { id: email.campaignId },
+            data: { bounceCount: { increment: 1 } },
+          });
+        }
+        break;
+
+      // Statuts Resend non modélisés dans notre enum Prisma.
+      // On les classe en FAILED pour éviter de laisser un email en SENT/PENDING.
+      case "failed":
+      case "canceled":
+      case "suppressed":
+      case "complained":
+        if (email.status !== "FAILED") {
+          await prisma.email.update({
+            where: { id: email.id },
+            data: { status: "FAILED" },
+          });
+        }
+        break;
+
+      // Informationnel chez Resend: on garde SENT tant qu'il n'y a pas delivered/bounced/failed.
+      case "delivery_delayed":
+        if (email.status === "PENDING") {
+          await prisma.email.update({
+            where: { id: email.id },
+            data: { status: "SENT", sentAt: email.sentAt ?? new Date() },
+          });
+        }
         break;
     }
 

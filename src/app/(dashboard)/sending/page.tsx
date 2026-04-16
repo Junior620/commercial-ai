@@ -9,17 +9,22 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
-import { Send, Loader2, CheckCircle, XCircle } from "lucide-react";
+import { Send, Loader2, MailOpen, MailCheck, MailX } from "lucide-react";
 import { toast } from "sonner";
 import { PageTitle } from "@/components/layout/page-title";
 
 interface SendingStats {
   pendingEmails: number;
   sentToday: number;
+  deliveredToday: number;
+  openedToday: number;
+  bouncedToday: number;
+  openRate: number;
+  bounceRate: number;
   dailyLimit: number;
   activeCampaigns: number;
+  updatedAt: string;
 }
 
 export default function SendingPage() {
@@ -28,6 +33,8 @@ export default function SendingPage() {
 
   useEffect(() => {
     fetchStats();
+    const interval = setInterval(fetchStats, 8000);
+    return () => clearInterval(interval);
   }, []);
 
   const fetchStats = async () => {
@@ -109,6 +116,52 @@ export default function SendingPage() {
         </Card>
       </div>
 
+      <div className="grid gap-4 md:grid-cols-3">
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm text-muted-foreground">
+              Livres aujourd&apos;hui
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="flex items-center justify-between">
+            <p className="text-2xl font-bold">{stats?.deliveredToday ?? 0}</p>
+            <MailCheck className="h-5 w-5 text-emerald-600" />
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm text-muted-foreground">
+              Ouverts aujourd&apos;hui
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="flex items-center justify-between">
+            <div>
+              <p className="text-2xl font-bold">{stats?.openedToday ?? 0}</p>
+              <p className="text-xs text-muted-foreground">
+                Taux d&apos;ouverture: {stats?.openRate ?? 0}%
+              </p>
+            </div>
+            <MailOpen className="h-5 w-5 text-indigo-600" />
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm text-muted-foreground">
+              Rebonds aujourd&apos;hui
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="flex items-center justify-between">
+            <div>
+              <p className="text-2xl font-bold">{stats?.bouncedToday ?? 0}</p>
+              <p className="text-xs text-muted-foreground">
+                Taux de rebond: {stats?.bounceRate ?? 0}%
+              </p>
+            </div>
+            <MailX className="h-5 w-5 text-red-600" />
+          </CardContent>
+        </Card>
+      </div>
+
       {stats && (
         <Card>
           <CardHeader>
@@ -136,6 +189,9 @@ export default function SendingPage() {
                 {isSending ? "Envoi en cours..." : "Envoyer un lot"}
               </Button>
             </div>
+            <p className="mt-3 text-xs text-muted-foreground">
+              Derniere mise a jour: {new Date(stats.updatedAt).toLocaleTimeString("fr-FR")}
+            </p>
           </CardContent>
         </Card>
       )}

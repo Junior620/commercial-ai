@@ -66,6 +66,7 @@ interface CampaignDetail {
   followUpDelayDays: number;
   dailyLimit: number;
   sentCount: number;
+  deliveredCount: number;
   openCount: number;
   replyCount: number;
   bounceCount: number;
@@ -105,6 +106,11 @@ export default function CampaignDetailPage({
 
   useEffect(() => {
     fetchCampaign();
+  }, [id]);
+
+  useEffect(() => {
+    const interval = setInterval(fetchCampaign, 8000);
+    return () => clearInterval(interval);
   }, [id]);
 
   const fetchCampaign = async () => {
@@ -315,9 +321,10 @@ export default function CampaignDetailPage({
         </div>
       </div>
 
-      <div className="grid grid-cols-4 gap-4">
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
         {[
           { label: "Envoyes", value: campaign.sentCount },
+          { label: "Livres", value: campaign.deliveredCount ?? 0 },
           { label: "Ouverts", value: campaign.openCount },
           { label: "Reponses", value: campaign.replyCount },
           { label: "Rebonds", value: campaign.bounceCount },
