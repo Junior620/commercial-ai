@@ -158,3 +158,49 @@ export function calculateLeadScore(input: ScoreInput): {
 
   return { score, grade, reasons };
 }
+
+const CLIENT_TYPE_RULES: { keywords: string[]; type: string }[] = [
+  { keywords: ["importer", "importateur", "import"], type: "importer" },
+  { keywords: ["distributor", "distributeur", "distribution"], type: "distributor" },
+  { keywords: ["manufacturer", "fabricant", "factory", "usine", "manufacturing", "processing"], type: "manufacturer" },
+  { keywords: ["trader", "trading", "negoce", "negociant"], type: "trader" },
+  { keywords: ["wholesaler", "grossiste", "wholesale", "bulk", "en gros"], type: "wholesaler" },
+  { keywords: ["retailer", "detaillant", "retail", "shop", "boutique", "store", "magasin"], type: "retailer" },
+];
+
+const PRODUCT_RULES: { keywords: string[]; product: string }[] = [
+  { keywords: ["cocoa beans", "feves de cacao", "cacao beans", "raw cocoa"], product: "cocoa_beans" },
+  { keywords: ["cocoa butter", "beurre de cacao", "cacao butter"], product: "cocoa_butter" },
+  { keywords: ["cocoa powder", "poudre de cacao", "cacao powder"], product: "cocoa_powder" },
+  { keywords: ["cocoa mass", "cocoa liquor", "masse de cacao", "pate de cacao"], product: "cocoa_mass" },
+  { keywords: ["cosmetic", "cosmetique", "beauty", "skin care", "skincare"], product: "cosmetics" },
+  { keywords: ["chocolate", "chocolat", "confectionery", "confiserie", "praline"], product: "food_chocolate" },
+];
+
+export function inferClientType(input: ScoreInput): string | null {
+  const text = [input.description, input.categoryName, input.title]
+    .filter(Boolean)
+    .join(" ")
+    .toLowerCase();
+
+  for (const rule of CLIENT_TYPE_RULES) {
+    if (rule.keywords.some((kw) => text.includes(kw))) {
+      return rule.type;
+    }
+  }
+  return null;
+}
+
+export function inferProduct(input: ScoreInput): string | null {
+  const text = [input.description, input.categoryName, input.title]
+    .filter(Boolean)
+    .join(" ")
+    .toLowerCase();
+
+  for (const rule of PRODUCT_RULES) {
+    if (rule.keywords.some((kw) => text.includes(kw))) {
+      return rule.product;
+    }
+  }
+  return null;
+}

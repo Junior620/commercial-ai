@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef } from "react";
+import { useState, useRef, useMemo, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -26,7 +26,17 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
+import {
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+  SheetDescription,
+  SheetFooter,
+} from "@/components/ui/sheet";
+import { Separator } from "@/components/ui/separator";
 import { Label } from "@/components/ui/label";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   Select,
   SelectContent,
@@ -34,7 +44,23 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Upload, Plus, Search, Download, Trash2, Pencil } from "lucide-react";
+import {
+  Upload,
+  Plus,
+  Search,
+  Download,
+  Trash2,
+  Pencil,
+  ExternalLink,
+  Globe,
+  Mail,
+  Phone,
+  Building2,
+  MapPin,
+  Star,
+  Tag,
+  User,
+} from "lucide-react";
 import { toast } from "sonner";
 import { PageTitle } from "@/components/layout/page-title";
 
@@ -54,6 +80,7 @@ interface Prospect {
   score: number;
   website: string | null;
   source: string | null;
+  notes: string | null;
 }
 
 const STATUS_COLORS: Record<string, string> = {
@@ -108,6 +135,10 @@ export function ProspectsClient({
     priority: "MEDIUM",
     status: "NEW",
   });
+  const [selectedProspect, setSelectedProspect] = useState<Prospect | null>(
+    null
+  );
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(() => new Set());
 
   const openEdit = (p: Prospect) => {
     setEditingId(p.id);
@@ -155,6 +186,9 @@ export function ProspectsClient({
       setProspects(
         prospects.map((x) => (x.id === editingId ? { ...x, ...updated } : x))
       );
+      if (selectedProspect?.id === editingId) {
+        setSelectedProspect({ ...selectedProspect, ...updated });
+      }
       setEditOpen(false);
       setEditingId(null);
       toast.success("Prospect mis a jour");
@@ -178,22 +212,112 @@ export function ProspectsClient({
         throw new Error(err.error || "Erreur");
       }
       setProspects(prospects.filter((x) => x.id !== p.id));
+      setSelectedIds((prev) => {
+        const next = new Set(prev);
+        next.delete(p.id);
+        return next;
+      });
       toast.success("Prospect supprime");
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Erreur");
     }
   };
 
-  const filtered = prospects.filter((p) => {
-    const matchSearch =
-      search === "" ||
-      p.company.toLowerCase().includes(search.toLowerCase()) ||
-      p.email.toLowerCase().includes(search.toLowerCase()) ||
-      (p.contact && p.contact.toLowerCase().includes(search.toLowerCase())) ||
-      p.country.toLowerCase().includes(search.toLowerCase());
-    const matchStatus = statusFilter === "all" || p.status === statusFilter;
-    return matchSearch && matchStatus;
-  });
+  const filtered = useMemo(
+    () =>
+      prospects.filter((p) => {
+        const matchSearch =
+          search === "" ||
+          p.company.toLowerCase().includes(search.toLowerCase()) ||
+          p.email.toLowerCase().includes(search.toLowerCase()) ||
+          (p.contact &&
+            p.contact.toLowerCase().includes(search.toLowerCase())) ||
+          p.country.toLowerCase().includes(search.toLowerCase());
+        const matchStatus =
+          statusFilter === "all" || p.status === statusFilter;
+        return matchSearch && matchStatus;
+      }),
+    [prospects, search, statusFilter]
+  );
+
+  useEffect(() => {
+    setSelectedIds((prev) => {
+      const next = new Set<string>();
+      for (const id of prev) {
+        if (prospects.some((p) => p.id === id)) next.add(id);
+      }
+      return next;
+    });
+  }, [prospects]);
+
+  const allVisibleSelected =
+    filtered.length > 0 && filtered.every((p) => selectedIds.has(p.id));
+  const someVisibleSelected = filtered.some((p) => selectedIds.has(p.id));
+
+  const toggleSelectAllVisible = () => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (allVisibleSelected) {
+        filtered.forEach((p) => next.delete(p.id));
+      } else {
+        filtered.forEach((p) => next.add(p.id));
+      }
+      return next;
+    });
+  };
+
+  const toggleSelectOne = (id: string, checked: boolean) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (checked) next.add(id);
+      else next.delete(id);
+      return next;
+    });
+  };
+
+  const handleExportSelected = () => {
+    const rows = prospects.filter((p) => selectedIds.has(p.id));
+    if (rows.length === 0) return;
+    downloadProspectsCsv(rows, "prospects_selection.csv");
+    toast.success(`${rows.length} ligne(s) exportee(s)`);
+  };
+
+  const handleBulkDelete = async () => {
+    const ids = [...selectedIds];
+    if (ids.length === 0) return;
+    if (
+      !confirm(
+        `Supprimer ${ids.length} prospect(s) ? Cette action est irreversible.`
+      )
+    ) {
+      return;
+    }
+    const deletedIds: string[] = [];
+    for (const id of ids) {
+      try {
+        const res = await fetch(`/api/prospects/${id}`, { method: "DELETE" });
+        if (res.ok) deletedIds.push(id);
+      } catch {
+        /* ignore */
+      }
+    }
+    if (deletedIds.length === 0) {
+      toast.error("Aucune suppression reussie");
+      return;
+    }
+    setProspects((prev) => prev.filter((p) => !deletedIds.includes(p.id)));
+    setSelectedIds(new Set());
+    if (selectedProspect && deletedIds.includes(selectedProspect.id)) {
+      setSelectedProspect(null);
+    }
+    toast.success(
+      `${deletedIds.length} prospect(s) supprime(s)${
+        deletedIds.length < ids.length
+          ? ` (${ids.length - deletedIds.length} echec(s))`
+          : ""
+      }`
+    );
+  };
 
   const handleAddProspect = async () => {
     try {
@@ -249,36 +373,8 @@ export function ProspectsClient({
   };
 
   const handleExportCSV = () => {
-    const headers = [
-      "company",
-      "contact",
-      "email",
-      "phone",
-      "country",
-      "sector",
-      "clientType",
-      "product",
-      "status",
-      "score",
-    ];
-    const csv = [
-      headers.join(","),
-      ...filtered.map((p) =>
-        headers
-          .map((h) => {
-            const val = p[h as keyof typeof p];
-            return `"${String(val ?? "").replace(/"/g, '""')}"`;
-          })
-          .join(",")
-      ),
-    ].join("\n");
-    const blob = new Blob([csv], { type: "text/csv" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = "prospects_export.csv";
-    a.click();
-    URL.revokeObjectURL(url);
+    downloadProspectsCsv(filtered, "prospects_export.csv");
+    toast.success("Export genere");
   };
 
   return (
@@ -735,7 +831,43 @@ export function ProspectsClient({
             </Select>
           </div>
         </CardHeader>
-        <CardContent>
+        <CardContent className="space-y-3">
+          {selectedIds.size > 0 && (
+            <div className="flex flex-wrap items-center gap-2 rounded-lg border bg-muted/40 px-3 py-2 text-sm">
+              <span className="font-medium tabular-nums">
+                {selectedIds.size} selectionne(s)
+              </span>
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                className="h-8"
+                onClick={() => setSelectedIds(new Set())}
+              >
+                Tout deselectionner
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="h-8 gap-1"
+                onClick={handleExportSelected}
+              >
+                <Download className="h-3.5 w-3.5" />
+                Exporter la selection
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="h-8 gap-1 border-destructive/40 text-destructive hover:bg-destructive/10"
+                onClick={handleBulkDelete}
+              >
+                <Trash2 className="h-3.5 w-3.5" />
+                Supprimer la selection
+              </Button>
+            </div>
+          )}
           {filtered.length === 0 ? (
             <div className="py-12 text-center text-muted-foreground">
               <p className="text-lg font-medium">Aucun prospect</p>
@@ -748,6 +880,24 @@ export function ProspectsClient({
               <Table>
                 <TableHeader>
                   <TableRow>
+                    <TableHead className="w-[40px] pr-0">
+                      <div
+                        className="flex items-center justify-center py-1"
+                        onClick={(e) => e.stopPropagation()}
+                        onKeyDown={(e) => e.stopPropagation()}
+                      >
+                        <Checkbox
+                          checked={allVisibleSelected}
+                          onCheckedChange={() => toggleSelectAllVisible()}
+                          aria-label="Selectionner tous les prospects visibles"
+                          title={
+                            someVisibleSelected && !allVisibleSelected
+                              ? "Selection partielle — cliquer pour tout selectionner"
+                              : undefined
+                          }
+                        />
+                      </div>
+                    </TableHead>
                     <TableHead>Entreprise</TableHead>
                     <TableHead>Contact</TableHead>
                     <TableHead>Email</TableHead>
@@ -761,7 +911,25 @@ export function ProspectsClient({
                 </TableHeader>
                 <TableBody>
                   {filtered.map((prospect) => (
-                    <TableRow key={prospect.id}>
+                    <TableRow
+                      key={prospect.id}
+                      className="cursor-pointer hover:bg-muted/50"
+                      onClick={() => setSelectedProspect(prospect)}
+                    >
+                      <TableCell
+                        className="w-[40px] pr-0 align-middle"
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        <div className="flex items-center justify-center py-1">
+                          <Checkbox
+                            checked={selectedIds.has(prospect.id)}
+                            onCheckedChange={(v) =>
+                              toggleSelectOne(prospect.id, v === true)
+                            }
+                            aria-label={`Selectionner ${prospect.company}`}
+                          />
+                        </div>
+                      </TableCell>
                       <TableCell className="font-medium">
                         {prospect.company}
                       </TableCell>
@@ -813,7 +981,10 @@ export function ProspectsClient({
                             variant="ghost"
                             size="icon-sm"
                             className="h-8 w-8"
-                            onClick={() => openEdit(prospect)}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              openEdit(prospect);
+                            }}
                             aria-label="Modifier"
                           >
                             <Pencil className="h-4 w-4" />
@@ -823,7 +994,10 @@ export function ProspectsClient({
                             variant="ghost"
                             size="icon-sm"
                             className="h-8 w-8 text-destructive hover:text-destructive"
-                            onClick={() => handleDeleteProspect(prospect)}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleDeleteProspect(prospect);
+                            }}
                             aria-label="Supprimer"
                           >
                             <Trash2 className="h-4 w-4" />
@@ -838,6 +1012,195 @@ export function ProspectsClient({
           )}
         </CardContent>
       </Card>
+
+      {/* Fiche detail prospect */}
+      <Sheet
+        open={selectedProspect !== null}
+        onOpenChange={(open) => {
+          if (!open) setSelectedProspect(null);
+        }}
+      >
+        <SheetContent side="right" className="sm:max-w-md overflow-y-auto">
+          {selectedProspect && (
+            <>
+              <SheetHeader>
+                <SheetTitle className="flex items-center gap-2 text-lg">
+                  <Building2 className="h-5 w-5 text-primary" />
+                  {selectedProspect.company}
+                </SheetTitle>
+                <SheetDescription className="flex items-center gap-2 mt-1">
+                  <Badge
+                    variant="secondary"
+                    className={STATUS_COLORS[selectedProspect.status] || ""}
+                  >
+                    {STATUS_LABELS[selectedProspect.status] ?? selectedProspect.status}
+                  </Badge>
+                  <Badge
+                    variant="secondary"
+                    className={PRIORITY_COLORS[selectedProspect.priority] || ""}
+                  >
+                    {PRIORITY_LABELS[selectedProspect.priority] ?? selectedProspect.priority}
+                  </Badge>
+                  <span
+                    className={`ml-auto text-sm font-semibold ${
+                      selectedProspect.score >= 60
+                        ? "text-green-600"
+                        : selectedProspect.score >= 30
+                          ? "text-yellow-600"
+                          : "text-gray-600"
+                    }`}
+                  >
+                    Score : {selectedProspect.score}
+                  </span>
+                </SheetDescription>
+              </SheetHeader>
+
+              <Separator />
+
+              <div className="space-y-4 px-4">
+                <DetailRow icon={User} label="Contact" value={selectedProspect.contact} />
+                <DetailRow icon={Mail} label="Email" value={selectedProspect.email} href={`mailto:${selectedProspect.email}`} />
+                <DetailRow icon={Phone} label="Telephone" value={selectedProspect.phone} href={selectedProspect.phone ? `tel:${selectedProspect.phone}` : undefined} />
+                <DetailRow icon={MapPin} label="Pays" value={selectedProspect.country} />
+                <DetailRow icon={Tag} label="Secteur" value={selectedProspect.sector} />
+                <DetailRow icon={Star} label="Type client" value={selectedProspect.clientType} />
+                <DetailRow icon={Tag} label="Produit" value={selectedProspect.product} />
+                <DetailRow icon={Globe} label="Site web" value={selectedProspect.website} href={selectedProspect.website ?? undefined} external />
+                <DetailRow icon={Tag} label="Source" value={selectedProspect.source} />
+                <DetailRow icon={Tag} label="Langue" value={LANG_LABELS[selectedProspect.language] ?? selectedProspect.language} />
+
+                {selectedProspect.notes && (
+                  <div className="rounded-md border bg-muted/30 p-3">
+                    <p className="text-xs font-medium text-muted-foreground mb-1">Notes</p>
+                    <p className="text-sm whitespace-pre-wrap">{selectedProspect.notes}</p>
+                  </div>
+                )}
+              </div>
+
+              <Separator />
+
+              <SheetFooter className="flex-row gap-2">
+                <Button
+                  variant="outline"
+                  className="flex-1 gap-2"
+                  onClick={() => {
+                    setSelectedProspect(null);
+                    openEdit(selectedProspect);
+                  }}
+                >
+                  <Pencil className="h-4 w-4" />
+                  Modifier
+                </Button>
+                <Button
+                  variant="outline"
+                  className="flex-1 gap-2 border-destructive/40 text-destructive hover:bg-destructive/10"
+                  onClick={() => {
+                    const p = selectedProspect;
+                    setSelectedProspect(null);
+                    handleDeleteProspect(p);
+                  }}
+                >
+                  <Trash2 className="h-4 w-4" />
+                  Supprimer
+                </Button>
+              </SheetFooter>
+            </>
+          )}
+        </SheetContent>
+      </Sheet>
+    </div>
+  );
+}
+
+const STATUS_LABELS: Record<string, string> = {
+  NEW: "Nouveau",
+  CONTACTED: "Contacte",
+  IN_DISCUSSION: "En discussion",
+  CONVERTED: "Converti",
+  COLD: "Froid",
+  UNSUBSCRIBED: "Desabonne",
+};
+
+const PRIORITY_LABELS: Record<string, string> = {
+  HIGH: "Haute",
+  MEDIUM: "Moyenne",
+  LOW: "Basse",
+};
+
+const LANG_LABELS: Record<string, string> = {
+  en: "Anglais",
+  fr: "Francais",
+  es: "Espagnol",
+  pt: "Portugais",
+  de: "Allemand",
+};
+
+function downloadProspectsCsv(rows: Prospect[], filename: string) {
+  const headers = [
+    "company",
+    "contact",
+    "email",
+    "phone",
+    "country",
+    "sector",
+    "clientType",
+    "product",
+    "status",
+    "score",
+  ] as const;
+  const csv = [
+    headers.join(","),
+    ...rows.map((p) =>
+      headers
+        .map((h) => {
+          const val = p[h as keyof Prospect];
+          return `"${String(val ?? "").replace(/"/g, '""')}"`;
+        })
+        .join(",")
+    ),
+  ].join("\n");
+  const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+function DetailRow({
+  icon: Icon,
+  label,
+  value,
+  href,
+  external,
+}: {
+  icon: React.ComponentType<{ className?: string }>;
+  label: string;
+  value: string | null | undefined;
+  href?: string;
+  external?: boolean;
+}) {
+  const display = value || "-";
+  return (
+    <div className="flex items-start gap-3">
+      <Icon className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" />
+      <div className="min-w-0 flex-1">
+        <p className="text-xs text-muted-foreground">{label}</p>
+        {href && value ? (
+          <a
+            href={href}
+            target={external ? "_blank" : undefined}
+            rel={external ? "noopener noreferrer" : undefined}
+            className="text-sm font-medium text-primary hover:underline inline-flex items-center gap-1"
+          >
+            {display}
+            {external && <ExternalLink className="h-3 w-3" />}
+          </a>
+        ) : (
+          <p className="text-sm font-medium">{display}</p>
+        )}
+      </div>
     </div>
   );
 }

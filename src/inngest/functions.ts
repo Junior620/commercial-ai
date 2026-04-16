@@ -131,6 +131,7 @@ export const sendPendingEmails = inngest.createFunction(
             to: email.prospect.email,
             subject: email.subject,
             html: emailBodyToHtml(email.body),
+            tags: [{ name: "app_email_id", value: email.id }],
           });
 
           await prisma.email.update({

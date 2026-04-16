@@ -33,7 +33,7 @@ export async function POST(
     } else {
       prospects = await prisma.prospect.findMany({
         where: { status: { in: ["NEW", "CONTACTED"] } },
-        take: 100,
+        take: 2000,
       });
     }
 
@@ -49,7 +49,7 @@ export async function POST(
 
     let generated = 0;
 
-    for (const prospect of prospects.slice(0, 50)) {
+    for (const prospect of prospects) {
       try {
         const emailContent = await generateEmail({
           prospectName: prospect.contact || prospect.company,

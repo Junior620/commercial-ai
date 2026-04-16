@@ -72,6 +72,7 @@ enum ScrapingJobStatus {
   RUNNING
   COMPLETED
   FAILED
+  CANCELLED
 }
 
 enum Tone {
@@ -256,6 +257,8 @@ model ScrapingJob {
   apifyRunId   String?
   resultsCount Int              @default(0)
   errorMessage String?
+  /// Etapes de progression (phase, %, detail, runs Apify) pour l UI
+  progress     Json?
   startedAt    DateTime?
   completedAt  DateTime?
   createdAt    DateTime         @default(now())

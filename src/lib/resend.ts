@@ -14,6 +14,8 @@ interface SendEmailParams {
   html: string;
   from?: string;
   replyTo?: string;
+  /** Tags Resend (ex. pour retrouver l email dans les webhooks si besoin) */
+  tags?: { name: string; value: string }[];
 }
 
 export async function sendEmail(params: SendEmailParams) {
@@ -32,6 +34,7 @@ export async function sendEmail(params: SendEmailParams) {
     subject: params.subject,
     html: params.html,
     replyTo: params.replyTo,
+    tags: params.tags,
   });
 
   if (error) {

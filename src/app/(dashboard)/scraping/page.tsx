@@ -21,7 +21,22 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Progress } from "@/components/ui/progress";
-import { Search, Play, Loader2, Download } from "lucide-react";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+} from "@/components/ui/dialog";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import { Search, Play, Loader2, Activity, StopCircle } from "lucide-react";
 import { toast } from "sonner";
 import { PageTitle } from "@/components/layout/page-title";
 
@@ -63,12 +78,44 @@ const PRODUCTS = [
   { id: "food/chocolate", label: "Alimentation/Chocolat" },
 ];
 
+interface ScrapingProgress {
+  phase: string;
+  percent: number;
+  detail?: string;
+  runs?: { runId: string; label: string }[];
+  updatedAt?: string;
+}
+
 interface ScrapingJob {
   id: string;
   status: string;
   resultsCount: number;
   createdAt: string;
   keywords: string[];
+  progress?: ScrapingProgress | null;
+  errorMessage?: string | null;
+}
+
+interface LiveRunRow {
+  runId: string;
+  label: string;
+  apifyStatus: string;
+}
+
+function labelApifyStatus(status: string): string {
+  const map: Record<string, string> = {
+    RUNNING: "En cours",
+    READY: "En file",
+    SUCCEEDED: "Termine",
+    FAILED: "Echec",
+    ABORTED: "Annule",
+    "TIMED-OUT": "Timeout",
+    NO_TOKEN: "Cle Apify absente",
+    ERROR: "Erreur API",
+    "?": "—",
+    "…": "—",
+  };
+  return map[status] ?? status;
 }
 
 export default function ScrapingPage() {
@@ -82,10 +129,46 @@ export default function ScrapingPage() {
   const [maxResults, setMaxResults] = useState("100");
   const [isRunning, setIsRunning] = useState(false);
   const [jobs, setJobs] = useState<ScrapingJob[]>([]);
+  const [progressJobId, setProgressJobId] = useState<string | null>(null);
+  const [liveDetail, setLiveDetail] = useState<{
+    job: ScrapingJob;
+    liveRuns: LiveRunRow[];
+  } | null>(null);
+  const [cancellingId, setCancellingId] = useState<string | null>(null);
 
   useEffect(() => {
     fetchJobs();
   }, []);
+
+  const hasRunningJob = jobs.some((j) => j.status === "RUNNING");
+
+  useEffect(() => {
+    if (!hasRunningJob) return;
+    const t = setInterval(() => {
+      fetchJobs();
+    }, 4000);
+    return () => clearInterval(t);
+  }, [hasRunningJob]);
+
+  useEffect(() => {
+    if (!progressJobId) {
+      setLiveDetail(null);
+      return;
+    }
+    async function tick() {
+      try {
+        const res = await fetch(`/api/scraping/${progressJobId}`);
+        if (res.ok) {
+          setLiveDetail(await res.json());
+        }
+      } catch {
+        // ignore
+      }
+    }
+    tick();
+    const iv = setInterval(tick, 3000);
+    return () => clearInterval(iv);
+  }, [progressJobId]);
 
   const fetchJobs = async () => {
     try {
@@ -96,6 +179,37 @@ export default function ScrapingPage() {
       }
     } catch {
       // ignore
+    }
+  };
+
+  const cancelScrapingJob = async (jobId: string) => {
+    setCancellingId(jobId);
+    try {
+      const res = await fetch(`/api/scraping/${jobId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "cancel" }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        toast.error(
+          typeof data.error === "string" ? data.error : "Annulation impossible"
+        );
+        return;
+      }
+      toast.success("Scraping annulé");
+      await fetchJobs();
+      if (progressJobId === jobId) {
+        setLiveDetail((prev) =>
+          prev && prev.job.id === jobId
+            ? { ...prev, job: { ...prev.job, ...data, status: "CANCELLED" } }
+            : prev
+        );
+      }
+    } catch {
+      toast.error("Erreur reseau");
+    } finally {
+      setCancellingId(null);
     }
   };
 
@@ -280,46 +394,251 @@ export default function ScrapingPage() {
               </div>
             ) : (
               <div className="space-y-3">
-                {jobs.map((job) => (
-                  <div
-                    key={job.id}
-                    className="flex items-center justify-between rounded-lg border p-3"
-                  >
-                    <div>
-                      <p className="text-sm font-medium">
-                        {Array.isArray(job.keywords)
-                          ? `${job.keywords.length} keywords`
-                          : "Scraping"}
-                      </p>
-                      <p className="text-xs text-muted-foreground">
-                        {new Date(job.createdAt).toLocaleString("fr-FR")}
-                      </p>
-                    </div>
-                    <div className="flex items-center gap-3">
-                      <span className="text-sm font-medium">
-                        {job.resultsCount} resultats
-                      </span>
-                      <Badge
-                        variant={
-                          job.status === "COMPLETED"
-                            ? "default"
-                            : job.status === "RUNNING"
-                              ? "secondary"
-                              : job.status === "FAILED"
-                                ? "destructive"
-                                : "outline"
+                {jobs.map((job) => {
+                  const showProgress =
+                    job.status === "RUNNING" ||
+                    job.progress != null ||
+                    job.status === "FAILED" ||
+                    job.status === "CANCELLED";
+                  return (
+                    <div
+                      key={job.id}
+                      role="button"
+                      tabIndex={0}
+                      onClick={() => showProgress && setProgressJobId(job.id)}
+                      onKeyDown={(e) => {
+                        if (
+                          showProgress &&
+                          (e.key === "Enter" || e.key === " ")
+                        ) {
+                          e.preventDefault();
+                          setProgressJobId(job.id);
                         }
-                      >
-                        {job.status}
-                      </Badge>
+                      }}
+                      className={`flex flex-col gap-2 rounded-lg border p-3 transition-colors sm:flex-row sm:items-center sm:justify-between ${
+                        showProgress
+                          ? "cursor-pointer hover:bg-muted/50"
+                          : ""
+                      }`}
+                    >
+                      <div className="min-w-0 flex-1">
+                        <p className="text-sm font-medium">
+                          {Array.isArray(job.keywords)
+                            ? `${job.keywords.length} keywords`
+                            : "Scraping"}
+                        </p>
+                        <p className="text-xs text-muted-foreground">
+                          {new Date(job.createdAt).toLocaleString("fr-FR")}
+                        </p>
+                        {job.status === "RUNNING" &&
+                          typeof job.progress?.percent === "number" && (
+                            <div className="mt-2 max-w-md">
+                              <Progress
+                                value={Math.min(100, job.progress.percent)}
+                                className="h-1.5"
+                              />
+                              <p className="mt-1 truncate text-xs text-muted-foreground">
+                                {job.progress.phase}
+                                {job.progress.detail
+                                  ? ` — ${job.progress.detail}`
+                                  : ""}
+                              </p>
+                            </div>
+                          )}
+                      </div>
+                      <div className="flex shrink-0 flex-wrap items-center gap-2 sm:gap-3">
+                        <span className="text-sm font-medium">
+                          {job.resultsCount} resultats
+                        </span>
+                        {showProgress && (
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            className="h-7 gap-1 text-xs text-muted-foreground"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setProgressJobId(job.id);
+                            }}
+                          >
+                            <Activity className="h-3.5 w-3.5" />
+                            Progression
+                          </Button>
+                        )}
+                        {job.status === "RUNNING" && (
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            className="h-7 gap-1 text-xs text-destructive border-destructive/40 hover:bg-destructive/10"
+                            disabled={cancellingId === job.id}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              cancelScrapingJob(job.id);
+                            }}
+                          >
+                            {cancellingId === job.id ? (
+                              <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                            ) : (
+                              <StopCircle className="h-3.5 w-3.5" />
+                            )}
+                            Annuler
+                          </Button>
+                        )}
+                        <Badge
+                          variant={
+                            job.status === "COMPLETED"
+                              ? "default"
+                              : job.status === "RUNNING"
+                                ? "secondary"
+                                : job.status === "FAILED"
+                                  ? "destructive"
+                                  : job.status === "CANCELLED"
+                                    ? "outline"
+                                    : "outline"
+                          }
+                          className={
+                            showProgress ? "cursor-pointer" : undefined
+                          }
+                          onClick={(e) => {
+                            if (showProgress) {
+                              e.stopPropagation();
+                              setProgressJobId(job.id);
+                            }
+                          }}
+                        >
+                          {job.status === "CANCELLED"
+                            ? "ANNULE"
+                            : job.status}
+                        </Badge>
+                      </div>
                     </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             )}
           </CardContent>
         </Card>
       </div>
+
+      <Dialog
+        open={progressJobId !== null}
+        onOpenChange={(open) => {
+          if (!open) setProgressJobId(null);
+        }}
+      >
+        <DialogContent className="max-h-[90vh] max-w-lg overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Activity className="h-5 w-5" />
+              Progression du scraping
+            </DialogTitle>
+            <DialogDescription>
+              Mise a jour automatique toutes les 3 secondes tant qu un job est
+              actif.
+            </DialogDescription>
+          </DialogHeader>
+          {liveDetail?.job ? (
+            <div className="space-y-4">
+              <div>
+                <p className="text-xs text-muted-foreground">Job</p>
+                <p className="font-mono text-xs break-all">{liveDetail.job.id}</p>
+              </div>
+              {typeof liveDetail.job.progress?.percent === "number" && (
+                <div className="space-y-2">
+                  <Progress
+                    value={Math.min(100, liveDetail.job.progress.percent)}
+                  />
+                  <div>
+                    <p className="text-sm font-medium">
+                      {liveDetail.job.progress.phase}
+                    </p>
+                    {liveDetail.job.progress.detail && (
+                      <p className="text-sm text-muted-foreground">
+                        {liveDetail.job.progress.detail}
+                      </p>
+                    )}
+                    {liveDetail.job.progress.updatedAt && (
+                      <p className="mt-1 text-xs text-muted-foreground">
+                        Dernier update :{" "}
+                        {new Date(
+                          liveDetail.job.progress.updatedAt
+                        ).toLocaleString("fr-FR")}
+                      </p>
+                    )}
+                  </div>
+                </div>
+              )}
+              {liveDetail.job.status === "CANCELLED" && (
+                <p className="rounded-md border border-muted bg-muted/40 p-3 text-sm text-muted-foreground">
+                  {liveDetail.job.progress?.detail ??
+                    "Ce scraping a ete arrete sur demande."}
+                </p>
+              )}
+              {liveDetail.job.status === "FAILED" &&
+                liveDetail.job.errorMessage && (
+                  <p className="rounded-md border border-destructive/40 bg-destructive/10 p-3 text-sm text-destructive">
+                    {liveDetail.job.errorMessage}
+                  </p>
+                )}
+              {liveDetail.job.status === "RUNNING" && (
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="w-full gap-2 border-destructive/40 text-destructive hover:bg-destructive/10"
+                  disabled={cancellingId === liveDetail.job.id}
+                  onClick={() => cancelScrapingJob(liveDetail.job.id)}
+                >
+                  {cancellingId === liveDetail.job.id ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <StopCircle className="h-4 w-4" />
+                  )}
+                  Annuler le scraping
+                </Button>
+              )}
+              {liveDetail.liveRuns.length > 0 && (
+                <div>
+                  <p className="mb-2 text-sm font-medium">
+                    Executions Apify par zone
+                  </p>
+                  <div className="rounded-md border">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Zone</TableHead>
+                          <TableHead className="text-right">Statut</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {liveDetail.liveRuns.map((r) => (
+                          <TableRow key={r.runId}>
+                            <TableCell className="text-sm">{r.label}</TableCell>
+                            <TableCell className="text-right text-sm">
+                              {labelApifyStatus(r.apifyStatus)}
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </div>
+                  <p className="mt-2 text-xs text-muted-foreground">
+                    RUNNING / READY = encore en cours cote Apify. Termine quand
+                    tout est en « Termine » (SUCCEEDED).
+                  </p>
+                </div>
+              )}
+              <p className="text-xs text-muted-foreground">
+                Resultats en base : {liveDetail.job.resultsCount} prospect(s)
+              </p>
+            </div>
+          ) : (
+            <div className="flex items-center justify-center py-8 text-muted-foreground">
+              <Loader2 className="h-6 w-6 animate-spin" />
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
