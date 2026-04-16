@@ -14,6 +14,7 @@ import { Plus, Mail, Play, Pause, Eye, Pencil, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import Link from "next/link";
 import { PageTitle } from "@/components/layout/page-title";
+import { ListPagination } from "@/components/shared/list-pagination";
 
 interface Campaign {
   id: string;
@@ -38,6 +39,8 @@ const STATUS_COLORS: Record<string, string> = {
 
 export default function CampaignsPage() {
   const [campaigns, setCampaigns] = useState<Campaign[]>([]);
+  const [page, setPage] = useState(1);
+  const PAGE_SIZE = 9;
 
   useEffect(() => {
     fetchCampaigns();
@@ -87,6 +90,13 @@ export default function CampaignsPage() {
     }
   };
 
+  const totalPages = Math.max(1, Math.ceil(campaigns.length / PAGE_SIZE));
+  const safePage = Math.min(page, totalPages);
+  const paginatedCampaigns = campaigns.slice(
+    (safePage - 1) * PAGE_SIZE,
+    safePage * PAGE_SIZE
+  );
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between gap-4">
@@ -114,9 +124,10 @@ export default function CampaignsPage() {
           </CardContent>
         </Card>
       ) : (
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-          {campaigns.map((campaign) => (
-            <Card key={campaign.id}>
+        <div className="space-y-3">
+          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+          {paginatedCampaigns.map((campaign) => (
+            <Card key={campaign.id} className="border-border/70 transition-colors hover:border-border">
               <CardHeader>
                 <div className="flex items-center justify-between">
                   <CardTitle className="text-lg">{campaign.name}</CardTitle>
@@ -188,6 +199,14 @@ export default function CampaignsPage() {
               </CardContent>
             </Card>
           ))}
+          </div>
+          <ListPagination
+            page={safePage}
+            totalPages={totalPages}
+            totalItems={campaigns.length}
+            itemLabel="campagnes"
+            onPageChange={setPage}
+          />
         </div>
       )}
     </div>

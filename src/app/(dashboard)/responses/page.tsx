@@ -27,6 +27,7 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { PageTitle } from "@/components/layout/page-title";
+import { ListPagination } from "@/components/shared/list-pagination";
 
 interface ResponseItem {
   id: string;
@@ -62,6 +63,8 @@ const CLASS_LABELS: Record<string, string> = {
 
 export default function ResponsesPage() {
   const [responses, setResponses] = useState<ResponseItem[]>([]);
+  const [page, setPage] = useState(1);
+  const PAGE_SIZE = 20;
 
   useEffect(() => {
     fetch("/api/responses")
@@ -69,6 +72,13 @@ export default function ResponsesPage() {
       .then(setResponses)
       .catch(() => {});
   }, []);
+
+  const totalPages = Math.max(1, Math.ceil(responses.length / PAGE_SIZE));
+  const safePage = Math.min(page, totalPages);
+  const paginatedResponses = responses.slice(
+    (safePage - 1) * PAGE_SIZE,
+    safePage * PAGE_SIZE
+  );
 
   return (
     <div className="space-y-6">
@@ -107,8 +117,9 @@ export default function ResponsesPage() {
               <p>Aucune reponse recue pour le moment</p>
             </div>
           ) : (
-            <div className="rounded-md border">
-              <Table>
+            <div className="space-y-3">
+              <div className="overflow-x-auto rounded-md border">
+                <Table className="min-w-[980px]">
                 <TableHeader>
                   <TableRow>
                     <TableHead>Prospect</TableHead>
@@ -119,8 +130,11 @@ export default function ResponsesPage() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {responses.map((resp) => (
-                    <TableRow key={resp.id}>
+                  {paginatedResponses.map((resp) => (
+                    <TableRow
+                      key={resp.id}
+                      className="odd:bg-muted/20 hover:bg-muted/50 transition-colors"
+                    >
                       <TableCell>
                         <div>
                           <p className="font-medium">
@@ -187,7 +201,15 @@ export default function ResponsesPage() {
                     </TableRow>
                   ))}
                 </TableBody>
-              </Table>
+                </Table>
+              </div>
+              <ListPagination
+                page={safePage}
+                totalPages={totalPages}
+                totalItems={responses.length}
+                itemLabel="reponses"
+                onPageChange={setPage}
+              />
             </div>
           )}
         </CardContent>

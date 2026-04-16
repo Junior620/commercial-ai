@@ -63,6 +63,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { PageTitle } from "@/components/layout/page-title";
+import { ListPagination } from "@/components/shared/list-pagination";
 
 interface Prospect {
   id: string;
@@ -139,6 +140,8 @@ export function ProspectsClient({
     null
   );
   const [selectedIds, setSelectedIds] = useState<Set<string>>(() => new Set());
+  const [page, setPage] = useState(1);
+  const PAGE_SIZE = 25;
 
   const openEdit = (p: Prospect) => {
     setEditingId(p.id);
@@ -240,6 +243,13 @@ export function ProspectsClient({
     [prospects, search, statusFilter]
   );
 
+  const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
+  const safePage = Math.min(page, totalPages);
+  const paginatedProspects = filtered.slice(
+    (safePage - 1) * PAGE_SIZE,
+    safePage * PAGE_SIZE
+  );
+
   useEffect(() => {
     setSelectedIds((prev) => {
       const next = new Set<string>();
@@ -250,17 +260,24 @@ export function ProspectsClient({
     });
   }, [prospects]);
 
+  useEffect(() => {
+    setPage(1);
+  }, [search, statusFilter]);
+
   const allVisibleSelected =
-    filtered.length > 0 && filtered.every((p) => selectedIds.has(p.id));
-  const someVisibleSelected = filtered.some((p) => selectedIds.has(p.id));
+    paginatedProspects.length > 0 &&
+    paginatedProspects.every((p) => selectedIds.has(p.id));
+  const someVisibleSelected = paginatedProspects.some((p) =>
+    selectedIds.has(p.id)
+  );
 
   const toggleSelectAllVisible = () => {
     setSelectedIds((prev) => {
       const next = new Set(prev);
       if (allVisibleSelected) {
-        filtered.forEach((p) => next.delete(p.id));
+        paginatedProspects.forEach((p) => next.delete(p.id));
       } else {
-        filtered.forEach((p) => next.add(p.id));
+        paginatedProspects.forEach((p) => next.add(p.id));
       }
       return next;
     });
@@ -876,8 +893,9 @@ export function ProspectsClient({
               </p>
             </div>
           ) : (
-            <div className="rounded-md border">
-              <Table>
+            <div className="space-y-3">
+              <div className="overflow-x-auto rounded-md border">
+                <Table className="min-w-[1120px]">
                 <TableHeader>
                   <TableRow>
                     <TableHead className="w-[40px] pr-0">
@@ -910,10 +928,10 @@ export function ProspectsClient({
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {filtered.map((prospect) => (
+                  {paginatedProspects.map((prospect) => (
                     <TableRow
                       key={prospect.id}
-                      className="cursor-pointer hover:bg-muted/50"
+                      className="cursor-pointer odd:bg-muted/20 hover:bg-muted/60 transition-colors"
                       onClick={() => setSelectedProspect(prospect)}
                     >
                       <TableCell
@@ -1007,7 +1025,15 @@ export function ProspectsClient({
                     </TableRow>
                   ))}
                 </TableBody>
-              </Table>
+                </Table>
+              </div>
+              <ListPagination
+                page={safePage}
+                totalPages={totalPages}
+                totalItems={filtered.length}
+                itemLabel="prospects"
+                onPageChange={setPage}
+              />
             </div>
           )}
         </CardContent>

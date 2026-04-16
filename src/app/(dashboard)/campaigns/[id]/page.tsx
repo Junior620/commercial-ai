@@ -53,6 +53,7 @@ import {
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import { ListPagination } from "@/components/shared/list-pagination";
 
 interface CampaignDetail {
   id: string;
@@ -99,6 +100,8 @@ export default function CampaignDetailPage({
   const [editSubject, setEditSubject] = useState("");
   const [editBody, setEditBody] = useState("");
   const [savingEmail, setSavingEmail] = useState(false);
+  const [emailPage, setEmailPage] = useState(1);
+  const EMAILS_PER_PAGE = 20;
 
   useEffect(() => {
     fetchCampaign();
@@ -248,6 +251,15 @@ export default function CampaignDetailPage({
     REPLIED: "bg-emerald-100 text-emerald-800",
     FAILED: "bg-red-100 text-red-800",
   };
+  const totalEmailPages = Math.max(
+    1,
+    Math.ceil(campaign.emails.length / EMAILS_PER_PAGE)
+  );
+  const safeEmailPage = Math.min(emailPage, totalEmailPages);
+  const paginatedEmails = campaign.emails.slice(
+    (safeEmailPage - 1) * EMAILS_PER_PAGE,
+    safeEmailPage * EMAILS_PER_PAGE
+  );
 
   return (
     <div className="space-y-6">
@@ -330,8 +342,9 @@ export default function CampaignDetailPage({
               Aucun email genere. Cliquez sur &quot;Generer emails IA&quot; pour commencer.
             </div>
           ) : (
-            <div className="rounded-md border">
-              <Table>
+            <div className="space-y-3">
+              <div className="overflow-x-auto rounded-md border">
+                <Table className="min-w-[980px]">
                 <TableHeader>
                   <TableRow>
                     <TableHead>Prospect</TableHead>
@@ -343,8 +356,11 @@ export default function CampaignDetailPage({
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {campaign.emails.map((email) => (
-                    <TableRow key={email.id}>
+                  {paginatedEmails.map((email) => (
+                    <TableRow
+                      key={email.id}
+                      className="odd:bg-muted/20 hover:bg-muted/50 transition-colors"
+                    >
                       <TableCell>
                         <div>
                           <p className="font-medium">
@@ -417,7 +433,15 @@ export default function CampaignDetailPage({
                     </TableRow>
                   ))}
                 </TableBody>
-              </Table>
+                </Table>
+              </div>
+              <ListPagination
+                page={safeEmailPage}
+                totalPages={totalEmailPages}
+                totalItems={campaign.emails.length}
+                itemLabel="emails"
+                onPageChange={setEmailPage}
+              />
             </div>
           )}
         </CardContent>

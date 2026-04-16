@@ -30,6 +30,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Plus, Layers, Users } from "lucide-react";
 import { toast } from "sonner";
 import { PageTitle } from "@/components/layout/page-title";
+import { ListPagination } from "@/components/shared/list-pagination";
 
 interface Segment {
   id: string;
@@ -69,6 +70,8 @@ const PREDEFINED_SEGMENTS = [
 
 export default function SegmentsPage() {
   const [segments, setSegments] = useState<Segment[]>([]);
+  const [page, setPage] = useState(1);
+  const PAGE_SIZE = 9;
   const [addOpen, setAddOpen] = useState(false);
   const [formData, setFormData] = useState({
     name: "",
@@ -151,6 +154,13 @@ export default function SegmentsPage() {
       toast.error("Erreur");
     }
   };
+
+  const totalPages = Math.max(1, Math.ceil(segments.length / PAGE_SIZE));
+  const safePage = Math.min(page, totalPages);
+  const paginatedSegments = segments.slice(
+    (safePage - 1) * PAGE_SIZE,
+    safePage * PAGE_SIZE
+  );
 
   return (
     <div className="space-y-6">
@@ -281,9 +291,10 @@ export default function SegmentsPage() {
         </CardContent>
       </Card>
 
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-        {segments.map((segment) => (
-          <Card key={segment.id}>
+      <div className="space-y-3">
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+        {paginatedSegments.map((segment) => (
+          <Card key={segment.id} className="border-border/70 transition-colors hover:border-border">
             <CardHeader>
               <div className="flex items-center justify-between">
                 <CardTitle className="text-lg">{segment.name}</CardTitle>
@@ -312,6 +323,16 @@ export default function SegmentsPage() {
             <Layers className="mx-auto h-8 w-8 mb-2 opacity-50" />
             <p>Aucun segment cree</p>
           </div>
+        )}
+        </div>
+        {segments.length > 0 && (
+          <ListPagination
+            page={safePage}
+            totalPages={totalPages}
+            totalItems={segments.length}
+            itemLabel="segments"
+            onPageChange={setPage}
+          />
         )}
       </div>
     </div>
