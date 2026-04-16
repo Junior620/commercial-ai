@@ -66,6 +66,10 @@ function buildSignatureHtml(): string {
   const phone = process.env.SENDER_PHONE?.trim() || "";
   const website = process.env.SENDER_WEBSITE?.trim() || "";
   const email = process.env.RESEND_FROM_EMAIL?.trim() || "";
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL?.trim().replace(/\/+$/, "") || "";
+  const logoUrl =
+    process.env.SENDER_LOGO_URL?.trim() ||
+    (appUrl ? `${appUrl}/logo.png` : "");
 
   if (!name && !company) return "";
 
@@ -108,6 +112,19 @@ function buildSignatureHtml(): string {
   return `
     <table cellpadding="0" cellspacing="0" border="0" style="margin-top:28px;border-top:2px solid #2563eb;padding-top:16px;">
       <tr>
+        ${
+          logoUrl
+            ? `<td style="vertical-align:top;padding-right:14px;">
+          <img
+            src="${escapeHtml(logoUrl)}"
+            alt="${escapeHtml(company || "Company logo")}"
+            width="52"
+            height="52"
+            style="display:block;width:52px;height:52px;object-fit:contain;border-radius:8px;background:#fff;"
+          />
+        </td>`
+            : ""
+        }
         <td style="vertical-align:top;padding-right:16px;">
           <div style="width:4px;height:60px;background:#2563eb;border-radius:2px;"></div>
         </td>

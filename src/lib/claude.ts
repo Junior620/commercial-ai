@@ -155,6 +155,37 @@ function parseJson<T>(raw: string): T {
   return JSON.parse(match[0]) as T;
 }
 
+function sanitizeGeneratedBody(body: string): string {
+  // Supprime les placeholders type [Your Name], [Your Company], etc.
+  let cleaned = body
+    .replace(/\[?\s*your\s*name\s*\]?/gi, "")
+    .replace(/\[?\s*your\s*company\s*\]?/gi, "")
+    .replace(/\[?\s*your\s*email\s*\]?/gi, "")
+    .replace(/\[?\s*your\s*phone(?:\s*number)?\s*\]?/gi, "")
+    .replace(/\[?\s*company\s*name\s*\]?/gi, "")
+    .replace(/\[?\s*email\s*address\s*\]?/gi, "")
+    .replace(/\[?\s*phone\s*number\s*\]?/gi, "");
+
+  // Supprime les signatures textuelles car la signature HTML est ajoutee automatiquement.
+  cleaned = cleaned.replace(
+    /\b(?:kind regards|best regards|regards|cordialement|sincerely)\b[\s\S]*$/i,
+    ""
+  );
+
+  // Nettoyage des lignes vides multiples.
+  cleaned = cleaned
+    .split("\n")
+    .map((line) => line.trimEnd())
+    .filter((line, idx, arr) => {
+      if (line.trim() !== "") return true;
+      return idx > 0 && arr[idx - 1].trim() !== "";
+    })
+    .join("\n")
+    .trim();
+
+  return cleaned;
+}
+
 // ─── Public API ──────────────────────────────────────────────────
 
 export async function generateEmail(
@@ -207,7 +238,11 @@ FORMAT DE REPONSE (JSON uniquement) :
 }`;
 
   const raw = await runLLM(prompt);
-  return parseJson<GeneratedEmail>(raw);
+  const parsed = parseJson<GeneratedEmail>(raw);
+  return {
+    subject: parsed.subject?.trim() || "",
+    body: sanitizeGeneratedBody(parsed.body || ""),
+  };
 }
 
 export async function generateFollowUp(
@@ -248,7 +283,11 @@ FORMAT DE REPONSE (JSON uniquement) :
 }`;
 
   const raw = await runLLM(prompt);
-  return parseJson<GeneratedEmail>(raw);
+  const parsed = parseJson<GeneratedEmail>(raw);
+  return {
+    subject: parsed.subject?.trim() || "",
+    body: sanitizeGeneratedBody(parsed.body || ""),
+  };
 }
 
 export async function classifyResponse(
