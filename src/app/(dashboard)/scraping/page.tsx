@@ -230,8 +230,15 @@ export default function ScrapingPage() {
           maxResults: parseInt(maxResults),
         }),
       });
-      if (!res.ok) throw new Error("Erreur de lancement");
-      const job = await res.json();
+      const payload = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        throw new Error(
+          typeof payload.error === "string"
+            ? payload.error
+            : "Erreur de lancement"
+        );
+      }
+      const job = payload;
       toast.success(`Scraping lance ! Job ID: ${job.id}`);
       setJobs([job, ...jobs]);
     } catch (err) {

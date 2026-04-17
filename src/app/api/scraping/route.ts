@@ -21,6 +21,17 @@ import Papa from "papaparse";
 import { readFileSync } from "fs";
 import { join } from "path";
 
+/** Sous-categories CSV alignees sur les ids du select « Produit » (scraping). */
+const CSV_PRODUCT_SUBCATEGORIES = new Set([
+  "cocoa beans",
+  "cocoa butter",
+  "cocoa powder",
+  "cocoa mass/liquor",
+  "derivatives",
+  "cosmetics",
+  "food/chocolate",
+]);
+
 type ProgressRun = { runId: string; label: string };
 
 type ProgressPayload = {
@@ -151,7 +162,13 @@ export async function POST(req: NextRequest) {
         if (categories && categories.length > 0) {
           if (!categories.includes(row.category)) continue;
         }
-        if (product && row.subcategory !== product) continue;
+        if (
+          product &&
+          CSV_PRODUCT_SUBCATEGORIES.has(row.subcategory) &&
+          row.subcategory !== product
+        ) {
+          continue;
+        }
         if (countries && countries.length > 0) {
           if (row.geo_scope === "country" && !countries.includes(row.country))
             continue;
@@ -162,7 +179,23 @@ export async function POST(req: NextRequest) {
       // CSV not found
     }
 
-    keywords = [...new Set(keywords)].slice(0, 50);
+    keywords = [
+      ...new Set(
+        keywords
+          .map((k) => (typeof k === "string" ? k.trim() : ""))
+          .filter(Boolean)
+      ),
+    ].slice(0, 50);
+
+    if (keywords.length === 0) {
+      return NextResponse.json(
+        {
+          error:
+            "Aucun mot-cle ne correspond aux filtres (categories, produit, pays), ou le fichier data/cocoa_keywords_scraping.csv est absent. Assouplissez les filtres ou ajoutez des mots-cles personnalises (un par ligne).",
+        },
+        { status: 400 }
+      );
+    }
 
     const job = await prisma.scrapingJob.create({
       data: {

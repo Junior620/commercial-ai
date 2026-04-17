@@ -46,7 +46,14 @@ export interface ScrapedPlace {
 export async function scrapeGoogleMaps(
   params: GoogleMapsSearchParams
 ): Promise<{ runId: string }> {
-  const searchQueries = params.keywords.map((keyword) =>
+  const cleaned = params.keywords.map((k) => k.trim()).filter(Boolean);
+  if (cleaned.length === 0) {
+    throw new Error(
+      "Aucun mot-cle pour Google Maps : la liste est vide apres filtrage."
+    );
+  }
+
+  const searchQueries = cleaned.map((keyword) =>
     params.country ? `${keyword} in ${params.country}` : keyword
   );
 
