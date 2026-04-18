@@ -6,7 +6,7 @@ export default async function ProspectsPage() {
   try {
     prospects = await prisma.prospect.findMany({
       orderBy: { createdAt: "desc" },
-      take: 100,
+      take: 2000,
     });
   } catch {
     prospects = [];

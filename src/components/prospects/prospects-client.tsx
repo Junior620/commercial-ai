@@ -60,6 +60,11 @@ import {
   Star,
   Tag,
   User,
+  ArrowUpDown,
+  ArrowUp,
+  ArrowDown,
+  FilterX,
+  Users,
 } from "lucide-react";
 import { toast } from "sonner";
 import { PageTitle } from "@/components/layout/page-title";
@@ -82,6 +87,7 @@ interface Prospect {
   website: string | null;
   source: string | null;
   notes: string | null;
+  createdAt?: string;
 }
 
 const STATUS_COLORS: Record<string, string> = {
@@ -107,6 +113,15 @@ export function ProspectsClient({
   const [prospects, setProspects] = useState(initialProspects);
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
+  const [countryFilter, setCountryFilter] = useState("all");
+  const [priorityFilter, setPriorityFilter] = useState("all");
+  const [sectorFilter, setSectorFilter] = useState("all");
+  const [minScoreFilter, setMinScoreFilter] = useState("all");
+  const [sortKey, setSortKey] = useState<
+    "createdAt" | "company" | "score" | "country" | "status"
+  >("createdAt");
+  const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
+  const [bulkStatus, setBulkStatus] = useState<string>("CONTACTED");
   const [addOpen, setAddOpen] = useState(false);
   const [editOpen, setEditOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -226,29 +241,181 @@ export function ProspectsClient({
     }
   };
 
+  const countryOptions = useMemo(() => {
+    const set = new Set(prospects.map((p) => p.country).filter(Boolean));
+    return [...set].sort((a, b) => a.localeCompare(b));
+  }, [prospects]);
+
+  const sectorOptions = useMemo(() => {
+    const set = new Set(
+      prospects.map((p) => p.sector).filter((s): s is string => !!s && s.trim() !== "")
+    );
+    return [...set].sort((a, b) => a.localeCompare(b));
+  }, [prospects]);
+
   const filtered = useMemo(
     () =>
       prospects.filter((p) => {
+        const q = search.toLowerCase();
         const matchSearch =
           search === "" ||
-          p.company.toLowerCase().includes(search.toLowerCase()) ||
-          p.email.toLowerCase().includes(search.toLowerCase()) ||
-          (p.contact &&
-            p.contact.toLowerCase().includes(search.toLowerCase())) ||
-          p.country.toLowerCase().includes(search.toLowerCase());
+          p.company.toLowerCase().includes(q) ||
+          p.email.toLowerCase().includes(q) ||
+          (p.contact && p.contact.toLowerCase().includes(q)) ||
+          p.country.toLowerCase().includes(q) ||
+          (p.sector && p.sector.toLowerCase().includes(q)) ||
+          (p.clientType && p.clientType.toLowerCase().includes(q));
         const matchStatus =
           statusFilter === "all" || p.status === statusFilter;
-        return matchSearch && matchStatus;
+        const matchCountry =
+          countryFilter === "all" || p.country === countryFilter;
+        const matchPriority =
+          priorityFilter === "all" || p.priority === priorityFilter;
+        const matchSector =
+          sectorFilter === "all" || (p.sector ?? "") === sectorFilter;
+        const matchScore =
+          minScoreFilter === "all" ||
+          p.score >= parseInt(minScoreFilter, 10);
+        return (
+          matchSearch &&
+          matchStatus &&
+          matchCountry &&
+          matchPriority &&
+          matchSector &&
+          matchScore
+        );
       }),
-    [prospects, search, statusFilter]
+    [
+      prospects,
+      search,
+      statusFilter,
+      countryFilter,
+      priorityFilter,
+      sectorFilter,
+      minScoreFilter,
+    ]
   );
 
-  const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
+  const sortedProspects = useMemo(() => {
+    const arr = [...filtered];
+    const dir = sortDir === "asc" ? 1 : -1;
+    arr.sort((a, b) => {
+      let cmp = 0;
+      switch (sortKey) {
+        case "company":
+          cmp = a.company.localeCompare(b.company, "fr");
+          break;
+        case "country":
+          cmp = a.country.localeCompare(b.country, "fr");
+          break;
+        case "status":
+          cmp = a.status.localeCompare(b.status);
+          break;
+        case "score":
+          cmp = a.score - b.score;
+          break;
+        case "createdAt":
+        default: {
+          const ta = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+          const tb = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+          cmp = ta - tb;
+          break;
+        }
+      }
+      return cmp * dir;
+    });
+    return arr;
+  }, [filtered, sortKey, sortDir]);
+
+  const totalPages = Math.max(1, Math.ceil(sortedProspects.length / PAGE_SIZE));
   const safePage = Math.min(page, totalPages);
-  const paginatedProspects = filtered.slice(
+  const paginatedProspects = sortedProspects.slice(
     (safePage - 1) * PAGE_SIZE,
     safePage * PAGE_SIZE
   );
+
+  const toggleSort = (key: typeof sortKey) => {
+    if (sortKey === key) {
+      setSortDir((d) => (d === "asc" ? "desc" : "asc"));
+    } else {
+      setSortKey(key);
+      setSortDir(key === "company" || key === "country" || key === "status" ? "asc" : "desc");
+    }
+  };
+
+  const SortHead = ({
+    label,
+    colKey,
+    className,
+  }: {
+    label: string;
+    colKey: typeof sortKey;
+    className?: string;
+  }) => (
+    <TableHead className={className}>
+      <button
+        type="button"
+        className="inline-flex items-center gap-1 font-semibold text-foreground hover:text-primary"
+        onClick={() => toggleSort(colKey)}
+      >
+        {label}
+        {sortKey === colKey ? (
+          sortDir === "asc" ? (
+            <ArrowUp className="h-3.5 w-3.5 opacity-70" />
+          ) : (
+            <ArrowDown className="h-3.5 w-3.5 opacity-70" />
+          )
+        ) : (
+          <ArrowUpDown className="h-3.5 w-3.5 opacity-40" />
+        )}
+      </button>
+    </TableHead>
+  );
+
+  const resetFilters = () => {
+    setSearch("");
+    setStatusFilter("all");
+    setCountryFilter("all");
+    setPriorityFilter("all");
+    setSectorFilter("all");
+    setMinScoreFilter("all");
+  };
+
+  const selectAllFiltered = () => {
+    setSelectedIds(new Set(sortedProspects.map((p) => p.id)));
+    toast.success(`${sortedProspects.length} prospect(s) selectionne(s)`);
+  };
+
+  const handleBulkStatusApply = async () => {
+    const ids = [...selectedIds];
+    if (ids.length === 0) return;
+    let ok = 0;
+    for (const id of ids) {
+      try {
+        const res = await fetch(`/api/prospects/${id}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ status: bulkStatus }),
+        });
+        if (res.ok) ok++;
+      } catch {
+        /* ignore */
+      }
+    }
+    if (ok === 0) {
+      toast.error("Aucune mise a jour reussie");
+      return;
+    }
+    setProspects((prev) =>
+      prev.map((p) =>
+        selectedIds.has(p.id) ? { ...p, status: bulkStatus } : p
+      )
+    );
+    if (selectedProspect && selectedIds.has(selectedProspect.id)) {
+      setSelectedProspect({ ...selectedProspect, status: bulkStatus });
+    }
+    toast.success(`Statut mis a jour pour ${ok} prospect(s)`);
+  };
 
   useEffect(() => {
     setSelectedIds((prev) => {
@@ -262,7 +429,14 @@ export function ProspectsClient({
 
   useEffect(() => {
     setPage(1);
-  }, [search, statusFilter]);
+  }, [
+    search,
+    statusFilter,
+    countryFilter,
+    priorityFilter,
+    sectorFilter,
+    minScoreFilter,
+  ]);
 
   const allVisibleSelected =
     paginatedProspects.length > 0 &&
@@ -390,7 +564,7 @@ export function ProspectsClient({
   };
 
   const handleExportCSV = () => {
-    downloadProspectsCsv(filtered, "prospects_export.csv");
+    downloadProspectsCsv(sortedProspects, "prospects_export.csv");
     toast.success("Export genere");
   };
 
@@ -399,8 +573,12 @@ export function ProspectsClient({
       <div className="flex items-center justify-between gap-4">
         <PageTitle
           title="Prospects"
-          description={`${prospects.length} prospects au total`}
-          icon={Search}
+          description={`${prospects.length} en base${
+            filtered.length !== prospects.length
+              ? ` · ${filtered.length} apres filtres`
+              : ""
+          }`}
+          icon={Users}
         />
         <div className="flex gap-2">
           <input
@@ -818,24 +996,36 @@ export function ProspectsClient({
         </div>
       </div>
 
-      <Card>
-        <CardHeader>
-          <div className="flex items-center gap-4">
-            <div className="relative flex-1">
+      <Card className="overflow-hidden border-border/80 shadow-sm">
+        <CardHeader className="space-y-4 bg-muted/30 pb-4">
+          <div className="flex flex-col gap-3 lg:flex-row lg:items-center">
+            <div className="relative min-w-0 flex-1">
               <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
               <Input
-                placeholder="Rechercher par entreprise, email, contact, pays..."
+                placeholder="Entreprise, email, contact, pays, secteur, type client..."
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
-                className="pl-9"
+                className="h-10 pl-9"
               />
             </div>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="shrink-0 gap-1"
+              onClick={resetFilters}
+            >
+              <FilterX className="h-4 w-4" />
+              Reinitialiser filtres
+            </Button>
+          </div>
+          <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
             <Select
               value={statusFilter}
               onValueChange={(v) => setStatusFilter(v ?? "all")}
             >
-              <SelectTrigger className="w-48">
-                <SelectValue placeholder="Filtrer par statut" />
+              <SelectTrigger className="h-9">
+                <SelectValue placeholder="Statut" />
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">Tous les statuts</SelectItem>
@@ -844,45 +1034,165 @@ export function ProspectsClient({
                 <SelectItem value="IN_DISCUSSION">En discussion</SelectItem>
                 <SelectItem value="CONVERTED">Converti</SelectItem>
                 <SelectItem value="COLD">Froid</SelectItem>
+                <SelectItem value="UNSUBSCRIBED">Desabonne</SelectItem>
+              </SelectContent>
+            </Select>
+            <Select
+              value={countryFilter}
+              onValueChange={(v) => setCountryFilter(v ?? "all")}
+            >
+              <SelectTrigger className="h-9">
+                <SelectValue placeholder="Pays" />
+              </SelectTrigger>
+              <SelectContent className="max-h-56">
+                <SelectItem value="all">Tous les pays</SelectItem>
+                {countryOptions.map((c) => (
+                  <SelectItem key={c} value={c}>
+                    {c}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <Select
+              value={priorityFilter}
+              onValueChange={(v) => setPriorityFilter(v ?? "all")}
+            >
+              <SelectTrigger className="h-9">
+                <SelectValue placeholder="Priorite" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Toutes priorites</SelectItem>
+                <SelectItem value="HIGH">Haute</SelectItem>
+                <SelectItem value="MEDIUM">Moyenne</SelectItem>
+                <SelectItem value="LOW">Basse</SelectItem>
+              </SelectContent>
+            </Select>
+            <Select
+              value={sectorFilter}
+              onValueChange={(v) => setSectorFilter(v ?? "all")}
+            >
+              <SelectTrigger className="h-9">
+                <SelectValue placeholder="Secteur" />
+              </SelectTrigger>
+              <SelectContent className="max-h-56">
+                <SelectItem value="all">Tous secteurs</SelectItem>
+                {sectorOptions.map((s) => (
+                  <SelectItem key={s} value={s}>
+                    {s}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <Select
+              value={minScoreFilter}
+              onValueChange={(v) => setMinScoreFilter(v ?? "all")}
+            >
+              <SelectTrigger className="h-9">
+                <SelectValue placeholder="Score min." />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Tous les scores</SelectItem>
+                <SelectItem value="30">Score ≥ 30</SelectItem>
+                <SelectItem value="50">Score ≥ 50</SelectItem>
+                <SelectItem value="60">Score ≥ 60 (chaud)</SelectItem>
               </SelectContent>
             </Select>
           </div>
         </CardHeader>
         <CardContent className="space-y-3">
+          <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
+            <p className="text-xs text-muted-foreground">
+              Tri :{" "}
+              <span className="font-medium text-foreground">
+                {sortKey === "createdAt"
+                  ? "Date creation"
+                  : sortKey === "company"
+                    ? "Entreprise"
+                    : sortKey === "score"
+                      ? "Score"
+                      : sortKey === "country"
+                        ? "Pays"
+                        : "Statut"}
+              </span>{" "}
+              ({sortDir === "asc" ? "croissant" : "decroissant"}) · Page{" "}
+              {safePage}/{totalPages}
+            </p>
+            {sortedProspects.length > 0 && (
+              <Button
+                type="button"
+                variant="secondary"
+                size="sm"
+                className="h-8 w-fit text-xs"
+                onClick={selectAllFiltered}
+              >
+                Selectionner les {sortedProspects.length} resultat(s) filtres
+              </Button>
+            )}
+          </div>
+
           {selectedIds.size > 0 && (
-            <div className="flex flex-wrap items-center gap-2 rounded-lg border bg-muted/40 px-3 py-2 text-sm">
-              <span className="font-medium tabular-nums">
+            <div className="flex flex-col gap-3 rounded-lg border border-primary/20 bg-primary/5 px-3 py-3 text-sm sm:flex-row sm:flex-wrap sm:items-center">
+              <span className="font-semibold tabular-nums text-primary">
                 {selectedIds.size} selectionne(s)
               </span>
-              <Button
-                type="button"
-                variant="ghost"
-                size="sm"
-                className="h-8"
-                onClick={() => setSelectedIds(new Set())}
-              >
-                Tout deselectionner
-              </Button>
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                className="h-8 gap-1"
-                onClick={handleExportSelected}
-              >
-                <Download className="h-3.5 w-3.5" />
-                Exporter la selection
-              </Button>
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                className="h-8 gap-1 border-destructive/40 text-destructive hover:bg-destructive/10"
-                onClick={handleBulkDelete}
-              >
-                <Trash2 className="h-3.5 w-3.5" />
-                Supprimer la selection
-              </Button>
+              <div className="flex flex-wrap items-center gap-2">
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  className="h-8"
+                  onClick={() => setSelectedIds(new Set())}
+                >
+                  Tout deselectionner
+                </Button>
+                <Select
+                  value={bulkStatus}
+                  onValueChange={(v) => setBulkStatus(v ?? "CONTACTED")}
+                >
+                  <SelectTrigger className="h-8 w-[180px] text-xs">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="NEW">Nouveau</SelectItem>
+                    <SelectItem value="CONTACTED">Contacte</SelectItem>
+                    <SelectItem value="IN_DISCUSSION">En discussion</SelectItem>
+                    <SelectItem value="CONVERTED">Converti</SelectItem>
+                    <SelectItem value="COLD">Froid</SelectItem>
+                    <SelectItem value="UNSUBSCRIBED">Desabonne</SelectItem>
+                  </SelectContent>
+                </Select>
+                <Button
+                  type="button"
+                  variant="secondary"
+                  size="sm"
+                  className="h-8"
+                  onClick={handleBulkStatusApply}
+                >
+                  Appliquer le statut
+                </Button>
+              </div>
+              <div className="flex flex-wrap gap-2 sm:ml-auto">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="h-8 gap-1"
+                  onClick={handleExportSelected}
+                >
+                  <Download className="h-3.5 w-3.5" />
+                  Exporter selection
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="h-8 gap-1 border-destructive/40 text-destructive hover:bg-destructive/10"
+                  onClick={handleBulkDelete}
+                >
+                  <Trash2 className="h-3.5 w-3.5" />
+                  Supprimer
+                </Button>
+              </div>
             </div>
           )}
           {filtered.length === 0 ? (
@@ -896,9 +1206,9 @@ export function ProspectsClient({
             <div className="space-y-3">
               <div className="overflow-x-auto rounded-md border">
                 <Table className="min-w-[1120px]">
-                <TableHeader>
-                  <TableRow>
-                    <TableHead className="w-[40px] pr-0">
+                <TableHeader className="sticky top-0 z-10 bg-muted/95 shadow-sm backdrop-blur-sm [&_tr]:border-b">
+                  <TableRow className="hover:bg-transparent">
+                    <TableHead className="w-[40px] bg-muted/95 pr-0">
                       <div
                         className="flex items-center justify-center py-1"
                         onClick={(e) => e.stopPropagation()}
@@ -916,15 +1226,17 @@ export function ProspectsClient({
                         />
                       </div>
                     </TableHead>
-                    <TableHead>Entreprise</TableHead>
-                    <TableHead>Contact</TableHead>
-                    <TableHead>Email</TableHead>
-                    <TableHead>Pays</TableHead>
-                    <TableHead>Secteur</TableHead>
-                    <TableHead>Score</TableHead>
-                    <TableHead>Statut</TableHead>
-                    <TableHead>Priorite</TableHead>
-                    <TableHead className="w-[100px] text-right">Actions</TableHead>
+                    <SortHead label="Entreprise" colKey="company" className="bg-muted/95" />
+                    <TableHead className="bg-muted/95">Contact</TableHead>
+                    <TableHead className="bg-muted/95">Email</TableHead>
+                    <SortHead label="Pays" colKey="country" className="bg-muted/95" />
+                    <TableHead className="bg-muted/95">Secteur</TableHead>
+                    <SortHead label="Score" colKey="score" className="bg-muted/95" />
+                    <SortHead label="Statut" colKey="status" className="bg-muted/95" />
+                    <TableHead className="bg-muted/95">Priorite</TableHead>
+                    <TableHead className="w-[100px] bg-muted/95 text-right">
+                      Actions
+                    </TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -951,7 +1263,15 @@ export function ProspectsClient({
                       <TableCell className="font-medium">
                         {prospect.company}
                       </TableCell>
-                      <TableCell>{prospect.contact || "-"}</TableCell>
+                      <TableCell>
+                        {prospect.contact?.trim() ? (
+                          prospect.contact
+                        ) : (
+                          <span className="text-muted-foreground italic">
+                            Non renseigne
+                          </span>
+                        )}
+                      </TableCell>
                       <TableCell className="text-sm">
                         {prospect.email}
                       </TableCell>
@@ -1030,7 +1350,7 @@ export function ProspectsClient({
               <ListPagination
                 page={safePage}
                 totalPages={totalPages}
-                totalItems={filtered.length}
+                totalItems={sortedProspects.length}
                 itemLabel="prospects"
                 onPageChange={setPage}
               />
