@@ -32,8 +32,13 @@ const PIE_COLORS = [
 ];
 
 interface ChartProps {
-  type: "country" | "status";
-  data: Array<{ country?: string; status?: string; count: number }>;
+  type: "country" | "status" | "source";
+  data: Array<{
+    country?: string;
+    status?: string;
+    source?: string;
+    count: number;
+  }>;
 }
 
 export function DashboardCharts({ type, data }: ChartProps) {
@@ -45,15 +50,20 @@ export function DashboardCharts({ type, data }: ChartProps) {
     );
   }
 
-  if (type === "country") {
+  if (type === "country" || type === "source") {
+    const key = type === "country" ? "country" : "source";
     return (
       <ResponsiveContainer width="100%" height={300}>
         <BarChart data={data}>
           <CartesianGrid strokeDasharray="3 3" className="opacity-30" />
-          <XAxis dataKey="country" fontSize={12} />
+          <XAxis dataKey={key} fontSize={11} interval={0} angle={-20} textAnchor="end" height={72} />
           <YAxis fontSize={12} />
           <Tooltip />
-          <Bar dataKey="count" fill="#3b82f6" radius={[4, 4, 0, 0]} />
+          <Bar
+            dataKey="count"
+            fill={type === "source" ? "#8b5cf6" : "#3b82f6"}
+            radius={[4, 4, 0, 0]}
+          />
         </BarChart>
       </ResponsiveContainer>
     );

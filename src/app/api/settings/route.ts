@@ -13,6 +13,10 @@ export async function GET() {
       companyName: "",
       senderName: "",
       senderEmail: "",
+      weeklyEmailTarget: 200,
+      weeklyNewProspectTarget: 30,
+      weeklyReplyTarget: 5,
+      alertBouncePctThreshold: 5,
     }
   );
 }
@@ -29,6 +33,10 @@ export async function PUT(req: NextRequest) {
         companyName: body.companyName,
         senderName: body.senderName,
         senderEmail: body.senderEmail,
+        weeklyEmailTarget: body.weeklyEmailTarget,
+        weeklyNewProspectTarget: body.weeklyNewProspectTarget,
+        weeklyReplyTarget: body.weeklyReplyTarget,
+        alertBouncePctThreshold: body.alertBouncePctThreshold,
       },
       create: {
         id: "default",
@@ -38,6 +46,10 @@ export async function PUT(req: NextRequest) {
         companyName: body.companyName,
         senderName: body.senderName,
         senderEmail: body.senderEmail,
+        weeklyEmailTarget: body.weeklyEmailTarget ?? 200,
+        weeklyNewProspectTarget: body.weeklyNewProspectTarget ?? 30,
+        weeklyReplyTarget: body.weeklyReplyTarget ?? 5,
+        alertBouncePctThreshold: body.alertBouncePctThreshold ?? 5,
       },
     });
     return NextResponse.json(settings);

@@ -24,6 +24,10 @@ export default function SettingsPage() {
     dailyEmailLimit: "50",
     emailSpacingSeconds: "30",
     defaultSignature: "",
+    weeklyEmailTarget: "200",
+    weeklyNewProspectTarget: "30",
+    weeklyReplyTarget: "5",
+    alertBouncePctThreshold: "5",
   });
   const [defaultUser, setDefaultUser] = useState({
     email: "",
@@ -47,6 +51,14 @@ export default function SettingsPage() {
           dailyEmailLimit: String(data.dailyEmailLimit ?? 50),
           emailSpacingSeconds: String(data.emailSpacingSeconds ?? 30),
           defaultSignature: data.defaultSignature || "",
+          weeklyEmailTarget: String(data.weeklyEmailTarget ?? 200),
+          weeklyNewProspectTarget: String(
+            data.weeklyNewProspectTarget ?? 30
+          ),
+          weeklyReplyTarget: String(data.weeklyReplyTarget ?? 5),
+          alertBouncePctThreshold: String(
+            data.alertBouncePctThreshold ?? 5
+          ),
         });
       } catch {
         toast.error("Impossible de charger les paramètres");
@@ -65,8 +77,18 @@ export default function SettingsPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           ...settings,
-          dailyEmailLimit: parseInt(settings.dailyEmailLimit),
-          emailSpacingSeconds: parseInt(settings.emailSpacingSeconds),
+          dailyEmailLimit: parseInt(settings.dailyEmailLimit, 10),
+          emailSpacingSeconds: parseInt(settings.emailSpacingSeconds, 10),
+          weeklyEmailTarget: parseInt(settings.weeklyEmailTarget, 10),
+          weeklyNewProspectTarget: parseInt(
+            settings.weeklyNewProspectTarget,
+            10
+          ),
+          weeklyReplyTarget: parseInt(settings.weeklyReplyTarget, 10),
+          alertBouncePctThreshold: parseInt(
+            settings.alertBouncePctThreshold,
+            10
+          ),
         }),
       });
       if (!res.ok) throw new Error("Erreur");
@@ -79,6 +101,14 @@ export default function SettingsPage() {
         dailyEmailLimit: String(saved.dailyEmailLimit ?? 50),
         emailSpacingSeconds: String(saved.emailSpacingSeconds ?? 30),
         defaultSignature: saved.defaultSignature || "",
+        weeklyEmailTarget: String(saved.weeklyEmailTarget ?? 200),
+        weeklyNewProspectTarget: String(
+          saved.weeklyNewProspectTarget ?? 30
+        ),
+        weeklyReplyTarget: String(saved.weeklyReplyTarget ?? 5),
+        alertBouncePctThreshold: String(
+          saved.alertBouncePctThreshold ?? 5
+        ),
       });
       toast.success("Parametres sauvegardes");
     } catch {
@@ -201,6 +231,76 @@ export default function SettingsPage() {
                 }
                 min="5"
                 max="300"
+              />
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Objectifs strategiques (7 jours glissants)</CardTitle>
+          <CardDescription>
+            Utilises sur le dashboard pour suivre la cadence commerciale
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label>Cible emails envoyes / 7j</Label>
+              <Input
+                type="number"
+                value={settings.weeklyEmailTarget}
+                onChange={(e) =>
+                  setSettings({
+                    ...settings,
+                    weeklyEmailTarget: e.target.value,
+                  })
+                }
+                min="1"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Cible nouveaux prospects / 7j</Label>
+              <Input
+                type="number"
+                value={settings.weeklyNewProspectTarget}
+                onChange={(e) =>
+                  setSettings({
+                    ...settings,
+                    weeklyNewProspectTarget: e.target.value,
+                  })
+                }
+                min="0"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Cible reponses marquees / 7j</Label>
+              <Input
+                type="number"
+                value={settings.weeklyReplyTarget}
+                onChange={(e) =>
+                  setSettings({
+                    ...settings,
+                    weeklyReplyTarget: e.target.value,
+                  })
+                }
+                min="0"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Seuil alerte rebond 30j (%)</Label>
+              <Input
+                type="number"
+                value={settings.alertBouncePctThreshold}
+                onChange={(e) =>
+                  setSettings({
+                    ...settings,
+                    alertBouncePctThreshold: e.target.value,
+                  })
+                }
+                min="1"
+                max="50"
               />
             </div>
           </div>

@@ -31,6 +31,7 @@ import {
   Pencil,
   Trash2,
   Eye,
+  MessageSquareReply,
 } from "lucide-react";
 import { toast } from "sonner";
 import { PageTitle } from "@/components/layout/page-title";
@@ -102,6 +103,7 @@ export default function CampaignDetailPage({
   const [editSubject, setEditSubject] = useState("");
   const [editBody, setEditBody] = useState("");
   const [savingEmail, setSavingEmail] = useState(false);
+  const [markingRepliedId, setMarkingRepliedId] = useState<string | null>(null);
   const [emailPage, setEmailPage] = useState(1);
   const EMAILS_PER_PAGE = 20;
 
@@ -219,6 +221,33 @@ export default function CampaignDetailPage({
     }
   };
 
+  const handleMarkReplied = async (email: CampaignDetail["emails"][0]) => {
+    if (email.status === "REPLIED") {
+      toast.info("Deja marque comme repondu");
+      return;
+    }
+    if (email.status === "PENDING" || email.status === "BOUNCED") {
+      toast.error("Marquage reserve aux emails envoyes (non rebond)");
+      return;
+    }
+    setMarkingRepliedId(email.id);
+    try {
+      const res = await fetch(`/api/emails/${email.id}/mark-replied`, {
+        method: "POST",
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        throw new Error(typeof data.error === "string" ? data.error : "Erreur");
+      }
+      toast.success("Marque comme repondu — compteur campagne mis a jour");
+      fetchCampaign();
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Erreur");
+    } finally {
+      setMarkingRepliedId(null);
+    }
+  };
+
   const handleDeleteEmail = async (email: CampaignDetail["emails"][0]) => {
     const warn =
       email.status !== "PENDING"
@@ -277,6 +306,15 @@ export default function CampaignDetailPage({
           icon={BarChart3}
         />
         <div className="flex flex-wrap gap-2">
+          <a
+            href={`/api/export?type=campaign_emails&campaignId=${id}`}
+            className={cn(
+              buttonVariants({ variant: "outline" }),
+              "inline-flex items-center"
+            )}
+          >
+            Export CSV
+          </a>
           <Link
             href={`/campaigns/${id}/edit`}
             className={cn(
@@ -401,6 +439,23 @@ export default function CampaignDetailPage({
                       </TableCell>
                       <TableCell className="text-right">
                         <div className="flex justify-end gap-1">
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon-sm"
+                            className="h-8 w-8 text-emerald-700 dark:text-emerald-400"
+                            disabled={
+                              markingRepliedId === email.id ||
+                              email.status === "REPLIED" ||
+                              email.status === "PENDING" ||
+                              email.status === "BOUNCED"
+                            }
+                            title="Marquer reponse recue (boite mail)"
+                            aria-label="Marquer comme repondu"
+                            onClick={() => handleMarkReplied(email)}
+                          >
+                            <MessageSquareReply className="h-4 w-4" />
+                          </Button>
                           <Button
                             type="button"
                             variant="ghost"

@@ -290,6 +290,14 @@ model AppSettings {
   companyName         String?
   senderName          String?
   senderEmail         String?
+  /// Objectif roulement 7j : emails effectivement partis (hors PENDING)
+  weeklyEmailTarget   Int    @default(200)
+  /// Nouveaux prospects crees sur 7j
+  weeklyNewProspectTarget Int @default(30)
+  /// Reponses enregistrees (table Response + marquage manuel) sur 7j
+  weeklyReplyTarget   Int    @default(5)
+  /// Seuil d alerte delivrabilite : rebonds / tentatives sur 30j (%)
+  alertBouncePctThreshold Int @default(5)
 
   @@map("app_settings")
 }
