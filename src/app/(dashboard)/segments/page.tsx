@@ -19,24 +19,25 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
-import { Plus, Layers, Users } from "lucide-react";
+import { Layers, MoreVertical, Plus, Users } from "lucide-react";
 import { toast } from "sonner";
 import { PageTitle } from "@/components/layout/page-title";
 import { ListPagination } from "@/components/shared/list-pagination";
+import { formatSegmentFilterChips } from "@/lib/segment-display";
+import { cn } from "@/lib/utils";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 interface Segment {
   id: string;
   name: string;
   description: string | null;
-  filters: Record<string, string | string[]>;
+  filters: Record<string, unknown>;
   _count?: { prospectLinks: number };
   createdAt: string;
 }
@@ -128,7 +129,7 @@ export default function SegmentsPage() {
         }),
       });
       if (!res.ok) throw new Error("Erreur");
-      toast.success("Segment cree");
+      toast.success("Segment créé");
       setAddOpen(false);
       fetchSegments();
     } catch {
@@ -137,21 +138,47 @@ export default function SegmentsPage() {
   };
 
   const handleCreatePredefined = async (preset: (typeof PREDEFINED_SEGMENTS)[0]) => {
+    if (segments.some((s) => s.name.trim() === preset.name.trim())) {
+      toast.message(`« ${preset.name} » existe déjà`, {
+        description:
+          "Supprimez le doublon dans la liste ou créez un segment personnalisé.",
+      });
+      return;
+    }
     try {
       const res = await fetch("/api/segments", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           name: preset.name,
-          description: `Segment predefini : ${preset.name}`,
+          description: `Segment prédéfini : ${preset.name}`,
           filters: preset.filters,
         }),
       });
       if (!res.ok) throw new Error("Erreur");
-      toast.success(`Segment "${preset.name}" cree`);
+      toast.success(`Segment « ${preset.name} » créé`);
       fetchSegments();
     } catch {
       toast.error("Erreur");
+    }
+  };
+
+  const handleDelete = async (segment: Segment) => {
+    if (
+      !confirm(
+        `Supprimer le segment « ${segment.name} » ? Les campagnes liées ne seront plus associées à ce segment.`
+      )
+    ) {
+      return;
+    }
+    try {
+      const res = await fetch(`/api/segments/${segment.id}`, { method: "DELETE" });
+      if (!res.ok) throw new Error("Erreur");
+      toast.success("Segment supprimé");
+      setPage(1);
+      fetchSegments();
+    } catch {
+      toast.error("Suppression impossible");
     }
   };
 
@@ -174,7 +201,7 @@ export default function SegmentsPage() {
           <DialogTrigger className="inline-flex h-8 items-center justify-center rounded-lg bg-primary px-2.5 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90 focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 outline-none">
             <span className="inline-flex items-center">
               <Plus className="mr-2 h-4 w-4" />
-              Creer un segment
+              Créer un segment
             </span>
           </DialogTrigger>
           <DialogContent className="max-w-lg">
@@ -261,30 +288,34 @@ export default function SegmentsPage() {
               </div>
             </div>
             <Button onClick={handleCreate} className="w-full">
-              Creer le segment
+              Créer le segment
             </Button>
           </DialogContent>
         </Dialog>
       </div>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Segments predefinis</CardTitle>
+      <Card className="border-dashed bg-muted/20 shadow-none">
+        <CardHeader className="pb-2">
+          <CardTitle className="text-base">Modèles rapides</CardTitle>
           <CardDescription>
-            Cliquez pour creer rapidement un segment type
+            Un clic crée un segment avec des critères courants. Vous pourrez
+            l’affiner plus tard via une campagne ou en recréant un segment
+            personnalisé.
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="grid grid-cols-2 gap-3 md:grid-cols-3">
+          <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3">
             {PREDEFINED_SEGMENTS.map((preset) => (
               <Button
                 key={preset.name}
-                variant="outline"
-                className="h-auto justify-start p-4 text-left"
+                variant="secondary"
+                className="h-auto justify-start gap-2 border border-border/80 bg-background px-3 py-3 text-left shadow-sm hover:bg-muted/60"
                 onClick={() => handleCreatePredefined(preset)}
               >
-                <Layers className="mr-2 h-4 w-4 shrink-0" />
-                <span className="text-sm">{preset.name}</span>
+                <Layers className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" />
+                <span className="text-sm font-medium leading-snug">
+                  {preset.name}
+                </span>
               </Button>
             ))}
           </div>
@@ -292,36 +323,114 @@ export default function SegmentsPage() {
       </Card>
 
       <div className="space-y-3">
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-        {paginatedSegments.map((segment) => (
-          <Card key={segment.id} className="border-border/70 transition-colors hover:border-border">
-            <CardHeader>
-              <div className="flex items-center justify-between">
-                <CardTitle className="text-lg">{segment.name}</CardTitle>
-                <Badge variant="secondary">
-                  <Users className="mr-1 h-3 w-3" />
-                  {segment._count?.prospectLinks ?? 0}
-                </Badge>
-              </div>
-              {segment.description && (
-                <CardDescription>{segment.description}</CardDescription>
-              )}
-            </CardHeader>
-            <CardContent>
-              <div className="flex flex-wrap gap-1">
-                {Object.entries(segment.filters || {}).map(([key, value]) => (
-                  <Badge key={key} variant="outline" className="text-xs">
-                    {key}: {Array.isArray(value) ? value.join(", ") : String(value)}
-                  </Badge>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
-        ))}
+        <div>
+          <h2 className="text-lg font-semibold tracking-tight">Vos segments</h2>
+          <p className="text-sm text-muted-foreground">
+            {segments.length === 0
+              ? "Aucun segment pour l’instant."
+              : `${segments.length} segment${segments.length > 1 ? "s" : ""} — membres comptés selon les filtres en base.`}
+          </p>
+        </div>
+        <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-3">
+        {paginatedSegments.map((segment) => {
+          const count = segment._count?.prospectLinks ?? 0;
+          const chips = formatSegmentFilterChips(segment.filters);
+          const isPresetDesc =
+            !!segment.description &&
+            /Segment\s+pr[ée]d[ée]fini\s*:/i.test(segment.description);
+
+          return (
+            <Card
+              key={segment.id}
+              className="border-border/80 transition-shadow hover:shadow-md"
+            >
+              <CardHeader className="space-y-2 pb-3">
+                <div className="flex items-start gap-2">
+                  <div className="min-w-0 flex-1 space-y-1">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <CardTitle className="text-base leading-snug">
+                        {segment.name}
+                      </CardTitle>
+                      {isPresetDesc && (
+                        <Badge variant="outline" className="text-[10px] font-normal">
+                          Modèle
+                        </Badge>
+                      )}
+                    </div>
+                    {segment.description && (
+                      <CardDescription className="line-clamp-2 text-xs">
+                        {segment.description}
+                      </CardDescription>
+                    )}
+                  </div>
+                  <div className="flex shrink-0 items-center gap-0.5">
+                    <Badge
+                      variant={count > 0 ? "secondary" : "outline"}
+                      className={cn(
+                        "tabular-nums",
+                        count === 0 &&
+                          "border-amber-200/80 bg-amber-50 text-amber-950 dark:border-amber-900 dark:bg-amber-950/40 dark:text-amber-100"
+                      )}
+                    >
+                      <Users className="mr-1 h-3 w-3" />
+                      {count}
+                    </Badge>
+                    <DropdownMenu>
+                      <DropdownMenuTrigger
+                        className="inline-flex h-8 w-8 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 outline-none"
+                        aria-label="Actions segment"
+                      >
+                        <MoreVertical className="h-4 w-4" />
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end" className="w-44">
+                        <DropdownMenuItem
+                          variant="destructive"
+                          onClick={() => handleDelete(segment)}
+                        >
+                          Supprimer
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  </div>
+                </div>
+              </CardHeader>
+              <CardContent className="space-y-2 pt-0">
+                {chips.length > 0 ? (
+                  <ul className="flex flex-col gap-1.5">
+                    {chips.map(({ label, text }) => (
+                      <li
+                        key={`${segment.id}-${label}-${text}`}
+                        className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5 text-xs leading-snug"
+                      >
+                        <span className="shrink-0 font-medium text-muted-foreground">
+                          {label}
+                        </span>
+                        <span className="min-w-0 text-foreground">{text}</span>
+                      </li>
+                    ))}
+                  </ul>
+                ) : (
+                  <p className="text-xs text-muted-foreground">
+                    Aucun critère enregistré.
+                  </p>
+                )}
+                {count === 0 && chips.length > 0 && (
+                  <p className="text-xs text-muted-foreground">
+                    Aucun prospect ne correspond encore à ces critères (vérifiez
+                    les valeurs en base ou importez des fiches).
+                  </p>
+                )}
+              </CardContent>
+            </Card>
+          );
+        })}
         {segments.length === 0 && (
-          <div className="col-span-full py-12 text-center text-muted-foreground">
-            <Layers className="mx-auto h-8 w-8 mb-2 opacity-50" />
-            <p>Aucun segment cree</p>
+          <div className="col-span-full rounded-lg border border-dashed bg-muted/10 py-12 text-center text-muted-foreground">
+            <Layers className="mx-auto mb-2 h-8 w-8 opacity-50" />
+            <p className="text-sm">Aucun segment créé</p>
+            <p className="mt-1 text-xs">
+              Utilisez un modèle ci-dessus ou « Créer un segment ».
+            </p>
           </div>
         )}
         </div>

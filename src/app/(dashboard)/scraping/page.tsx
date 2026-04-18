@@ -39,6 +39,9 @@ import {
 import { Search, Play, Loader2, Activity, StopCircle } from "lucide-react";
 import { toast } from "sonner";
 import { PageTitle } from "@/components/layout/page-title";
+import { Separator } from "@/components/ui/separator";
+import { Textarea } from "@/components/ui/textarea";
+import { cn } from "@/lib/utils";
 
 const KEYWORD_CATEGORIES = [
   { id: "buyer", label: "Acheteurs (buyers)" },
@@ -101,6 +104,17 @@ interface LiveRunRow {
   runId: string;
   label: string;
   apifyStatus: string;
+}
+
+function formatJobStatus(status: string): string {
+  const map: Record<string, string> = {
+    COMPLETED: "Terminé",
+    RUNNING: "En cours",
+    FAILED: "Échec",
+    CANCELLED: "Annulé",
+    PENDING: "En attente",
+  };
+  return map[status] ?? status;
 }
 
 function labelApifyStatus(status: string): string {
@@ -270,29 +284,33 @@ export default function ScrapingPage() {
         icon={Search}
       />
 
-      <div className="grid gap-6 lg:grid-cols-2">
-        <Card>
+      <div className="grid gap-6 lg:grid-cols-2 lg:items-start">
+        <Card className="lg:sticky lg:top-4 lg:z-10 shadow-sm">
           <CardHeader>
             <CardTitle>Configuration du scraping</CardTitle>
             <CardDescription>
-              Selectionnez les criteres de recherche depuis votre fichier de
-              keywords
+              Choisissez les catégories de mots-clés, le produit et
+              éventuellement les pays. Les mots-clés viennent de votre jeu
+              prédéfini + lignes personnalisées ci-dessous.
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-6">
             <div className="space-y-3">
               <Label className="text-sm font-semibold">
-                Categories de keywords
+                Catégories de mots-clés
               </Label>
-              <div className="grid grid-cols-1 gap-2">
+              <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
                 {KEYWORD_CATEGORIES.map((cat) => (
-                  <div key={cat.id} className="flex items-center space-x-2">
+                  <div key={cat.id} className="flex items-center gap-2">
                     <Checkbox
                       id={cat.id}
                       checked={selectedCategories.includes(cat.id)}
                       onCheckedChange={() => toggleCategory(cat.id)}
                     />
-                    <label htmlFor={cat.id} className="text-sm">
+                    <label
+                      htmlFor={cat.id}
+                      className="cursor-pointer text-sm leading-snug"
+                    >
                       {cat.label}
                     </label>
                   </div>
@@ -300,16 +318,21 @@ export default function ScrapingPage() {
               </div>
             </div>
 
+            <Separator />
+
             <div className="space-y-3">
               <Label className="text-sm font-semibold">Produit cible</Label>
               <Select
                 value={selectedProduct}
                 onValueChange={(v) => setSelectedProduct(v ?? "all")}
               >
-                <SelectTrigger>
-                  <SelectValue />
+                <SelectTrigger className="h-10 w-full min-w-0 max-w-full">
+                  <SelectValue placeholder="Choisir un produit" />
                 </SelectTrigger>
-                <SelectContent>
+                <SelectContent
+                  alignItemWithTrigger={false}
+                  className="min-w-[min(100%,18rem)]"
+                >
                   {PRODUCTS.map((p) => (
                     <SelectItem key={p.id} value={p.id}>
                       {p.label}
@@ -319,36 +342,57 @@ export default function ScrapingPage() {
               </Select>
             </div>
 
+            <Separator />
+
             <div className="space-y-3">
-              <Label className="text-sm font-semibold">
-                Pays cibles (optionnel)
-              </Label>
-              <div className="grid grid-cols-2 gap-2 max-h-48 overflow-y-auto">
-                {COUNTRIES.map((country) => (
-                  <div key={country} className="flex items-center space-x-2">
-                    <Checkbox
-                      id={`country-${country}`}
-                      checked={selectedCountries.includes(country)}
-                      onCheckedChange={() => toggleCountry(country)}
-                    />
-                    <label
-                      htmlFor={`country-${country}`}
-                      className="text-sm"
+              <div className="flex flex-wrap items-baseline justify-between gap-2">
+                <Label className="text-sm font-semibold">
+                  Pays cibles (optionnel)
+                </Label>
+                {selectedCountries.length > 0 && (
+                  <span className="text-xs text-muted-foreground">
+                    {selectedCountries.length} pays sélectionné
+                    {selectedCountries.length > 1 ? "s" : ""}
+                  </span>
+                )}
+              </div>
+              <p className="text-xs text-muted-foreground">
+                Laisser vide pour ne pas restreindre par pays.
+              </p>
+              <div className="rounded-lg border border-border/80 bg-muted/25 p-3 sm:p-4">
+                <div className="grid grid-cols-2 gap-x-3 gap-y-2 sm:grid-cols-3">
+                  {COUNTRIES.map((country) => (
+                    <div
+                      key={country}
+                      className="flex min-w-0 items-center gap-2"
                     >
-                      {country}
-                    </label>
-                  </div>
-                ))}
+                      <Checkbox
+                        id={`country-${country}`}
+                        checked={selectedCountries.includes(country)}
+                        onCheckedChange={() => toggleCountry(country)}
+                      />
+                      <label
+                        htmlFor={`country-${country}`}
+                        className="cursor-pointer truncate text-sm leading-snug"
+                        title={country}
+                      >
+                        {country}
+                      </label>
+                    </div>
+                  ))}
+                </div>
               </div>
             </div>
 
+            <Separator />
+
             <div className="space-y-2">
               <Label className="text-sm font-semibold">
-                Keywords personnalises
+                Mots-clés personnalisés
               </Label>
-              <textarea
-                className="w-full rounded-md border px-3 py-2 text-sm min-h-[80px] resize-y"
-                placeholder="Un keyword par ligne..."
+              <Textarea
+                className="min-h-[100px] resize-y text-sm"
+                placeholder="Un mot-clé par ligne…"
                 value={customKeywords}
                 onChange={(e) => setCustomKeywords(e.target.value)}
               />
@@ -356,7 +400,7 @@ export default function ScrapingPage() {
 
             <div className="space-y-2">
               <Label className="text-sm font-semibold">
-                Max resultats par keyword
+                Max. résultats par mot-clé
               </Label>
               <Input
                 type="number"
@@ -364,6 +408,7 @@ export default function ScrapingPage() {
                 onChange={(e) => setMaxResults(e.target.value)}
                 min="10"
                 max="500"
+                className="max-w-[12rem]"
               />
             </div>
 
@@ -387,18 +432,19 @@ export default function ScrapingPage() {
           </CardContent>
         </Card>
 
-        <Card>
+        <Card className="shadow-sm">
           <CardHeader>
             <CardTitle>Historique des scrapings</CardTitle>
             <CardDescription>
-              Jobs de scraping precedents et en cours
+              Derniers lancements : cliquez une ligne pour voir la progression ou
+              le message d&apos;erreur.
             </CardDescription>
           </CardHeader>
           <CardContent>
             {jobs.length === 0 ? (
               <div className="py-8 text-center text-muted-foreground">
                 <Search className="mx-auto h-8 w-8 mb-2 opacity-50" />
-                <p>Aucun scraping effectue</p>
+                <p>Aucun scraping effectué</p>
               </div>
             ) : (
               <div className="space-y-3">
@@ -408,6 +454,9 @@ export default function ScrapingPage() {
                     job.progress != null ||
                     job.status === "FAILED" ||
                     job.status === "CANCELLED";
+                  const keywordCount = Array.isArray(job.keywords)
+                    ? job.keywords.length
+                    : 0;
                   return (
                     <div
                       key={job.id}
@@ -423,21 +472,38 @@ export default function ScrapingPage() {
                           setProgressJobId(job.id);
                         }
                       }}
-                      className={`flex flex-col gap-2 rounded-lg border p-3 transition-colors sm:flex-row sm:items-center sm:justify-between ${
-                        showProgress
-                          ? "cursor-pointer hover:bg-muted/50"
-                          : ""
-                      }`}
+                      className={cn(
+                        "flex flex-col gap-2 rounded-lg border p-3 transition-colors sm:flex-row sm:items-center sm:justify-between",
+                        showProgress && "cursor-pointer hover:bg-muted/50",
+                        job.status === "FAILED" &&
+                          "border-destructive/30 bg-destructive/[0.03]"
+                      )}
                     >
                       <div className="min-w-0 flex-1">
                         <p className="text-sm font-medium">
-                          {Array.isArray(job.keywords)
-                            ? `${job.keywords.length} keywords`
-                            : "Scraping"}
+                          {keywordCount > 0
+                            ? `${keywordCount} mot${keywordCount > 1 ? "s" : ""}-clé${keywordCount > 1 ? "s" : ""}`
+                            : "Aucun mot-clé"}
                         </p>
                         <p className="text-xs text-muted-foreground">
                           {new Date(job.createdAt).toLocaleString("fr-FR")}
                         </p>
+                        {job.status === "FAILED" &&
+                          keywordCount === 0 &&
+                          !job.errorMessage && (
+                            <p className="mt-1 text-xs text-amber-800 dark:text-amber-200">
+                              Lancement sans mots-clés — vérifiez la config ou
+                              les catégories.
+                            </p>
+                          )}
+                        {job.status === "FAILED" && job.errorMessage && (
+                          <p
+                            className="mt-1 line-clamp-2 text-xs text-destructive"
+                            title={job.errorMessage}
+                          >
+                            {job.errorMessage}
+                          </p>
+                        )}
                         {job.status === "RUNNING" &&
                           typeof job.progress?.percent === "number" && (
                             <div className="mt-2 max-w-md">
@@ -455,8 +521,9 @@ export default function ScrapingPage() {
                           )}
                       </div>
                       <div className="flex shrink-0 flex-wrap items-center gap-2 sm:gap-3">
-                        <span className="text-sm font-medium">
-                          {job.resultsCount} resultats
+                        <span className="text-sm font-medium tabular-nums">
+                          {job.resultsCount} résultat
+                          {job.resultsCount !== 1 ? "s" : ""}
                         </span>
                         {showProgress && (
                           <Button
@@ -515,9 +582,7 @@ export default function ScrapingPage() {
                             }
                           }}
                         >
-                          {job.status === "CANCELLED"
-                            ? "ANNULE"
-                            : job.status}
+                          {formatJobStatus(job.status)}
                         </Badge>
                       </div>
                     </div>

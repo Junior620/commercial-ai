@@ -54,7 +54,7 @@ export default function AIPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(params),
       });
-      if (!res.ok) throw new Error("Erreur de generation");
+      if (!res.ok) throw new Error("Erreur de génération");
       const data = await res.json();
       setResult(data);
     } catch (err) {
@@ -82,15 +82,15 @@ export default function AIPage() {
       <div className="grid gap-6 lg:grid-cols-2">
         <Card>
           <CardHeader>
-            <CardTitle>Parametres de generation</CardTitle>
+            <CardTitle>Paramètres de génération</CardTitle>
             <CardDescription>
-              Renseignez le profil du prospect pour generer un email
-              personnalise
+              Renseignez le profil du prospect pour générer un e-mail
+              personnalisé.
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+              <div className="min-w-0 space-y-2">
                 <Label>Nom du contact *</Label>
                 <Input
                   value={params.prospectName}
@@ -100,7 +100,7 @@ export default function AIPage() {
                   placeholder="John Smith"
                 />
               </div>
-              <div className="space-y-2">
+              <div className="min-w-0 space-y-2">
                 <Label>Entreprise *</Label>
                 <Input
                   value={params.companyName}
@@ -111,8 +111,8 @@ export default function AIPage() {
                 />
               </div>
             </div>
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+              <div className="min-w-0 space-y-2">
                 <Label>Pays</Label>
                 <Input
                   value={params.country}
@@ -122,7 +122,7 @@ export default function AIPage() {
                   placeholder="Belgium"
                 />
               </div>
-              <div className="space-y-2">
+              <div className="min-w-0 space-y-2">
                 <Label>Secteur</Label>
                 <Input
                   value={params.sector}
@@ -133,20 +133,23 @@ export default function AIPage() {
                 />
               </div>
             </div>
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label>Produit a promouvoir</Label>
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+              <div className="min-w-0 space-y-2">
+                <Label>Produit à promouvoir</Label>
                 <Select
                   value={params.campaignProduct}
                   onValueChange={(v) =>
                     setParams({ ...params, campaignProduct: v ?? "cocoa_butter" })
                   }
                 >
-                  <SelectTrigger>
-                    <SelectValue />
+                  <SelectTrigger className="h-10 w-full min-w-0">
+                    <SelectValue placeholder="Choisir un produit" />
                   </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="cocoa_beans">Feves de cacao</SelectItem>
+                  <SelectContent
+                    alignItemWithTrigger={false}
+                    className="min-w-[min(100%,18rem)]"
+                  >
+                    <SelectItem value="cocoa_beans">Fèves de cacao</SelectItem>
                     <SelectItem value="cocoa_butter">
                       Beurre de cacao
                     </SelectItem>
@@ -154,10 +157,11 @@ export default function AIPage() {
                       Poudre de cacao
                     </SelectItem>
                     <SelectItem value="cocoa_mass">Masse de cacao</SelectItem>
+                    <SelectItem value="derivatives">Dérivés</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
-              <div className="space-y-2">
+              <div className="min-w-0 space-y-2">
                 <Label>Langue</Label>
                 <Select
                   value={params.language}
@@ -165,19 +169,22 @@ export default function AIPage() {
                     setParams({ ...params, language: v ?? "en" })
                   }
                 >
-                  <SelectTrigger>
-                    <SelectValue />
+                  <SelectTrigger className="h-10 w-full min-w-0">
+                    <SelectValue placeholder="Choisir une langue" />
                   </SelectTrigger>
-                  <SelectContent>
+                  <SelectContent
+                    alignItemWithTrigger={false}
+                    className="min-w-[min(100%,16rem)]"
+                  >
                     <SelectItem value="en">Anglais</SelectItem>
-                    <SelectItem value="fr">Francais</SelectItem>
+                    <SelectItem value="fr">Français</SelectItem>
                     <SelectItem value="es">Espagnol</SelectItem>
                     <SelectItem value="pt">Portugais</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
             </div>
-            <div className="space-y-2">
+            <div className="min-w-0 space-y-2">
               <Label>Ton</Label>
               <Select
                 value={params.tone}
@@ -185,10 +192,13 @@ export default function AIPage() {
                   setParams({ ...params, tone: v ?? "FORMAL" })
                 }
               >
-                <SelectTrigger>
-                  <SelectValue />
+                <SelectTrigger className="h-10 w-full min-w-0">
+                  <SelectValue placeholder="Choisir un ton" />
                 </SelectTrigger>
-                <SelectContent>
+                <SelectContent
+                  alignItemWithTrigger={false}
+                  className="min-w-[min(100%,16rem)]"
+                >
                   <SelectItem value="FORMAL">Formel</SelectItem>
                   <SelectItem value="FRIENDLY">Amical</SelectItem>
                   <SelectItem value="TECHNICAL">Technique</SelectItem>
@@ -197,7 +207,7 @@ export default function AIPage() {
               </Select>
             </div>
             <div className="space-y-2">
-              <Label>Instructions supplementaires</Label>
+              <Label>Instructions supplémentaires</Label>
               <Textarea
                 value={params.customInstructions}
                 onChange={(e) =>
@@ -218,12 +228,12 @@ export default function AIPage() {
               {loading ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Generation en cours...
+                  Génération en cours…
                 </>
               ) : (
                 <>
                   <Bot className="mr-2 h-4 w-4" />
-                  Generer l&apos;email
+                  Générer l&apos;e-mail
                 </>
               )}
             </Button>
@@ -233,7 +243,7 @@ export default function AIPage() {
         <Card>
           <CardHeader>
             <div className="flex items-center justify-between">
-              <CardTitle>Apercu de l&apos;email</CardTitle>
+              <CardTitle>Aperçu de l&apos;e-mail</CardTitle>
               {result && (
                 <Button variant="ghost" size="sm" onClick={handleCopy}>
                   {copied ? (
@@ -241,7 +251,7 @@ export default function AIPage() {
                   ) : (
                     <Copy className="mr-2 h-4 w-4" />
                   )}
-                  {copied ? "Copie !" : "Copier"}
+                  {copied ? "Copié" : "Copier"}
                 </Button>
               )}
             </div>
@@ -267,8 +277,9 @@ export default function AIPage() {
             ) : (
               <div className="flex flex-col items-center justify-center py-16 text-muted-foreground">
                 <Bot className="h-12 w-12 mb-4 opacity-30" />
-                <p className="text-sm">
-                  Remplissez les parametres et cliquez sur Generer
+                <p className="text-sm text-center">
+                  Remplissez les paramètres et cliquez sur « Générer l&apos;e-mail
+                  ».
                 </p>
               </div>
             )}

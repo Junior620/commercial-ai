@@ -1074,7 +1074,10 @@ export function ProspectsClient({
               <SelectTrigger className="h-9">
                 <SelectValue placeholder="Secteur" />
               </SelectTrigger>
-              <SelectContent className="max-h-56">
+              <SelectContent
+                className="max-h-56 min-w-[min(100%,20rem)]"
+                alignItemWithTrigger={false}
+              >
                 <SelectItem value="all">Tous secteurs</SelectItem>
                 {sectorOptions.map((s) => (
                   <SelectItem key={s} value={s}>
@@ -1230,7 +1233,9 @@ export function ProspectsClient({
                     <TableHead className="bg-muted/95">Contact</TableHead>
                     <TableHead className="bg-muted/95">Email</TableHead>
                     <SortHead label="Pays" colKey="country" className="bg-muted/95" />
-                    <TableHead className="bg-muted/95">Secteur</TableHead>
+                    <TableHead className="min-w-[8.5rem] max-w-[14rem] whitespace-normal bg-muted/95">
+                      Secteur
+                    </TableHead>
                     <SortHead label="Score" colKey="score" className="bg-muted/95" />
                     <SortHead label="Statut" colKey="status" className="bg-muted/95" />
                     <TableHead className="bg-muted/95">Priorite</TableHead>
@@ -1276,7 +1281,9 @@ export function ProspectsClient({
                         {prospect.email}
                       </TableCell>
                       <TableCell>{prospect.country}</TableCell>
-                      <TableCell>{prospect.sector || "-"}</TableCell>
+                      <TableCell className="min-w-[8.5rem] max-w-[14rem] break-words text-sm align-top">
+                        {prospect.sector || "-"}
+                      </TableCell>
                       <TableCell>
                         <span
                           className={`font-semibold ${

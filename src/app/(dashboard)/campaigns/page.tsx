@@ -10,11 +10,23 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Plus, Mail, Play, Pause, Eye, Pencil, Trash2 } from "lucide-react";
+import {
+  Plus,
+  Mail,
+  Play,
+  Pause,
+  Eye,
+  Pencil,
+  Trash2,
+  Send,
+  MailOpen,
+  MessageCircleReply,
+} from "lucide-react";
 import { toast } from "sonner";
 import Link from "next/link";
 import { PageTitle } from "@/components/layout/page-title";
 import { ListPagination } from "@/components/shared/list-pagination";
+import { cn } from "@/lib/utils";
 
 interface Campaign {
   id: string;
@@ -30,12 +42,45 @@ interface Campaign {
   segment?: { name: string } | null;
 }
 
-const STATUS_COLORS: Record<string, string> = {
-  DRAFT: "bg-gray-100 text-gray-800",
-  ACTIVE: "bg-green-100 text-green-800",
-  PAUSED: "bg-yellow-100 text-yellow-800",
-  COMPLETED: "bg-blue-100 text-blue-800",
+const STATUS_STYLES: Record<string, string> = {
+  DRAFT:
+    "border-border bg-muted/80 text-foreground dark:bg-muted/50",
+  ACTIVE:
+    "border-emerald-200 bg-emerald-50 text-emerald-950 dark:border-emerald-900 dark:bg-emerald-950/50 dark:text-emerald-100",
+  PAUSED:
+    "border-amber-200 bg-amber-50 text-amber-950 dark:border-amber-900 dark:bg-amber-950/40 dark:text-amber-100",
+  COMPLETED:
+    "border-sky-200 bg-sky-50 text-sky-950 dark:border-sky-900 dark:bg-sky-950/40 dark:text-sky-100",
 };
+
+function formatCampaignStatus(status: string): string {
+  const map: Record<string, string> = {
+    DRAFT: "Brouillon",
+    ACTIVE: "Active",
+    PAUSED: "En pause",
+    COMPLETED: "Terminée",
+  };
+  return map[status] ?? status;
+}
+
+const PRODUCT_LABELS: Record<string, string> = {
+  cocoa_beans: "Fèves de cacao",
+  cocoa_butter: "Beurre de cacao",
+  cocoa_powder: "Poudre de cacao",
+  cocoa_mass: "Masse de cacao",
+  cocoa_liquor: "Masse de cacao",
+  derivatives: "Dérivés",
+  cosmetics: "Cosmétiques",
+  food_chocolate: "Alimentation / chocolat",
+  all: "Tous produits",
+};
+
+function formatProductLabel(product: string | null): string {
+  if (!product) return "Tous produits";
+  const key = product.trim();
+  if (PRODUCT_LABELS[key]) return PRODUCT_LABELS[key];
+  return key.replace(/_/g, " ");
+}
 
 export default function CampaignsPage() {
   const [campaigns, setCampaigns] = useState<Campaign[]>([]);
@@ -72,7 +117,7 @@ export default function CampaignsPage() {
   const deleteCampaign = async (c: Campaign) => {
     if (
       !confirm(
-        `Supprimer la campagne « ${c.name} » ? Tous les emails associes seront supprimes.`
+        `Supprimer la campagne « ${c.name} » ? Tous les e-mails associés seront supprimés.`
       )
     ) {
       return;
@@ -84,7 +129,7 @@ export default function CampaignsPage() {
         throw new Error(err.error || "Erreur");
       }
       setCampaigns((prev) => prev.filter((x) => x.id !== c.id));
-      toast.success("Campagne supprimee");
+      toast.success("Campagne supprimée");
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Erreur");
     }
@@ -119,7 +164,7 @@ export default function CampaignsPage() {
             <Mail className="mx-auto h-8 w-8 mb-2 opacity-50" />
             <p className="text-lg font-medium">Aucune campagne</p>
             <p className="text-sm">
-              Creez votre premiere campagne pour commencer
+              Créez votre première campagne pour commencer.
             </p>
           </CardContent>
         </Card>
@@ -127,74 +172,132 @@ export default function CampaignsPage() {
         <div className="space-y-3">
           <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
           {paginatedCampaigns.map((campaign) => (
-            <Card key={campaign.id} className="border-border/70 transition-colors hover:border-border">
-              <CardHeader>
-                <div className="flex items-center justify-between">
-                  <CardTitle className="text-lg">{campaign.name}</CardTitle>
+            <Card
+              key={campaign.id}
+              className="border-border/80 transition-shadow hover:border-border hover:shadow-md"
+            >
+              <CardHeader className="space-y-2 pb-3">
+                <div className="flex items-start justify-between gap-3">
+                  <CardTitle className="min-w-0 flex-1 text-base font-semibold leading-snug">
+                    <span className="line-clamp-2" title={campaign.name}>
+                      {campaign.name}
+                    </span>
+                  </CardTitle>
                   <Badge
-                    variant="secondary"
-                    className={STATUS_COLORS[campaign.status] || ""}
+                    variant="outline"
+                    className={cn(
+                      "shrink-0 text-[10px] font-semibold uppercase tracking-wide",
+                      STATUS_STYLES[campaign.status]
+                    )}
                   >
-                    {campaign.status}
+                    {formatCampaignStatus(campaign.status)}
                   </Badge>
                 </div>
-                <CardDescription>
-                  {campaign.segment?.name || "Sans segment"} —{" "}
-                  {campaign.product || "Tous produits"}
+                <CardDescription
+                  className="line-clamp-2 text-xs leading-relaxed"
+                  title={`${campaign.segment?.name || "Sans segment"} — ${formatProductLabel(campaign.product)}`}
+                >
+                  <span className="text-muted-foreground">
+                    {campaign.segment?.name || "Sans segment"}
+                  </span>
+                  <span className="text-muted-foreground/70"> · </span>
+                  <span>{formatProductLabel(campaign.product)}</span>
                 </CardDescription>
               </CardHeader>
-              <CardContent>
-                <div className="grid grid-cols-3 gap-4 text-center mb-4">
-                  <div>
-                    <p className="text-2xl font-bold">{campaign.sentCount}</p>
-                    <p className="text-xs text-muted-foreground">Envoyes</p>
+              <CardContent className="space-y-4 pt-0">
+                <div className="grid grid-cols-3 gap-2 rounded-lg border border-border/60 bg-muted/20 px-2 py-3 sm:gap-3 sm:px-3">
+                  <div className="flex flex-col items-center gap-1.5 text-center">
+                    <Send
+                      className="h-4 w-4 text-muted-foreground"
+                      aria-hidden
+                    />
+                    <p className="text-xl font-bold tabular-nums sm:text-2xl">
+                      {campaign.sentCount}
+                    </p>
+                    <p className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground sm:text-xs">
+                      Envoyés
+                    </p>
                   </div>
-                  <div>
-                    <p className="text-2xl font-bold">{campaign.openCount}</p>
-                    <p className="text-xs text-muted-foreground">Ouverts</p>
+                  <div className="flex flex-col items-center gap-1.5 text-center">
+                    <MailOpen
+                      className="h-4 w-4 text-muted-foreground"
+                      aria-hidden
+                    />
+                    <p className="text-xl font-bold tabular-nums sm:text-2xl">
+                      {campaign.openCount}
+                    </p>
+                    <p className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground sm:text-xs">
+                      Ouverts
+                    </p>
                   </div>
-                  <div>
-                    <p className="text-2xl font-bold">{campaign.replyCount}</p>
-                    <p className="text-xs text-muted-foreground">Reponses</p>
+                  <div className="flex flex-col items-center gap-1.5 text-center">
+                    <MessageCircleReply
+                      className="h-4 w-4 text-muted-foreground"
+                      aria-hidden
+                    />
+                    <p className="text-xl font-bold tabular-nums sm:text-2xl">
+                      {campaign.replyCount}
+                    </p>
+                    <p className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground sm:text-xs">
+                      Réponses
+                    </p>
                   </div>
                 </div>
-                <div className="flex flex-wrap gap-2">
-                  <Link href={`/campaigns/${campaign.id}`} className="min-w-0 flex-1">
-                    <Button variant="outline" className="w-full" size="sm">
-                      <Eye className="mr-2 h-3 w-3" />
+                <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+                  <Link
+                    href={`/campaigns/${campaign.id}`}
+                    className="min-w-0 flex-1"
+                  >
+                    <Button
+                      variant="outline"
+                      className="w-full gap-2"
+                      size="sm"
+                    >
+                      <Eye className="h-4 w-4 shrink-0" />
                       Voir
                     </Button>
                   </Link>
-                  <Link href={`/campaigns/${campaign.id}/edit`}>
-                    <Button variant="outline" size="sm" title="Modifier">
-                      <Pencil className="h-3 w-3" />
-                    </Button>
-                  </Link>
-                  {(campaign.status === "ACTIVE" ||
-                    campaign.status === "PAUSED") && (
+                  <div className="flex shrink-0 items-center justify-end gap-1.5">
+                    <Link href={`/campaigns/${campaign.id}/edit`}>
+                      <Button
+                        variant="outline"
+                        size="icon-sm"
+                        title="Modifier"
+                      >
+                        <Pencil className="h-4 w-4" />
+                      </Button>
+                    </Link>
+                    {(campaign.status === "ACTIVE" ||
+                      campaign.status === "PAUSED") && (
+                      <Button
+                        variant="outline"
+                        size="icon-sm"
+                        title={
+                          campaign.status === "ACTIVE"
+                            ? "Mettre en pause"
+                            : "Reprendre"
+                        }
+                        onClick={() =>
+                          toggleStatus(campaign.id, campaign.status)
+                        }
+                      >
+                        {campaign.status === "ACTIVE" ? (
+                          <Pause className="h-4 w-4" />
+                        ) : (
+                          <Play className="h-4 w-4" />
+                        )}
+                      </Button>
+                    )}
                     <Button
                       variant="outline"
-                      size="sm"
-                      onClick={() =>
-                        toggleStatus(campaign.id, campaign.status)
-                      }
+                      size="icon-sm"
+                      className="text-destructive hover:bg-destructive/10 hover:text-destructive"
+                      title="Supprimer"
+                      onClick={() => deleteCampaign(campaign)}
                     >
-                      {campaign.status === "ACTIVE" ? (
-                        <Pause className="h-3 w-3" />
-                      ) : (
-                        <Play className="h-3 w-3" />
-                      )}
+                      <Trash2 className="h-4 w-4" />
                     </Button>
-                  )}
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="text-destructive hover:text-destructive"
-                    title="Supprimer"
-                    onClick={() => deleteCampaign(campaign)}
-                  >
-                    <Trash2 className="h-3 w-3" />
-                  </Button>
+                  </div>
                 </div>
               </CardContent>
             </Card>

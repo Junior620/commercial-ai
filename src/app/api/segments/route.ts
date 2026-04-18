@@ -1,5 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
+import { Prisma } from "@/generated/prisma/client";
 import { prisma } from "@/lib/prisma";
+import {
+  buildProspectWhereFromFilters,
+  normalizeSegmentFilters,
+} from "@/lib/segment-filters-normalize";
 
 export async function GET() {
   const segments = await prisma.segment.findMany({
@@ -21,28 +26,19 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    const normalized = normalizeSegmentFilters(
+      (filters || {}) as Record<string, unknown>
+    );
+
     const segment = await prisma.segment.create({
-      data: { name, description, filters: filters || {} },
+      data: {
+        name,
+        description,
+        filters: JSON.parse(JSON.stringify(normalized)) as Prisma.InputJsonValue,
+      },
     });
 
-    // Auto-link matching prospects
-    const where: Record<string, unknown> = {};
-    if (filters.countries)
-      where.country = { in: filters.countries };
-    if (filters.sectors)
-      where.sector = { in: filters.sectors };
-    if (filters.clientTypes)
-      where.clientType = { in: filters.clientTypes };
-    if (filters.products)
-      where.product = { in: filters.products };
-    if (filters.priorities)
-      where.priority = { in: filters.priorities };
-    if (filters.languages)
-      where.language = { in: filters.languages };
-    if (filters.minScore)
-      where.score = { gte: filters.minScore };
-    if (filters.statuses)
-      where.status = { in: filters.statuses };
+    const where = buildProspectWhereFromFilters(normalized);
 
     if (Object.keys(where).length > 0) {
       const matchingProspects = await prisma.prospect.findMany({

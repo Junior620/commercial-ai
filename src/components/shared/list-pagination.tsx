@@ -20,7 +20,7 @@ export function ListPagination({
   return (
     <div className="flex items-center justify-between text-sm">
       <p className="text-muted-foreground">
-        Page {page} / {totalPages} - {totalItems} {itemLabel}
+        Page {page} / {totalPages} — {totalItems} {itemLabel}
       </p>
       <div className="flex gap-2">
         <Button
@@ -30,7 +30,7 @@ export function ListPagination({
           disabled={page <= 1}
           onClick={() => onPageChange(Math.max(1, page - 1))}
         >
-          Precedent
+          Précédent
         </Button>
         <Button
           type="button"
