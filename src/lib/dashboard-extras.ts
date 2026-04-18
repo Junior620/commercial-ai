@@ -2,9 +2,91 @@ import { prisma } from "@/lib/prisma";
 
 const MS_DAY = 24 * 60 * 60 * 1000;
 
-export type DashboardExtra = Awaited<ReturnType<typeof getDashboardExtras>>;
+export type DashboardExtra = {
+  targets: {
+    weeklyEmail: number;
+    weeklyProspects: number;
+    weeklyReplies: number;
+    bounceAlertThreshold: number;
+  };
+  progress: {
+    weeklyEmailsSent: number;
+    weeklyNewProspects: number;
+    weeklyRepliesMarked: number;
+  };
+  hotNewNoOutreach: Array<{
+    id: string;
+    company: string;
+    email: string;
+    country: string;
+    score: number;
+  }>;
+  staleContacted: Array<{
+    id: string;
+    company: string;
+    email: string;
+    country: string;
+    lastContactedAt: Date | null;
+  }>;
+  segments: Array<{
+    id: string;
+    name: string;
+    _count: { prospectLinks: number };
+  }>;
+  sendVolumeByDay: Array<{ day: string; count: number }>;
+  bounceRate30: string;
+  attempted30: number;
+  bounced30: number;
+  prospectsBySource: Array<{ source: string; count: number }>;
+  alerts: Array<{ level: "warning" | "danger"; message: string }>;
+  recentBouncedSamples: Array<{
+    id: string;
+    subject: string;
+    prospect: { company: string; email: string };
+  }>;
+  dailyCap: number;
+  sentToday: number;
+};
 
-export async function getDashboardExtras() {
+function emptyWeekVolume(): { day: string; count: number }[] {
+  const now = Date.now();
+  const out: { day: string; count: number }[] = [];
+  for (let i = 6; i >= 0; i--) {
+    const d = new Date(now - i * MS_DAY);
+    out.push({ day: d.toISOString().slice(0, 10), count: 0 });
+  }
+  return out;
+}
+
+function defaultExtras(): DashboardExtra {
+  return {
+    targets: {
+      weeklyEmail: 200,
+      weeklyProspects: 30,
+      weeklyReplies: 5,
+      bounceAlertThreshold: 5,
+    },
+    progress: {
+      weeklyEmailsSent: 0,
+      weeklyNewProspects: 0,
+      weeklyRepliesMarked: 0,
+    },
+    hotNewNoOutreach: [],
+    staleContacted: [],
+    segments: [],
+    sendVolumeByDay: emptyWeekVolume(),
+    bounceRate30: "0",
+    attempted30: 0,
+    bounced30: 0,
+    prospectsBySource: [],
+    alerts: [],
+    recentBouncedSamples: [],
+    dailyCap: 50,
+    sentToday: 0,
+  };
+}
+
+async function loadDashboardExtrasCore(): Promise<DashboardExtra> {
   const now = Date.now();
   const weekAgo = new Date(now - 7 * MS_DAY);
   const thirtyDaysAgo = new Date(now - 30 * MS_DAY);
@@ -29,7 +111,7 @@ export async function getDashboardExtras() {
     prisma.email.count({
       where: {
         sentAt: { gte: weekAgo },
-        NOT: { status: "PENDING" },
+        status: { not: "PENDING" },
       },
     }),
     prisma.prospect.count({ where: { createdAt: { gte: weekAgo } } }),
@@ -44,7 +126,7 @@ export async function getDashboardExtras() {
         status: "NEW",
         score: { gte: 50 },
         NOT: {
-          emails: { some: { NOT: { status: "PENDING" } } },
+          emails: { some: { status: { not: "PENDING" } } },
         },
       },
       orderBy: { score: "desc" },
@@ -91,7 +173,7 @@ export async function getDashboardExtras() {
     prisma.email.count({
       where: {
         sentAt: { gte: thirtyDaysAgo },
-        NOT: { status: "PENDING" },
+        status: { not: "PENDING" },
       },
     }),
     prisma.email.count({
@@ -166,7 +248,7 @@ export async function getDashboardExtras() {
   const sentToday = await prisma.email.count({
     where: {
       sentAt: { gte: todayStart },
-      NOT: { status: "PENDING" },
+      status: { not: "PENDING" },
     },
   });
 
@@ -198,4 +280,14 @@ export async function getDashboardExtras() {
     dailyCap,
     sentToday,
   };
+}
+
+/** Ne fait jamais echouer le dashboard : migration incomplete, DB, etc. */
+export async function getDashboardExtras(): Promise<DashboardExtra> {
+  try {
+    return await loadDashboardExtrasCore();
+  } catch (e) {
+    console.error("[dashboard-extras] chargement partiel ou impossible:", e);
+    return defaultExtras();
+  }
 }

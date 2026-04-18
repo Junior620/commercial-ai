@@ -73,7 +73,7 @@ async function getStats() {
     prisma.prospect.count(),
     prisma.email.count(),
     prisma.email.count({
-      where: { NOT: { status: "PENDING" } },
+      where: { status: { not: "PENDING" } },
     }),
     prisma.email.count({
       where: { status: { in: ["DELIVERED", "OPENED", "CLICKED", "REPLIED"] } },
@@ -133,15 +133,13 @@ async function getStats() {
     prisma.email.count({
       where: {
         sentAt: { gte: weekAgo },
-        status: {
-          notIn: ["PENDING"],
-        },
+        status: { not: "PENDING" },
       },
     }),
     prisma.email.count({
       where: {
         sentAt: { gte: twoWeeksAgo, lt: weekAgo },
-        status: { notIn: ["PENDING"] },
+        status: { not: "PENDING" },
       },
     }),
   ]);
@@ -228,21 +226,13 @@ async function getStats() {
 
 export default async function DashboardPage() {
   let stats: Awaited<ReturnType<typeof getStats>> | null = null;
-  let extras: Awaited<ReturnType<typeof getDashboardExtras>> | null = null;
   try {
-    [stats, extras] = await Promise.all([getStats(), getDashboardExtras()]);
-  } catch {
-    try {
-      stats = await getStats();
-    } catch {
-      stats = null;
-    }
-    try {
-      extras = await getDashboardExtras();
-    } catch {
-      extras = null;
-    }
+    stats = await getStats();
+  } catch (e) {
+    console.error("[dashboard] getStats:", e);
+    stats = null;
   }
+  const extras = await getDashboardExtras();
 
   const kpis = stats
     ? [
@@ -368,6 +358,23 @@ export default async function DashboardPage() {
         icon={TrendingUp}
       />
 
+      {!stats ? (
+        <Card className="border-destructive/50 bg-destructive/5">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-base text-destructive">
+              Impossible de charger les statistiques
+            </CardTitle>
+            <CardDescription>
+              Verifiez <code className="text-xs">DATABASE_URL</code>, que la base
+              est joignable, et que{" "}
+              <code className="text-xs">npx prisma migrate dev</code> a ete
+              execute apres la derniere mise a jour. Consultez la console du
+              serveur (terminal) pour le detail de l erreur.
+            </CardDescription>
+          </CardHeader>
+        </Card>
+      ) : null}
+
       <div className="flex flex-wrap gap-3">
         <Link
           href="/campaigns"
@@ -426,7 +433,7 @@ export default async function DashboardPage() {
         ))}
       </div>
 
-      {extras ? <StrategicDashboardSections extras={extras} /> : null}
+      <StrategicDashboardSections extras={extras} />
 
       {stats && (
         <div className="grid gap-4 lg:grid-cols-3">
