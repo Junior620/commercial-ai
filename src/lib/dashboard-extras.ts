@@ -92,21 +92,8 @@ async function loadDashboardExtrasCore(): Promise<DashboardExtra> {
   const thirtyDaysAgo = new Date(now - 30 * MS_DAY);
   const thirtyDaysContact = new Date(now - 30 * MS_DAY);
 
-  const [
-    settings,
-    weeklyEmailsSent,
-    weeklyNewProspects,
-    weeklyRepliesMarked,
-    hotNewNoOutreach,
-    staleContacted,
-    segments,
-    emailsForVolume,
-    attempted30,
-    bounced30,
-    prospectsBySource,
-    failedScrapes7d,
-    recentBouncedSamples,
-  ] = await Promise.all([
+  const [settings, weeklyEmailsSent, weeklyNewProspects, weeklyRepliesMarked] =
+    await Promise.all([
     prisma.appSettings.findUnique({ where: { id: "default" } }),
     prisma.email.count({
       where: {
@@ -121,6 +108,10 @@ async function loadDashboardExtrasCore(): Promise<DashboardExtra> {
         repliedAt: { gte: weekAgo },
       },
     }),
+  ]);
+
+  const [hotNewNoOutreach, staleContacted, segments, emailsForVolume] =
+    await Promise.all([
     prisma.prospect.findMany({
       where: {
         status: "NEW",
@@ -170,6 +161,10 @@ async function loadDashboardExtrasCore(): Promise<DashboardExtra> {
       where: { sentAt: { gte: new Date(now - 7 * MS_DAY) } },
       select: { sentAt: true },
     }),
+  ]);
+
+  const [attempted30, bounced30, prospectsBySource, failedScrapes7d] =
+    await Promise.all([
     prisma.email.count({
       where: {
         sentAt: { gte: thirtyDaysAgo },
@@ -194,6 +189,9 @@ async function loadDashboardExtrasCore(): Promise<DashboardExtra> {
         createdAt: { gte: weekAgo },
       },
     }),
+  ]);
+
+  const [recentBouncedSamples] = await Promise.all([
     prisma.email.findMany({
       where: { status: "BOUNCED" },
       orderBy: { updatedAt: "desc" },

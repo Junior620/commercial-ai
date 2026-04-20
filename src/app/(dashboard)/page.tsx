@@ -44,32 +44,10 @@ async function getStats() {
   const weekAgo = new Date(now - 7 * 24 * 60 * 60 * 1000);
   const twoWeeksAgo = new Date(now - 14 * 24 * 60 * 60 * 1000);
 
-  const [
-    totalProspects,
-    totalEmails,
-    sentEmails,
-    deliveredEmails,
-    openedEmails,
-    repliedEmails,
-    clickedEmails,
-    bouncedEmails,
-    failedEmails,
-    activeCampaigns,
-    hotProspects,
-    prospectsByCountry,
-    prospectsByStatus,
-    responsesCount,
-    prospectsNew,
-    prospectsContacted,
-    prospectsInDiscussion,
-    prospectsConverted,
-    highPriorityProspects,
-    warmNewLeads,
-    lastScrape,
-    activeCampaignsDetail,
-    emailsLast7Days,
-    emailsPrev7Days,
-  ] = await Promise.all([
+  // Evite de saturer le pool SQL en session mode:
+  // on limite le nombre de requetes Prisma executees en parallele.
+  const [totalProspects, totalEmails, sentEmails, deliveredEmails] =
+    await Promise.all([
     prisma.prospect.count(),
     prisma.email.count(),
     prisma.email.count({
@@ -78,12 +56,20 @@ async function getStats() {
     prisma.email.count({
       where: { status: { in: ["DELIVERED", "OPENED", "CLICKED", "REPLIED"] } },
     }),
+  ]);
+
+  const [openedEmails, repliedEmails, clickedEmails, bouncedEmails] =
+    await Promise.all([
     prisma.email.count({
       where: { status: { in: ["OPENED", "CLICKED", "REPLIED"] } },
     }),
     prisma.email.count({ where: { status: "REPLIED" } }),
     prisma.email.count({ where: { status: "CLICKED" } }),
     prisma.email.count({ where: { status: "BOUNCED" } }),
+  ]);
+
+  const [failedEmails, activeCampaigns, hotProspects, prospectsByCountry] =
+    await Promise.all([
     prisma.email.count({ where: { status: "FAILED" } }),
     prisma.campaign.count({ where: { status: "ACTIVE" } }),
     prisma.prospect.count({ where: { score: { gte: 60 } } }),
@@ -93,13 +79,24 @@ async function getStats() {
       orderBy: { _count: { country: "desc" } },
       take: 10,
     }),
+  ]);
+
+  const [prospectsByStatus, responsesCount, prospectsNew, prospectsContacted] =
+    await Promise.all([
     prisma.prospect.groupBy({ by: ["status"], _count: true }),
     prisma.response.count(),
     prisma.prospect.count({ where: { status: "NEW" } }),
     prisma.prospect.count({ where: { status: "CONTACTED" } }),
+  ]);
+
+  const [prospectsInDiscussion, prospectsConverted, highPriorityProspects] =
+    await Promise.all([
     prisma.prospect.count({ where: { status: "IN_DISCUSSION" } }),
     prisma.prospect.count({ where: { status: "CONVERTED" } }),
     prisma.prospect.count({ where: { priority: "HIGH" } }),
+  ]);
+
+  const [warmNewLeads, lastScrape, activeCampaignsDetail] = await Promise.all([
     prisma.prospect.count({
       where: { status: "NEW", score: { gte: 50 } },
     }),
@@ -130,6 +127,9 @@ async function getStats() {
         dailyLimit: true,
       },
     }),
+  ]);
+
+  const [emailsLast7Days, emailsPrev7Days] = await Promise.all([
     prisma.email.count({
       where: {
         sentAt: { gte: weekAgo },
