@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import Image from "next/image";
 import { cn } from "@/lib/utils";
 import {
   LayoutDashboard,
@@ -15,7 +16,6 @@ import {
   Bot,
   ChevronLeft,
   ChevronRight,
-  Building2,
 } from "lucide-react";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
@@ -44,19 +44,26 @@ export function Sidebar() {
       )}
     >
       <div className="flex h-16 items-center justify-between border-b px-4">
-        {!collapsed && (
-          <div className="flex items-center gap-2">
-            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary/10 text-primary text-sm font-bold">
-              <Building2 className="h-4 w-4" />
-            </div>
+        <div className="flex items-center gap-2">
+          <div className="flex h-8 w-8 items-center justify-center overflow-hidden rounded-lg border bg-background">
+            <Image
+              src="/logo.png"
+              alt="Logo SCPB Commercial AI"
+              width={32}
+              height={32}
+              className="h-full w-full object-contain p-0.5"
+              priority
+            />
+          </div>
+          {!collapsed && (
             <div>
               <h1 className="text-sm font-semibold">SCPB Commercial AI</h1>
               <p className="text-[10px] text-muted-foreground">
                 SCPB - Intelligence Commerciale
               </p>
             </div>
-          </div>
-        )}
+          )}
+        </div>
         <Button
           variant="ghost"
           size="icon"

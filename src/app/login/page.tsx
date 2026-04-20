@@ -2,9 +2,10 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import Image from "next/image";
 import { createClient } from "@/lib/supabase/client";
 import { toast } from "sonner";
-import { Building2, Eye, EyeOff } from "lucide-react";
+import { Eye, EyeOff } from "lucide-react";
 
 export default function LoginPage() {
   const [email, setEmail] = useState("");
@@ -56,8 +57,15 @@ export default function LoginPage() {
       <div className="relative flex w-full flex-col justify-between bg-[#0a0a0a] px-8 py-10 text-white lg:w-1/2">
         {/* Logo */}
         <div className="flex items-center gap-3">
-          <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-white/10">
-            <Building2 className="h-5 w-5 text-emerald-400" />
+          <div className="flex h-9 w-9 items-center justify-center overflow-hidden rounded-lg border border-white/10 bg-white/5">
+            <Image
+              src="/logo.png"
+              alt="Logo SCPB Commercial AI"
+              width={36}
+              height={36}
+              className="h-full w-full object-contain p-0.5"
+              priority
+            />
           </div>
           <span className="text-lg font-bold tracking-tight">
             SCPB Commercial AI
