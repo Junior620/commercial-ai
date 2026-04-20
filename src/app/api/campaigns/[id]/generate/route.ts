@@ -25,6 +25,18 @@ function sanitizeContactName(
   return cleaned;
 }
 
+function resolveCampaignLanguage(
+  campaignLanguage: string | null | undefined,
+  prospectLanguage: string | null | undefined
+): string {
+  if (campaignLanguage && campaignLanguage !== "auto") {
+    return campaignLanguage;
+  }
+  const p = (prospectLanguage || "").trim().toLowerCase();
+  if (p) return p;
+  return "en";
+}
+
 export async function POST(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
@@ -85,9 +97,12 @@ export async function POST(
           country: prospect.country,
           sector: prospect.sector || "",
           product: prospect.product || "",
-          language: campaign.language,
+          language: resolveCampaignLanguage(campaign.language, prospect.language),
           tone: campaign.tone as "FORMAL" | "FRIENDLY" | "TECHNICAL" | "PREMIUM",
-          campaignProduct: campaign.product || "cocoa products",
+          campaignProduct:
+            !campaign.product || campaign.product === "all"
+              ? "cocoa or coffee products"
+              : campaign.product,
           senderName: process.env.SENDER_NAME?.trim(),
           senderCompany: process.env.SENDER_COMPANY?.trim(),
         });
@@ -113,7 +128,7 @@ export async function POST(
     }
 
     return NextResponse.json({ generated });
-  } catch (err) {
+  } catch {
     return NextResponse.json(
       { error: "Erreur de generation" },
       { status: 500 }

@@ -42,6 +42,20 @@ const TONE_MAP: Record<string, string> = {
   PREMIUM: "premium et exclusif, ton haut de gamme",
 };
 
+const TONE_SALES_PLAYBOOK: Record<
+  GenerateEmailParams["tone"],
+  string
+> = {
+  FORMAL:
+    "Structure claire (probleme -> solution -> preuve -> CTA). Mettre l'accent sur fiabilite, conformite et execution.",
+  FRIENDLY:
+    "Voix humaine et relationnelle. Montrer une comprehension du contexte client, puis proposer une prochaine etape simple.",
+  TECHNICAL:
+    "Etre concret: specs, qualite, process, stabilite d'approvisionnement, certifications et usages applicatifs.",
+  PREMIUM:
+    "Positionnement valeur: qualite superieure, constance, service personnalise, exclusivite. Rester sobre et credible.",
+};
+
 const LANG_MAP: Record<string, string> = {
   fr: "francais",
   en: "anglais",
@@ -192,6 +206,7 @@ export async function generateEmail(
   params: GenerateEmailParams
 ): Promise<GeneratedEmail> {
   const tonDesc = TONE_MAP[params.tone] || TONE_MAP.FORMAL;
+  const tonePlaybook = TONE_SALES_PLAYBOOK[params.tone] || TONE_SALES_PLAYBOOK.FORMAL;
   const langDesc = LANG_MAP[params.language] || params.language;
   const sender = getSenderInfo();
 
@@ -216,6 +231,7 @@ EXPEDITEUR :
 CAMPAGNE :
 - Produit a promouvoir : ${params.campaignProduct}
 - Ton : ${tonDesc}
+- Guideline ton commercial : ${tonePlaybook}
 - Langue : ${langDesc}
 ${params.customInstructions ? `- Instructions specifiques : ${params.customInstructions}` : ""}
 
@@ -230,6 +246,12 @@ REGLES STRICTES :
 8. Commence directement par "Dear [nom du contact]," ou "Dear [nom entreprise] Team," — PAS "Dear Sir/Madam".
 9. Ne repete pas le nom de l'entreprise du prospect plus de 2 fois dans le mail.
 10. Mentionne des avantages concrets : qualite constante, livraison fiable, prix competitifs, certifications, etc.
+11. Style commercial obligatoire :
+   - 1 phrase d'accroche specifique au prospect
+   - 2-3 arguments de valeur MAX, orientes resultat business
+   - 1 preuve de credibilite (ex: qualite, capacite, process, certif)
+   - 1 CTA unique, direct et facile a accepter (ex: "15 min cette semaine ?")
+12. Evite les longues listes et le jargon inutile. Priorite a la clarte et a la conversion.
 
 FORMAT DE REPONSE (JSON uniquement) :
 {
@@ -254,6 +276,7 @@ export async function generateFollowUp(
   tone: "FORMAL" | "FRIENDLY" | "TECHNICAL" | "PREMIUM"
 ): Promise<GeneratedEmail> {
   const tonDesc = TONE_MAP[tone] || TONE_MAP.FORMAL;
+  const tonePlaybook = TONE_SALES_PLAYBOOK[tone] || TONE_SALES_PLAYBOOK.FORMAL;
   const langDesc = LANG_MAP[language] || language;
   const sender = getSenderInfo();
 
@@ -264,6 +287,7 @@ Corps: ${originalBody}
 Genere la relance numero ${followUpNumber} pour ${prospectName}.
 - Expediteur : ${sender.name}, ${sender.position} chez ${sender.company}
 - Ton : ${tonDesc}
+- Guideline ton commercial : ${tonePlaybook}
 - Langue : ${langDesc}
 
 REGLES STRICTES :

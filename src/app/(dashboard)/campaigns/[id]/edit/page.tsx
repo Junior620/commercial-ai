@@ -70,7 +70,7 @@ export default function EditCampaignPage({
           name: c.name ?? "",
           segmentId: c.segmentId ?? "",
           product: c.product ?? "",
-          language: c.language ?? "en",
+          language: c.language ?? "auto",
           tone: c.tone ?? "FORMAL",
           maxFollowUps: String(c.maxFollowUps ?? 2),
           followUpDelayDays: String(c.followUpDelayDays ?? 4),
@@ -158,19 +158,19 @@ export default function EditCampaignPage({
           <div className="space-y-2">
             <Label>Segment cible</Label>
             <Select
-              value={formData.segmentId || "__none__"}
+              value={formData.segmentId || "__all__"}
               onValueChange={(v) =>
                 setFormData({
                   ...formData,
-                  segmentId: v === "__none__" ? "" : (v ?? ""),
+                  segmentId: v === "__all__" ? "" : (v ?? ""),
                 })
               }
             >
               <SelectTrigger>
-                <SelectValue placeholder="Aucun segment" />
+                <SelectValue placeholder="Tous les prospects" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="__none__">Aucun segment</SelectItem>
+                <SelectItem value="__all__">Tous les prospects</SelectItem>
                 {segments.map((s) => (
                   <SelectItem key={s.id} value={s.id}>
                     {s.name}
@@ -217,6 +217,7 @@ export default function EditCampaignPage({
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
+                  <SelectItem value="auto">Auto (langue du prospect)</SelectItem>
                   <SelectItem value="en">Anglais</SelectItem>
                   <SelectItem value="fr">Francais</SelectItem>
                   <SelectItem value="es">Espagnol</SelectItem>

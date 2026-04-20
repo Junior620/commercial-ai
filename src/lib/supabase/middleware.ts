@@ -13,13 +13,16 @@ export async function updateSession(request: NextRequest) {
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL?.trim();
   const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY?.trim();
 
-  if (!supabaseUrl || !supabaseKey) {
-    if (!isPublicPath) {
-      const url = request.nextUrl.clone();
-      url.pathname = "/login";
-      return NextResponse.redirect(url);
-    }
+  // Les routes publiques n'ont pas besoin de verifier la session.
+  // Evite des appels reseau Supabase inutiles (et bruyants) sur /login.
+  if (isPublicPath) {
     return NextResponse.next({ request });
+  }
+
+  if (!supabaseUrl || !supabaseKey) {
+    const url = request.nextUrl.clone();
+    url.pathname = "/login";
+    return NextResponse.redirect(url);
   }
 
   let supabaseResponse = NextResponse.next({ request });
@@ -50,7 +53,7 @@ export async function updateSession(request: NextRequest) {
     user = null;
   }
 
-  if (!user && !isPublicPath) {
+  if (!user) {
     const url = request.nextUrl.clone();
     url.pathname = "/login";
     return NextResponse.redirect(url);

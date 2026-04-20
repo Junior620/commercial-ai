@@ -36,7 +36,7 @@ export default function NewCampaignPage() {
     name: "",
     segmentId: "",
     product: "",
-    language: "en",
+    language: "auto",
     tone: "FORMAL",
     maxFollowUps: "2",
     followUpDelayDays: "4",
@@ -108,15 +108,19 @@ export default function NewCampaignPage() {
           <div className="space-y-2">
             <Label>Segment cible</Label>
             <Select
-              value={formData.segmentId}
+              value={formData.segmentId || "__all__"}
               onValueChange={(v) =>
-                setFormData({ ...formData, segmentId: v ?? "" })
+                setFormData({
+                  ...formData,
+                  segmentId: v === "__all__" ? "" : (v ?? ""),
+                })
               }
             >
               <SelectTrigger>
-                <SelectValue placeholder="Selectionner un segment" />
+                <SelectValue placeholder="Tous les prospects" />
               </SelectTrigger>
               <SelectContent>
+                <SelectItem value="__all__">Tous les prospects</SelectItem>
                 {segments.map((s) => (
                   <SelectItem key={s.id} value={s.id}>
                     {s.name}
@@ -159,6 +163,7 @@ export default function NewCampaignPage() {
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
+                  <SelectItem value="auto">Auto (langue du prospect)</SelectItem>
                   <SelectItem value="en">Anglais</SelectItem>
                   <SelectItem value="fr">Francais</SelectItem>
                   <SelectItem value="es">Espagnol</SelectItem>

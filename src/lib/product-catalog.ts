@@ -1,4 +1,5 @@
 export const CAMPAIGN_PRODUCT_OPTIONS = [
+  { id: "all", label: "Tous produits" },
   { id: "cocoa_beans", label: "Fèves de cacao" },
   { id: "cocoa_butter", label: "Beurre de cacao" },
   { id: "cocoa_powder", label: "Poudre de cacao" },
