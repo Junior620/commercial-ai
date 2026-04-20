@@ -27,6 +27,7 @@ import Link from "next/link";
 import { PageTitle } from "@/components/layout/page-title";
 import { ListPagination } from "@/components/shared/list-pagination";
 import { cn } from "@/lib/utils";
+import { PRODUCT_LABELS } from "@/lib/product-catalog";
 
 interface Campaign {
   id: string;
@@ -62,18 +63,6 @@ function formatCampaignStatus(status: string): string {
   };
   return map[status] ?? status;
 }
-
-const PRODUCT_LABELS: Record<string, string> = {
-  cocoa_beans: "Fèves de cacao",
-  cocoa_butter: "Beurre de cacao",
-  cocoa_powder: "Poudre de cacao",
-  cocoa_mass: "Masse de cacao",
-  cocoa_liquor: "Masse de cacao",
-  derivatives: "Dérivés",
-  cosmetics: "Cosmétiques",
-  food_chocolate: "Alimentation / chocolat",
-  all: "Tous produits",
-};
 
 function formatProductLabel(product: string | null): string {
   if (!product) return "Tous produits";

@@ -22,6 +22,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
 import { Sparkles } from "lucide-react";
 import { PageTitle } from "@/components/layout/page-title";
+import { CAMPAIGN_PRODUCT_OPTIONS } from "@/lib/product-catalog";
 
 interface Segment {
   id: string;
@@ -138,15 +139,11 @@ export default function NewCampaignPage() {
                   <SelectValue placeholder="Selectionner" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="cocoa_beans">Feves de cacao</SelectItem>
-                  <SelectItem value="cocoa_butter">
-                    Beurre de cacao
-                  </SelectItem>
-                  <SelectItem value="cocoa_powder">
-                    Poudre de cacao
-                  </SelectItem>
-                  <SelectItem value="cocoa_mass">Masse de cacao</SelectItem>
-                  <SelectItem value="derivatives">Derives</SelectItem>
+                  {CAMPAIGN_PRODUCT_OPTIONS.map((p) => (
+                    <SelectItem key={p.id} value={p.id}>
+                      {p.label}
+                    </SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
             </div>

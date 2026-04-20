@@ -67,6 +67,38 @@ const PREDEFINED_SEGMENTS = [
     name: "Traders matieres premieres",
     filters: { clientType: "trader" },
   },
+  {
+    name: "Torréfacteurs café",
+    filters: { sector: "coffee", clientType: "manufacturer" },
+  },
+  {
+    name: "Importateurs café vert",
+    filters: { products: ["green_coffee"], clientType: "importer" },
+  },
+  {
+    name: "Agri-Tech cacao/café",
+    filters: { sectors: ["agri-tech", "precision agriculture", "satellite"] },
+  },
+  {
+    name: "Conformité RDUE & traçabilité",
+    filters: { sectors: ["traceability", "compliance", "sustainability"] },
+  },
+  {
+    name: "Équipement torréfaction & tri",
+    filters: { sectors: ["machinery"], clientType: "manufacturer" },
+  },
+  {
+    name: "Emballage haute barrière",
+    filters: { sectors: ["packaging", "materials"] },
+  },
+  {
+    name: "Finance agricole & assurance",
+    filters: { sectors: ["finance", "insurance"], clientType: "distributor" },
+  },
+  {
+    name: "Bioéconomie circulaire",
+    filters: { sectors: ["bioeconomy", "waste valorization"] },
+  },
 ];
 
 export default function SegmentsPage() {
@@ -262,6 +294,16 @@ export default function SegmentsPage() {
                     placeholder="importer, trader"
                   />
                 </div>
+              </div>
+              <div className="space-y-2">
+                <Label>Produits (codes, séparés par virgule)</Label>
+                <Input
+                  value={formData.products}
+                  onChange={(e) =>
+                    setFormData({ ...formData, products: e.target.value })
+                  }
+                  placeholder="cocoa_butter, coffee_beans, green_coffee, instant_coffee"
+                />
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">

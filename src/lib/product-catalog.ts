@@ -1,0 +1,48 @@
+export const CAMPAIGN_PRODUCT_OPTIONS = [
+  { id: "cocoa_beans", label: "Fèves de cacao" },
+  { id: "cocoa_butter", label: "Beurre de cacao" },
+  { id: "cocoa_powder", label: "Poudre de cacao" },
+  { id: "cocoa_mass", label: "Masse de cacao" },
+  { id: "derivatives", label: "Dérivés cacao" },
+  { id: "coffee_beans", label: "Grains de café" },
+  { id: "green_coffee", label: "Café vert" },
+  { id: "ground_coffee", label: "Café moulu" },
+  { id: "instant_coffee", label: "Café soluble" },
+] as const;
+
+export const SCRAPING_PRODUCT_OPTIONS = [
+  { id: "all", label: "Tous les produits" },
+  { id: "cocoa beans", label: "Fèves de cacao" },
+  { id: "cocoa butter", label: "Beurre de cacao" },
+  { id: "cocoa powder", label: "Poudre de cacao" },
+  { id: "cocoa mass/liquor", label: "Masse de cacao" },
+  { id: "derivatives", label: "Dérivés cacao" },
+  { id: "cosmetics", label: "Cosmétiques" },
+  { id: "food/chocolate", label: "Alimentation / chocolat" },
+  { id: "coffee beans", label: "Grains de café" },
+  { id: "green coffee", label: "Café vert" },
+  { id: "ground coffee", label: "Café moulu" },
+  { id: "instant coffee", label: "Café soluble" },
+  { id: "agri-tech", label: "Agri-Tech & capteurs" },
+  { id: "packaging", label: "Emballage & matériaux" },
+  { id: "machinery", label: "Machines de transformation" },
+  { id: "compliance", label: "Traçabilité & conformité" },
+  { id: "finance", label: "Finance agricole & assurance" },
+  { id: "circular", label: "Bioéconomie circulaire" },
+] as const;
+
+export const PRODUCT_LABELS: Record<string, string> = {
+  cocoa_beans: "Fèves de cacao",
+  cocoa_butter: "Beurre de cacao",
+  cocoa_powder: "Poudre de cacao",
+  cocoa_mass: "Masse de cacao",
+  cocoa_liquor: "Masse de cacao",
+  derivatives: "Dérivés cacao",
+  cosmetics: "Cosmétiques",
+  food_chocolate: "Alimentation / chocolat",
+  coffee_beans: "Grains de café",
+  green_coffee: "Café vert",
+  ground_coffee: "Café moulu",
+  instant_coffee: "Café soluble",
+  all: "Tous produits",
+};

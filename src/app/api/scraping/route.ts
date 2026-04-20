@@ -30,6 +30,16 @@ const CSV_PRODUCT_SUBCATEGORIES = new Set([
   "derivatives",
   "cosmetics",
   "food/chocolate",
+  "coffee beans",
+  "green coffee",
+  "ground coffee",
+  "instant coffee",
+  "agri-tech",
+  "packaging",
+  "machinery",
+  "compliance",
+  "finance",
+  "circular",
 ]);
 
 type ProgressRun = { runId: string; label: string };
@@ -135,12 +145,35 @@ type EnrichedPlace = {
   emailSource: "maps" | "apify" | "deep-apify" | "google-search" | "web-crawler" | "fallback" | null;
 };
 
-export async function GET() {
-  const jobs = await prisma.scrapingJob.findMany({
-    orderBy: { createdAt: "desc" },
-    take: 20,
+export async function GET(req: NextRequest) {
+  const pageParam = Number(req.nextUrl.searchParams.get("page") || "1");
+  const pageSizeParam = Number(req.nextUrl.searchParams.get("pageSize") || "10");
+  const page = Number.isFinite(pageParam) && pageParam > 0 ? Math.floor(pageParam) : 1;
+  const pageSize =
+    Number.isFinite(pageSizeParam) && pageSizeParam > 0
+      ? Math.min(50, Math.floor(pageSizeParam))
+      : 10;
+
+  const [total, runningCount, jobs] = await Promise.all([
+    prisma.scrapingJob.count(),
+    prisma.scrapingJob.count({ where: { status: "RUNNING" } }),
+    prisma.scrapingJob.findMany({
+      orderBy: { createdAt: "desc" },
+      skip: (page - 1) * pageSize,
+      take: pageSize,
+    }),
+  ]);
+
+  const totalPages = Math.max(1, Math.ceil(total / pageSize));
+
+  return NextResponse.json({
+    items: jobs,
+    total,
+    page,
+    pageSize,
+    totalPages,
+    runningCount,
   });
-  return NextResponse.json(jobs);
 }
 
 export async function POST(req: NextRequest) {

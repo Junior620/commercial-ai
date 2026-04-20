@@ -22,6 +22,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Bot, Loader2, Copy, Check } from "lucide-react";
 import { toast } from "sonner";
 import { PageTitle } from "@/components/layout/page-title";
+import { CAMPAIGN_PRODUCT_OPTIONS } from "@/lib/product-catalog";
 
 export default function AIPage() {
   const [params, setParams] = useState({
@@ -149,15 +150,11 @@ export default function AIPage() {
                     alignItemWithTrigger={false}
                     className="min-w-[min(100%,18rem)]"
                   >
-                    <SelectItem value="cocoa_beans">Fèves de cacao</SelectItem>
-                    <SelectItem value="cocoa_butter">
-                      Beurre de cacao
-                    </SelectItem>
-                    <SelectItem value="cocoa_powder">
-                      Poudre de cacao
-                    </SelectItem>
-                    <SelectItem value="cocoa_mass">Masse de cacao</SelectItem>
-                    <SelectItem value="derivatives">Dérivés</SelectItem>
+                    {CAMPAIGN_PRODUCT_OPTIONS.map((p) => (
+                      <SelectItem key={p.id} value={p.id}>
+                        {p.label}
+                      </SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
               </div>

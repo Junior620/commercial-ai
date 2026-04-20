@@ -334,3 +334,68 @@ trader,trading,en,trader,cocoa broker in Netherlands,country,Netherlands,Geo-tar
 trader,trading,en,trader,cocoa broker in Switzerland,country,Switzerland,Geo-targeted trader
 trader,trading,en,trader,cocoa broker in UK,country,UK,Geo-targeted trader
 trader,trading,en,trader,cocoa broker in UAE,country,UAE,Geo-targeted trader
+general,general,en,seller,coffee company,global,,Coffee keyword
+general,general,en,seller,coffee supplier,global,,Coffee keyword
+general,general,en,seller,coffee exporter,global,,Coffee keyword
+general,general,en,seller,green coffee supplier,global,,Coffee keyword
+general,general,en,seller,coffee processing company,global,,Coffee keyword
+general,general,fr,seller,fournisseur cafe,global,,Coffee keyword FR
+general,general,es,seller,proveedor de cafe,global,,Coffee keyword ES
+buyer,food/chocolate,en,buyer,coffee roaster,global,,Coffee buyer keyword
+buyer,food/chocolate,en,buyer,specialty coffee roaster,global,,Coffee buyer keyword
+buyer,food/chocolate,en,buyer,coffee roaster in Belgium,country,Belgium,Geo-targeted coffee buyer
+buyer,food/chocolate,en,buyer,coffee roaster in Egypt,country,Egypt,Geo-targeted coffee buyer
+buyer,food/chocolate,en,buyer,coffee roaster in France,country,France,Geo-targeted coffee buyer
+buyer,food/chocolate,en,buyer,coffee roaster in Germany,country,Germany,Geo-targeted coffee buyer
+buyer,food/chocolate,en,buyer,coffee roaster in Italy,country,Italy,Geo-targeted coffee buyer
+buyer,food/chocolate,en,buyer,coffee roaster in Morocco,country,Morocco,Geo-targeted coffee buyer
+buyer,food/chocolate,en,buyer,coffee roaster in Netherlands,country,Netherlands,Geo-targeted coffee buyer
+buyer,food/chocolate,en,buyer,coffee roaster in Poland,country,Poland,Geo-targeted coffee buyer
+buyer,food/chocolate,en,buyer,coffee roaster in Portugal,country,Portugal,Geo-targeted coffee buyer
+buyer,food/chocolate,en,buyer,coffee roaster in Saudi Arabia,country,Saudi Arabia,Geo-targeted coffee buyer
+buyer,food/chocolate,en,buyer,coffee roaster in Spain,country,Spain,Geo-targeted coffee buyer
+buyer,food/chocolate,en,buyer,coffee roaster in Switzerland,country,Switzerland,Geo-targeted coffee buyer
+buyer,food/chocolate,en,buyer,coffee roaster in Tunisia,country,Tunisia,Geo-targeted coffee buyer
+buyer,food/chocolate,en,buyer,coffee roaster in Turkey,country,Turkey,Geo-targeted coffee buyer
+buyer,food/chocolate,en,buyer,coffee roaster in UAE,country,UAE,Geo-targeted coffee buyer
+buyer,food/chocolate,en,buyer,coffee roaster in UK,country,UK,Geo-targeted coffee buyer
+product,coffee beans,en,seller,coffee beans supplier,global,,Coffee product keyword
+product,coffee beans,en,seller,green coffee beans exporter,global,,Coffee product keyword
+product,coffee beans,en,seller,arabica coffee beans supplier,global,,Coffee product keyword
+product,coffee beans,en,seller,robusta coffee beans supplier,global,,Coffee product keyword
+product,green coffee,en,seller,green coffee supplier,global,,Coffee product keyword
+product,green coffee,en,seller,green coffee exporter,global,,Coffee product keyword
+product,ground coffee,en,seller,ground coffee supplier,global,,Coffee product keyword
+product,ground coffee,en,seller,bulk ground coffee manufacturer,global,,Coffee product keyword
+product,instant coffee,en,seller,instant coffee supplier,global,,Coffee product keyword
+product,instant coffee,en,seller,spray dried instant coffee supplier,global,,Coffee product keyword
+trader,trading,en,trader,coffee trading company,global,,Coffee trader keyword
+trader,trading,en,trader,green coffee trader,global,,Coffee trader keyword
+trader,trading,en,trader,coffee commodity trader,global,,Coffee trader keyword
+trader,trading,fr,trader,negociant cafe,global,,Coffee trader keyword FR
+agri_tech,agri-tech,en,seller,agritech cocoa traceability platform,global,,Emerging domain keyword
+agri_tech,agri-tech,en,seller,coffee farm satellite monitoring company,global,,Emerging domain keyword
+agri_tech,agri-tech,en,seller,drone crop monitoring cacao,global,,Emerging domain keyword
+agri_tech,agri-tech,en,seller,precision agriculture coffee plantations,global,,Emerging domain keyword
+agri_tech,agri-tech,fr,seller,solution tracabilite cacao,global,,Emerging domain keyword FR
+finance_risk,finance,en,seller,agricultural microfinance cocoa farmers,global,,Emerging domain keyword
+finance_risk,finance,en,seller,parametric crop insurance coffee,global,,Emerging domain keyword
+finance_risk,finance,en,seller,commodity risk management cacao,global,,Emerging domain keyword
+finance_risk,finance,fr,seller,assurance recolte cafe,global,,Emerging domain keyword FR
+finance_risk,finance,fr,seller,microfinance cooperative cacao,global,,Emerging domain keyword FR
+machinery_packaging,machinery,en,seller,cocoa bean sorting machine manufacturer,global,,Emerging domain keyword
+machinery_packaging,machinery,en,seller,coffee roaster equipment supplier,global,,Emerging domain keyword
+machinery_packaging,machinery,en,seller,cocoa processing line manufacturer,global,,Emerging domain keyword
+machinery_packaging,packaging,en,seller,high barrier coffee packaging supplier,global,,Emerging domain keyword
+machinery_packaging,packaging,en,seller,degas valve coffee bags manufacturer,global,,Emerging domain keyword
+machinery_packaging,packaging,fr,seller,emballage barriere cafe,global,,Emerging domain keyword FR
+compliance_traceability,compliance,en,seller,EUDR compliance services cocoa,global,,Emerging domain keyword
+compliance_traceability,compliance,en,seller,cocoa supply chain traceability software,global,,Emerging domain keyword
+compliance_traceability,compliance,en,seller,coffee deforestation due diligence platform,global,,Emerging domain keyword
+compliance_traceability,compliance,fr,seller,conformite rdue cacao,global,,Emerging domain keyword FR
+compliance_traceability,compliance,fr,seller,audit tracabilite cafe,global,,Emerging domain keyword FR
+circular_bioeconomy,circular,en,seller,cocoa husk valorization company,global,,Emerging domain keyword
+circular_bioeconomy,circular,en,seller,coffee waste to bioenergy technology,global,,Emerging domain keyword
+circular_bioeconomy,circular,en,seller,cacao biomass bioplastics supplier,global,,Emerging domain keyword
+circular_bioeconomy,circular,en,seller,polyphenol extraction cocoa shells,global,,Emerging domain keyword
+circular_bioeconomy,circular,fr,seller,economie circulaire cacao,global,,Emerging domain keyword FR

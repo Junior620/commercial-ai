@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -42,44 +42,53 @@ import { PageTitle } from "@/components/layout/page-title";
 import { Separator } from "@/components/ui/separator";
 import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
+import { SCRAPING_PRODUCT_OPTIONS } from "@/lib/product-catalog";
+import { ListPagination } from "@/components/shared/list-pagination";
 
 const KEYWORD_CATEGORIES = [
   { id: "buyer", label: "Acheteurs (buyers)" },
-  { id: "trader", label: "Traders de cacao" },
-  { id: "general", label: "General (cocoa companies)" },
-  { id: "product", label: "Produits specifiques" },
-  { id: "linkedin_role", label: "Roles LinkedIn" },
+  { id: "trader", label: "Traders cacao/café" },
+  { id: "general", label: "Sociétés générales cacao/café" },
+  { id: "product", label: "Produits spécifiques" },
+  { id: "agri_tech", label: "Agri-Tech & télédétection" },
+  { id: "finance_risk", label: "Finance, assurance & risque" },
+  { id: "machinery_packaging", label: "Machines & emballage" },
+  { id: "compliance_traceability", label: "Conformité & traçabilité" },
+  { id: "circular_bioeconomy", label: "Bioéconomie circulaire" },
+  { id: "linkedin_role", label: "Rôles LinkedIn" },
   { id: "linkedin_combo", label: "LinkedIn combo" },
 ];
 
 const COUNTRIES = [
+  "Bulgaria",
   "Belgium",
+  "China",
+  "Finland",
   "Egypt",
   "France",
   "Germany",
+  "Greece",
   "Italy",
+  "Indonesia",
+  "Japan",
+  "Lithuania",
+  "Malaysia",
+  "Mexico",
   "Morocco",
   "Netherlands",
+  "Nigeria",
   "Poland",
   "Portugal",
+  "Russia",
   "Saudi Arabia",
+  "South Korea",
   "Spain",
   "Switzerland",
   "Tunisia",
   "Turkey",
   "UAE",
   "UK",
-];
-
-const PRODUCTS = [
-  { id: "all", label: "Tous les produits" },
-  { id: "cocoa beans", label: "Feves de cacao" },
-  { id: "cocoa butter", label: "Beurre de cacao" },
-  { id: "cocoa powder", label: "Poudre de cacao" },
-  { id: "cocoa mass/liquor", label: "Masse de cacao" },
-  { id: "derivatives", label: "Derives" },
-  { id: "cosmetics", label: "Cosmetiques" },
-  { id: "food/chocolate", label: "Alimentation/Chocolat" },
+  "USA",
 ];
 
 interface ScrapingProgress {
@@ -134,6 +143,7 @@ function labelApifyStatus(status: string): string {
 }
 
 export default function ScrapingPage() {
+  const HISTORY_PAGE_SIZE = 10;
   const [selectedCategories, setSelectedCategories] = useState<string[]>([
     "buyer",
     "general",
@@ -144,6 +154,10 @@ export default function ScrapingPage() {
   const [maxResults, setMaxResults] = useState("100");
   const [isRunning, setIsRunning] = useState(false);
   const [jobs, setJobs] = useState<ScrapingJob[]>([]);
+  const [historyPage, setHistoryPage] = useState(1);
+  const [historyTotal, setHistoryTotal] = useState(0);
+  const [historyTotalPages, setHistoryTotalPages] = useState(1);
+  const [runningJobsCount, setRunningJobsCount] = useState(0);
   const [progressJobId, setProgressJobId] = useState<string | null>(null);
   const [liveDetail, setLiveDetail] = useState<{
     job: ScrapingJob;
@@ -151,19 +165,52 @@ export default function ScrapingPage() {
   } | null>(null);
   const [cancellingId, setCancellingId] = useState<string | null>(null);
 
+  const fetchJobs = useCallback(
+    async (targetPage = historyPage) => {
+      try {
+        const res = await fetch(
+          `/api/scraping?page=${targetPage}&pageSize=${HISTORY_PAGE_SIZE}`
+        );
+        if (!res.ok) return;
+        const data = await res.json();
+        if (Array.isArray(data)) {
+          // compat temporaire si ancienne forme de payload
+          setJobs(data);
+          setHistoryTotal(data.length);
+          setHistoryTotalPages(1);
+          setRunningJobsCount(data.some((j) => j.status === "RUNNING") ? 1 : 0);
+          return;
+        }
+        setJobs(Array.isArray(data.items) ? data.items : []);
+        setHistoryTotal(typeof data.total === "number" ? data.total : 0);
+        setHistoryTotalPages(
+          typeof data.totalPages === "number" && data.totalPages > 0
+            ? data.totalPages
+            : 1
+        );
+        setRunningJobsCount(
+          typeof data.runningCount === "number" ? data.runningCount : 0
+        );
+      } catch {
+        // ignore
+      }
+    },
+    [historyPage]
+  );
+
   useEffect(() => {
     fetchJobs();
-  }, []);
+  }, [fetchJobs]);
 
-  const hasRunningJob = jobs.some((j) => j.status === "RUNNING");
+  const hasRunningJob = runningJobsCount > 0;
 
   useEffect(() => {
     if (!hasRunningJob) return;
     const t = setInterval(() => {
-      fetchJobs();
+      fetchJobs(historyPage);
     }, 4000);
     return () => clearInterval(t);
-  }, [hasRunningJob]);
+  }, [hasRunningJob, historyPage, fetchJobs]);
 
   useEffect(() => {
     if (!progressJobId) {
@@ -185,18 +232,6 @@ export default function ScrapingPage() {
     return () => clearInterval(iv);
   }, [progressJobId]);
 
-  const fetchJobs = async () => {
-    try {
-      const res = await fetch("/api/scraping");
-      if (res.ok) {
-        const data = await res.json();
-        setJobs(data);
-      }
-    } catch {
-      // ignore
-    }
-  };
-
   const cancelScrapingJob = async (jobId: string) => {
     setCancellingId(jobId);
     try {
@@ -213,7 +248,7 @@ export default function ScrapingPage() {
         return;
       }
       toast.success("Scraping annulé");
-      await fetchJobs();
+      await fetchJobs(historyPage);
       if (progressJobId === jobId) {
         setLiveDetail((prev) =>
           prev && prev.job.id === jobId
@@ -254,7 +289,8 @@ export default function ScrapingPage() {
       }
       const job = payload;
       toast.success(`Scraping lance ! Job ID: ${job.id}`);
-      setJobs([job, ...jobs]);
+      setHistoryPage(1);
+      await fetchJobs(1);
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Erreur");
     } finally {
@@ -333,7 +369,7 @@ export default function ScrapingPage() {
                   alignItemWithTrigger={false}
                   className="min-w-[min(100%,18rem)]"
                 >
-                  {PRODUCTS.map((p) => (
+                  {SCRAPING_PRODUCT_OPTIONS.map((p) => (
                     <SelectItem key={p.id} value={p.id}>
                       {p.label}
                     </SelectItem>
@@ -588,6 +624,17 @@ export default function ScrapingPage() {
                     </div>
                   );
                 })}
+              </div>
+            )}
+            {historyTotal > 0 && (
+              <div className="mt-4">
+                <ListPagination
+                  page={historyPage}
+                  totalPages={historyTotalPages}
+                  totalItems={historyTotal}
+                  itemLabel="jobs scraping"
+                  onPageChange={setHistoryPage}
+                />
               </div>
             )}
           </CardContent>

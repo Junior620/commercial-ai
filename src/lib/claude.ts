@@ -52,7 +52,7 @@ const LANG_MAP: Record<string, string> = {
 };
 
 const SYSTEM_PROMPT =
-  "Tu es un expert en prospection commerciale B2B dans le secteur du cacao et de ses derives (beurre de cacao, poudre de cacao, masse de cacao, feves de cacao). Tu reponds UNIQUEMENT en JSON valide, sans texte avant ni apres.";
+  "Tu es un expert en prospection commerciale B2B dans les secteurs du cacao et du cafe (beurre/poudre/masse/feves de cacao, grains/cafe vert/moulu/soluble). Tu reponds UNIQUEMENT en JSON valide, sans texte avant ni apres.";
 
 // ─── Lazy singleton clients ──────────────────────────────────────
 

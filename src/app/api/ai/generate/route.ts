@@ -12,7 +12,7 @@ export async function POST(req: NextRequest) {
       product: body.product || "",
       language: body.language || "en",
       tone: body.tone || "FORMAL",
-      campaignProduct: body.campaignProduct || "cocoa products",
+      campaignProduct: body.campaignProduct || "cocoa or coffee products",
       senderName: process.env.SENDER_NAME?.trim(),
       senderCompany: process.env.SENDER_COMPANY?.trim(),
       customInstructions: body.customInstructions,
