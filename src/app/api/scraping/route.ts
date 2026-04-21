@@ -11,6 +11,7 @@ import {
 } from "@/lib/apify";
 import { calculateLeadScore, inferClientType, inferProduct } from "@/lib/scoring";
 import { deduplicateItems } from "@/lib/dedup";
+import { inferProspectLanguageFromCountry } from "@/lib/prospect-language";
 import {
   getBestEmail,
   fetchAndExtractFromSite,
@@ -658,6 +659,7 @@ async function processScraping(
         contact: contactName || null,
         email,
         country: place.country || "Unknown",
+        language: inferProspectLanguageFromCountry(place.country),
         website: place.website,
         phone: place.phone,
         sector: place.categoryName,

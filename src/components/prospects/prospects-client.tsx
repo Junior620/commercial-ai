@@ -1207,7 +1207,9 @@ export function ProspectsClient({
             </div>
           ) : (
             <div className="space-y-3">
-              <div className="overflow-x-auto rounded-md border">
+              <div
+                className="overflow-x-scroll rounded-md border pb-2 [scrollbar-gutter:stable] [&::-webkit-scrollbar]:h-2 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-border [&::-webkit-scrollbar-track]:bg-transparent"
+              >
                 <Table className="min-w-[1120px]">
                 <TableHeader className="sticky top-0 z-10 bg-muted/95 shadow-sm backdrop-blur-sm [&_tr]:border-b">
                   <TableRow className="hover:bg-transparent">
