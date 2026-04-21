@@ -1,9 +1,12 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  // apify-client require("proxy-agent") au runtime (dynamicNodeImport) ; sans ces
-  // paquets, Vercel/Lambda ne les inclut pas toujours dans le trace (pnpm)
-  // -> Cannot find module 'proxy-agent'.
+  // apify-client require("proxy-agent") au runtime (dynamicNodeImport).
+  // On s appuie sur l import statique "import 'proxy-agent'" dans
+  // src/lib/apify.ts pour que @vercel/nft trace ces modules correctement.
+  // NB : ne pas utiliser outputFileTracingIncludes avec des patterns .pnpm/**,
+  // cela inclut des dossiers symlink que Vercel refuse
+  // ("invalid deployment package... symlinked directories").
   serverExternalPackages: [
     "apify-client",
     "papaparse",
@@ -13,34 +16,6 @@ const nextConfig: NextConfig = {
     "socks-proxy-agent",
     "pac-proxy-agent",
   ],
-  // Ceinture/bretelles : forcer l inclusion de ces modules dans la trace de nos
-  // routes qui declenchent apify-client (scraping + export / envoi / inngest).
-  outputFileTracingIncludes: {
-    "/api/scraping/**/*": [
-      "./node_modules/proxy-agent/**/*",
-      "./node_modules/http-proxy-agent/**/*",
-      "./node_modules/https-proxy-agent/**/*",
-      "./node_modules/socks-proxy-agent/**/*",
-      "./node_modules/pac-proxy-agent/**/*",
-      "./node_modules/.pnpm/proxy-agent@**/**/*",
-      "./node_modules/.pnpm/http-proxy-agent@**/**/*",
-      "./node_modules/.pnpm/https-proxy-agent@**/**/*",
-      "./node_modules/.pnpm/socks-proxy-agent@**/**/*",
-      "./node_modules/.pnpm/pac-proxy-agent@**/**/*",
-    ],
-    "/api/inngest/**/*": [
-      "./node_modules/proxy-agent/**/*",
-      "./node_modules/http-proxy-agent/**/*",
-      "./node_modules/https-proxy-agent/**/*",
-      "./node_modules/socks-proxy-agent/**/*",
-      "./node_modules/pac-proxy-agent/**/*",
-      "./node_modules/.pnpm/proxy-agent@**/**/*",
-      "./node_modules/.pnpm/http-proxy-agent@**/**/*",
-      "./node_modules/.pnpm/https-proxy-agent@**/**/*",
-      "./node_modules/.pnpm/socks-proxy-agent@**/**/*",
-      "./node_modules/.pnpm/pac-proxy-agent@**/**/*",
-    ],
-  },
 };
 
 export default nextConfig;
