@@ -2,6 +2,7 @@
 
 import { Brain, Sparkles, Zap } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { CountUp } from "@/components/ui/count-up";
 
 /**
  * Bandeau "Assistant IA actif" pour rappeler visuellement que la plateforme
@@ -14,7 +15,12 @@ interface AIBannerProps {
   stats?: Array<{
     icon?: "brain" | "sparkles" | "zap";
     label: string;
-    value: string;
+    /**
+     * - Si value est un nombre, on anime avec CountUp.
+     * - Si c est une string, on l affiche telle quelle (ex. "12%").
+     */
+    value: string | number;
+    suffix?: string;
   }>;
 }
 
@@ -82,7 +88,11 @@ export function AIBanner({
                 >
                   <Icon className="mx-auto h-3.5 w-3.5 text-violet-600 dark:text-violet-300" />
                   <p className="mt-1 text-sm font-semibold tabular-nums">
-                    {s.value}
+                    {typeof s.value === "number" ? (
+                      <CountUp value={s.value} suffix={s.suffix ?? ""} />
+                    ) : (
+                      s.value
+                    )}
                   </p>
                   <p className="text-[10px] uppercase tracking-wide text-muted-foreground">
                     {s.label}

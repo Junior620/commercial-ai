@@ -16,6 +16,7 @@ import {
   ShieldCheck,
   Check,
 } from "lucide-react";
+import { AITypingDemo } from "@/components/ui/ai-typing-demo";
 
 export default function LoginPage() {
   const [email, setEmail] = useState("");
@@ -293,46 +294,48 @@ export default function LoginPage() {
             </div>
           </div>
 
-          {/* Middle: hero text + floating cards */}
-          <div className="space-y-8">
-            <div className="space-y-3">
-              <h2 className="max-w-md text-3xl font-semibold leading-tight tracking-tight xl:text-4xl">
+          {/* Middle: hero text + live demo + feature cards */}
+          <div className="space-y-6">
+            <div className="space-y-2">
+              <h2 className="max-w-md text-2xl font-semibold leading-tight tracking-tight xl:text-3xl">
                 Une équipe commerciale{" "}
                 <span className="bg-gradient-to-r from-violet-300 via-fuchsia-300 to-indigo-200 bg-clip-text text-transparent">
                   augmentée par l’IA
                 </span>
                 .
               </h2>
-              <p className="max-w-md text-sm text-neutral-300 xl:text-base">
-                Détection, scoring, rédaction, envoi et suivi : votre pipeline tourne
-                24/7, sans toucher à un clavier.
+              <p className="max-w-md text-sm text-neutral-300">
+                Détection, scoring, rédaction et suivi — votre pipeline tourne 24/7.
               </p>
             </div>
 
-            {/* Floating feature cards */}
-            <div className="grid max-w-md gap-3">
+            {/* Live typing demo */}
+            <AITypingDemo className="max-w-md" />
+
+            {/* Floating feature cards (compact) */}
+            <div className="grid max-w-md grid-cols-2 gap-3">
               <FeatureCard
                 icon={Radar}
                 title="Scraping intelligent"
-                description="Google Maps + enrichissement email/site, filtré par pays et secteur."
+                description="Google Maps + enrichissement email & site, filtré pays/secteur."
                 accent="from-sky-500/30 to-cyan-500/10"
               />
               <FeatureCard
                 icon={Brain}
-                title="Scoring IA des prospects"
-                description="Chaque lead reçoit un score 0-100 et une priorité — les chauds remontent."
+                title="Scoring IA"
+                description="Chaque lead reçoit un score 0-100 et une priorité auto."
                 accent="from-violet-500/30 to-fuchsia-500/10"
               />
               <FeatureCard
                 icon={PenLine}
-                title="Rédaction auto (Claude)"
-                description="Emails personnalisés dans la langue du prospect, ton commercial au choix."
+                title="Rédaction Claude"
+                description="Emails personnalisés dans la langue du prospect."
                 accent="from-indigo-500/30 to-violet-500/10"
               />
               <FeatureCard
                 icon={TrendingUp}
-                title="Suivi et relances"
-                description="L’IA classe les réponses et déclenche les relances au bon moment."
+                title="Suivi & relances"
+                description="Classification des réponses, relances au bon moment."
                 accent="from-emerald-500/30 to-teal-500/10"
               />
             </div>

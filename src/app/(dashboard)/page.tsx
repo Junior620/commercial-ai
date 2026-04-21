@@ -369,17 +369,17 @@ export default async function DashboardPage() {
             {
               icon: "sparkles",
               label: "Prospects chauds",
-              value: String(stats.hotProspects),
+              value: stats.hotProspects,
             },
             {
               icon: "brain",
               label: "Leads prioritaires",
-              value: String(stats.highPriorityProspects),
+              value: stats.highPriorityProspects,
             },
             {
               icon: "zap",
               label: "Emails IA (7 j.)",
-              value: String(stats.emailsLast7Days),
+              value: stats.emailsLast7Days,
             },
           ]}
         />

@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { AIBadge } from "@/components/ui/ai-badge";
+import { CountUp } from "@/components/ui/count-up";
 import {
   Activity,
   Brain,
@@ -316,7 +317,7 @@ export async function AITimeline() {
               <Users className="h-3 w-3" /> Scorés 24h
             </div>
             <p className="mt-1 text-lg font-bold tabular-nums">
-              {data.prospectsScoredDay}
+              <CountUp value={data.prospectsScoredDay} />
             </p>
           </div>
           <div>
@@ -324,7 +325,7 @@ export async function AITimeline() {
               <PenLine className="h-3 w-3" /> Rédigés 24h
             </div>
             <p className="mt-1 text-lg font-bold tabular-nums">
-              {data.emailsGeneratedDay}
+              <CountUp value={data.emailsGeneratedDay} />
             </p>
           </div>
           <div>
@@ -332,7 +333,7 @@ export async function AITimeline() {
               <Flame className="h-3 w-3" /> Chauds 24h
             </div>
             <p className="mt-1 text-lg font-bold tabular-nums">
-              {data.hotProspectsDay}
+              <CountUp value={data.hotProspectsDay} />
             </p>
           </div>
         </div>
