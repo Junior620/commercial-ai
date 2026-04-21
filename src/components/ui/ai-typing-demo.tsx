@@ -51,56 +51,86 @@ const SAMPLES: Sample[] = [
 
 const TYPE_SPEED_MS = 18;
 const PAUSE_AFTER_TYPING_MS = 3600;
+const SUBJECT_TO_BODY_DELAY_MS = 320;
 
 export function AITypingDemo({ className }: { className?: string }) {
   const [index, setIndex] = useState(0);
   const [subject, setSubject] = useState("");
   const [body, setBody] = useState("");
   const [phase, setPhase] = useState<"subject" | "body" | "done">("subject");
-  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const typingTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const pauseTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const sample = SAMPLES[index];
 
+  // Reset quand on change d exemple (boucle)
   useEffect(() => {
     setSubject("");
     setBody("");
     setPhase("subject");
   }, [index]);
 
+  // Frappe de l objet puis du corps
   useEffect(() => {
-    if (timerRef.current) clearTimeout(timerRef.current);
+    if (typingTimerRef.current) {
+      clearTimeout(typingTimerRef.current);
+      typingTimerRef.current = null;
+    }
 
     if (phase === "subject") {
       if (subject.length < sample.subject.length) {
-        timerRef.current = setTimeout(() => {
+        typingTimerRef.current = setTimeout(() => {
           setSubject(sample.subject.slice(0, subject.length + 1));
         }, TYPE_SPEED_MS);
       } else {
-        timerRef.current = setTimeout(() => setPhase("body"), 320);
+        typingTimerRef.current = setTimeout(
+          () => setPhase("body"),
+          SUBJECT_TO_BODY_DELAY_MS
+        );
       }
     } else if (phase === "body") {
       if (body.length < sample.body.length) {
         // Leger ralenti sur les retours a la ligne et la ponctuation pour un rendu naturel
         const nextChar = sample.body[body.length];
         const delay =
-          nextChar === "\n" ? 220 :
-          nextChar === "." || nextChar === "," ? 90 :
-          TYPE_SPEED_MS + Math.random() * 18;
-        timerRef.current = setTimeout(() => {
+          nextChar === "\n"
+            ? 220
+            : nextChar === "." || nextChar === ","
+              ? 90
+              : TYPE_SPEED_MS + Math.random() * 18;
+        typingTimerRef.current = setTimeout(() => {
           setBody(sample.body.slice(0, body.length + 1));
         }, delay);
       } else {
+        // Fin de la frappe du corps : on passe en "done".
+        // Le passage a l exemple suivant est gere dans un useEffect separe
+        // (sinon le cleanup de ce useEffect annule le timer de boucle).
         setPhase("done");
-        timerRef.current = setTimeout(() => {
-          setIndex((i) => (i + 1) % SAMPLES.length);
-        }, PAUSE_AFTER_TYPING_MS);
       }
     }
 
     return () => {
-      if (timerRef.current) clearTimeout(timerRef.current);
+      if (typingTimerRef.current) {
+        clearTimeout(typingTimerRef.current);
+        typingTimerRef.current = null;
+      }
     };
   }, [phase, subject, body, sample]);
+
+  // Boucle : quand un exemple est termine, on attend puis on passe au suivant
+  useEffect(() => {
+    if (phase !== "done") return;
+    if (pauseTimerRef.current) clearTimeout(pauseTimerRef.current);
+    pauseTimerRef.current = setTimeout(() => {
+      setIndex((i) => (i + 1) % SAMPLES.length);
+    }, PAUSE_AFTER_TYPING_MS);
+    return () => {
+      if (pauseTimerRef.current) {
+        clearTimeout(pauseTimerRef.current);
+        pauseTimerRef.current = null;
+      }
+    };
+  }, [phase]);
 
   const isTyping = phase !== "done";
 
@@ -172,14 +202,30 @@ export function AITypingDemo({ className }: { className?: string }) {
           <Bot className="h-3 w-3 text-violet-300" />
           Claude 3.5 · ton commercial
         </div>
-        <div className="inline-flex items-center gap-1 uppercase tracking-wide">
-          <span
-            className={cn(
-              "inline-block h-1.5 w-1.5 rounded-full",
-              isTyping ? "animate-pulse bg-amber-400" : "bg-emerald-400"
-            )}
-          />
-          {sample.language.toUpperCase()}
+        <div className="inline-flex items-center gap-2 uppercase tracking-wide">
+          {/* Pastilles de progression (boucle infinie) */}
+          <div className="flex items-center gap-0.5">
+            {SAMPLES.map((_, i) => (
+              <span
+                key={i}
+                className={cn(
+                  "h-1 rounded-full transition-all",
+                  i === index
+                    ? "w-4 bg-violet-400"
+                    : "w-1.5 bg-white/20"
+                )}
+              />
+            ))}
+          </div>
+          <span className="inline-flex items-center gap-1">
+            <span
+              className={cn(
+                "inline-block h-1.5 w-1.5 rounded-full",
+                isTyping ? "animate-pulse bg-amber-400" : "bg-emerald-400"
+              )}
+            />
+            {sample.language.toUpperCase()}
+          </span>
         </div>
       </div>
     </div>
