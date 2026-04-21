@@ -1,3 +1,7 @@
+// apify-client utilise un require dynamique de "proxy-agent" via dynamicNodeImport,
+// que @vercel/nft (tracer serverless) ne detecte pas. On force l import statique
+// pour que proxy-agent (et ses agents http/https/socks) soient inclus dans la Lambda.
+import "proxy-agent";
 import { ApifyClient } from "apify-client";
 
 const client = new ApifyClient({
