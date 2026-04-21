@@ -5,7 +5,17 @@ import { useRouter } from "next/navigation";
 import Image from "next/image";
 import { createClient } from "@/lib/supabase/client";
 import { toast } from "sonner";
-import { Eye, EyeOff } from "lucide-react";
+import {
+  Eye,
+  EyeOff,
+  Sparkles,
+  Brain,
+  Radar,
+  PenLine,
+  TrendingUp,
+  ShieldCheck,
+  Check,
+} from "lucide-react";
 
 export default function LoginPage() {
   const [email, setEmail] = useState("");
@@ -67,21 +77,49 @@ export default function LoginPage() {
               priority
             />
           </div>
-          <span className="text-lg font-bold tracking-tight">
-            SCPB Commercial AI
-          </span>
+          <div className="flex items-center gap-2">
+            <span className="text-lg font-bold tracking-tight">
+              SCPB Commercial AI
+            </span>
+            <span className="inline-flex items-center gap-1 rounded-full border border-violet-400/40 bg-gradient-to-r from-violet-500 via-indigo-500 to-fuchsia-500 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-white shadow-sm">
+              <Sparkles className="h-3 w-3 animate-pulse" />
+              IA
+            </span>
+          </div>
         </div>
 
         {/* Form area */}
         <div className="mx-auto w-full max-w-sm">
+          <div className="mb-2 inline-flex items-center gap-1.5 rounded-full border border-violet-500/30 bg-violet-500/10 px-2.5 py-1 text-[11px] font-medium text-violet-200">
+            <Sparkles className="h-3 w-3 animate-pulse" />
+            Plateforme commerciale propulsée par l’IA
+          </div>
           <h1 className="mb-1.5 text-2xl font-semibold tracking-tight">
             {isSignUp ? "Créer votre compte" : "Bon retour"}
           </h1>
-          <p className="mb-8 text-sm text-neutral-400">
+          <p className="mb-6 text-sm text-neutral-400">
             {isSignUp
-              ? "Bienvenue ! Remplissez les détails ci-dessous pour commencer."
-              : "Connectez-vous pour accéder à votre espace commercial."}
+              ? "Activez votre assistant commercial IA : scraping, scoring, rédaction et suivi automatiques."
+              : "Connectez-vous pour retrouver votre assistant IA et vos campagnes en cours."}
           </p>
+
+          {isSignUp && (
+            <ul className="mb-6 space-y-2 rounded-lg border border-white/10 bg-white/[0.03] p-3 text-xs text-neutral-300">
+              {[
+                "Scraping intelligent + enrichissement des contacts",
+                "Scoring IA des prospects et priorisation auto",
+                "Emails rédigés par Claude dans la langue du prospect",
+                "Relances et classification des réponses pilotées par IA",
+              ].map((b) => (
+                <li key={b} className="flex items-start gap-2">
+                  <span className="mt-0.5 flex h-4 w-4 shrink-0 items-center justify-center rounded-full bg-emerald-500/20 text-emerald-300">
+                    <Check className="h-3 w-3" />
+                  </span>
+                  <span>{b}</span>
+                </li>
+              ))}
+            </ul>
+          )}
 
           {/* OAuth buttons */}
           <div className="space-y-3">
@@ -221,28 +259,128 @@ export default function LoginPage() {
         </p>
       </div>
 
-      {/* ── Right panel: aurora visual ── */}
-      <div className="relative hidden overflow-hidden bg-[#050505] lg:block lg:w-1/2">
+      {/* ── Right panel: AI showcase ── */}
+      <div className="relative hidden overflow-hidden bg-[#050505] text-white lg:block lg:w-1/2">
+        {/* Ambient aurora background */}
         <div className="absolute inset-0">
-          {/* Main bright teal core — bottom-right */}
-          <div className="absolute bottom-[15%] right-[10%] h-[520px] w-[520px] rounded-full bg-[#0d9488] opacity-50 blur-[100px]" />
-          {/* Secondary emerald glow — center */}
-          <div className="absolute bottom-[30%] left-[20%] h-[450px] w-[550px] rounded-full bg-[#10b981] opacity-35 blur-[120px]" />
-          {/* Deep teal wash — upper area */}
-          <div className="absolute left-[10%] top-[10%] h-[400px] w-[500px] rounded-full bg-[#0f766e] opacity-40 blur-[130px]" />
-          {/* Cyan accent — top-right */}
-          <div className="absolute right-[5%] top-[20%] h-[300px] w-[350px] rounded-full bg-[#06b6d4] opacity-20 blur-[90px]" />
-          {/* Hot spot — bright concentrated center */}
-          <div className="absolute bottom-[25%] right-[25%] h-[250px] w-[250px] rounded-full bg-[#2dd4bf] opacity-30 blur-[60px]" />
-          {/* Edge vignettes */}
+          <div className="absolute bottom-[15%] right-[10%] h-[520px] w-[520px] rounded-full bg-[#6d28d9] opacity-40 blur-[110px]" />
+          <div className="absolute bottom-[30%] left-[15%] h-[450px] w-[550px] rounded-full bg-[#4f46e5] opacity-30 blur-[130px]" />
+          <div className="absolute left-[10%] top-[10%] h-[400px] w-[500px] rounded-full bg-[#0d9488] opacity-25 blur-[130px]" />
+          <div className="absolute right-[5%] top-[20%] h-[300px] w-[350px] rounded-full bg-[#ec4899] opacity-20 blur-[90px]" />
           <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,transparent_30%,#050505_75%)]" />
         </div>
         <div
-          className="absolute inset-0 opacity-[0.04]"
+          className="absolute inset-0 opacity-[0.06]"
           style={{
             backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)'/%3E%3C/svg%3E")`,
           }}
         />
+
+        {/* Showcase content */}
+        <div className="relative flex h-full flex-col justify-between px-10 py-12 xl:px-14">
+          {/* Top: status pill */}
+          <div className="flex items-center justify-between">
+            <div className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/5 px-3 py-1 text-xs text-neutral-200 backdrop-blur">
+              <span className="relative flex h-2 w-2">
+                <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75" />
+                <span className="relative inline-flex h-2 w-2 rounded-full bg-emerald-500" />
+              </span>
+              Assistant IA · en ligne
+            </div>
+            <div className="inline-flex items-center gap-1.5 rounded-full border border-violet-400/40 bg-violet-500/20 px-3 py-1 text-xs font-medium text-violet-100 backdrop-blur">
+              <Brain className="h-3 w-3" />
+              Claude 3.5 + scoring maison
+            </div>
+          </div>
+
+          {/* Middle: hero text + floating cards */}
+          <div className="space-y-8">
+            <div className="space-y-3">
+              <h2 className="max-w-md text-3xl font-semibold leading-tight tracking-tight xl:text-4xl">
+                Une équipe commerciale{" "}
+                <span className="bg-gradient-to-r from-violet-300 via-fuchsia-300 to-indigo-200 bg-clip-text text-transparent">
+                  augmentée par l’IA
+                </span>
+                .
+              </h2>
+              <p className="max-w-md text-sm text-neutral-300 xl:text-base">
+                Détection, scoring, rédaction, envoi et suivi : votre pipeline tourne
+                24/7, sans toucher à un clavier.
+              </p>
+            </div>
+
+            {/* Floating feature cards */}
+            <div className="grid max-w-md gap-3">
+              <FeatureCard
+                icon={Radar}
+                title="Scraping intelligent"
+                description="Google Maps + enrichissement email/site, filtré par pays et secteur."
+                accent="from-sky-500/30 to-cyan-500/10"
+              />
+              <FeatureCard
+                icon={Brain}
+                title="Scoring IA des prospects"
+                description="Chaque lead reçoit un score 0-100 et une priorité — les chauds remontent."
+                accent="from-violet-500/30 to-fuchsia-500/10"
+              />
+              <FeatureCard
+                icon={PenLine}
+                title="Rédaction auto (Claude)"
+                description="Emails personnalisés dans la langue du prospect, ton commercial au choix."
+                accent="from-indigo-500/30 to-violet-500/10"
+              />
+              <FeatureCard
+                icon={TrendingUp}
+                title="Suivi et relances"
+                description="L’IA classe les réponses et déclenche les relances au bon moment."
+                accent="from-emerald-500/30 to-teal-500/10"
+              />
+            </div>
+          </div>
+
+          {/* Bottom: trust row */}
+          <div className="flex items-center justify-between gap-4 rounded-xl border border-white/10 bg-white/[0.04] px-4 py-3 text-xs text-neutral-300 backdrop-blur">
+            <div className="flex items-center gap-2">
+              <ShieldCheck className="h-4 w-4 text-emerald-400" />
+              <span>Données chiffrées · Auth Supabase · RGPD-friendly</span>
+            </div>
+            <div className="hidden items-center gap-1 text-[10px] uppercase tracking-wide text-neutral-400 xl:flex">
+              <Sparkles className="h-3 w-3 text-violet-300" />
+              Propulsé par IA
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function FeatureCard({
+  icon: Icon,
+  title,
+  description,
+  accent,
+}: {
+  icon: typeof Brain;
+  title: string;
+  description: string;
+  accent: string;
+}) {
+  return (
+    <div className="group relative overflow-hidden rounded-xl border border-white/10 bg-white/[0.04] p-3 backdrop-blur-sm transition-colors hover:border-white/20">
+      <div
+        className={`pointer-events-none absolute -right-8 -top-8 h-24 w-24 rounded-full bg-gradient-to-br ${accent} blur-2xl`}
+      />
+      <div className="relative flex items-start gap-3">
+        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-white/10 bg-white/[0.06]">
+          <Icon className="h-4 w-4 text-white" />
+        </div>
+        <div className="min-w-0">
+          <p className="text-sm font-semibold leading-tight">{title}</p>
+          <p className="mt-0.5 text-xs leading-relaxed text-neutral-300">
+            {description}
+          </p>
+        </div>
       </div>
     </div>
   );

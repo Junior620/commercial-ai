@@ -24,6 +24,7 @@ import { toast } from "sonner";
 import { PageTitle } from "@/components/layout/page-title";
 import { AIBadge } from "@/components/ui/ai-badge";
 import { AIBanner } from "@/components/ui/ai-banner";
+import { HowAIWorks } from "@/components/ai/how-ai-works";
 import { CAMPAIGN_PRODUCT_OPTIONS } from "@/lib/product-catalog";
 
 export default function AIPage() {
@@ -89,6 +90,8 @@ export default function AIPage() {
         title="Studio de rédaction IA"
         description="Décrivez le prospect, choisissez le ton et la langue : l’IA rédige un email personnalisé, naturel et prêt à envoyer."
       />
+
+      <HowAIWorks />
 
       <div className="grid gap-6 lg:grid-cols-2">
         <Card>

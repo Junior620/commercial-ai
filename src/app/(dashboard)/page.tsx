@@ -32,6 +32,7 @@ import { getDashboardExtras } from "@/lib/dashboard-extras";
 import { PageTitle } from "@/components/layout/page-title";
 import { AIBanner } from "@/components/ui/ai-banner";
 import { AIBadge } from "@/components/ui/ai-badge";
+import { AITimeline } from "@/components/dashboard/ai-timeline";
 
 const SCRAPE_LABELS: Record<string, string> = {
   PENDING: "En attente",
@@ -463,106 +464,109 @@ export default async function DashboardPage() {
 
       {stats && (
         <div className="grid gap-4 lg:grid-cols-3">
-          <Card className="lg:col-span-1">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2 text-base">
-                <Zap className="h-4 w-4 text-amber-500" />
-                Tunnel d&apos;engagement
-              </CardTitle>
-              <CardDescription>
-                Parcours depuis l&apos;envoi jusqu&apos;au clic (approximatif selon
-                tracking)
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <EngagementFunnel
-                steps={stats.funnelSteps.map((s) => ({
-                  label: s.label,
-                  value: Math.max(0, s.value),
-                }))}
-              />
-            </CardContent>
-          </Card>
-
-          <Card className="lg:col-span-1">
-            <CardHeader>
-              <div className="flex items-start justify-between gap-2">
-                <div>
+          <div className="lg:col-span-1">
+            <AITimeline />
+          </div>
+          <div className="lg:col-span-2 space-y-4">
+            <div className="grid gap-4 md:grid-cols-2">
+              <Card>
+                <CardHeader>
                   <CardTitle className="flex items-center gap-2 text-base">
-                    <Sparkles className="h-4 w-4 text-violet-500" />
-                    Pipeline commercial
+                    <Zap className="h-4 w-4 text-amber-500" />
+                    Tunnel d&apos;engagement
                   </CardTitle>
                   <CardDescription>
-                    Repartition des statuts prospect — priorisez la conversion
+                    Parcours depuis l&apos;envoi jusqu&apos;au clic (approximatif selon tracking)
                   </CardDescription>
-                </div>
-                <AIBadge label="Scoring IA" size="xs" variant="soft" />
-              </div>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              {pipeline.map((row) => (
-                <div key={row.label} className="space-y-1">
-                  <div className="flex justify-between text-sm">
-                    <span className="text-muted-foreground">{row.label}</span>
-                    <span className="font-medium tabular-nums">{row.value}</span>
+                </CardHeader>
+                <CardContent>
+                  <EngagementFunnel
+                    steps={stats.funnelSteps.map((s) => ({
+                      label: s.label,
+                      value: Math.max(0, s.value),
+                    }))}
+                  />
+                </CardContent>
+              </Card>
+              <Card>
+                <CardHeader>
+                  <div className="flex items-start justify-between gap-2">
+                    <div>
+                      <CardTitle className="flex items-center gap-2 text-base">
+                        <Sparkles className="h-4 w-4 text-violet-500" />
+                        Pipeline commercial
+                      </CardTitle>
+                      <CardDescription>
+                        Repartition des statuts prospect — priorisez la conversion
+                      </CardDescription>
+                    </div>
+                    <AIBadge label="Scoring IA" size="xs" variant="soft" />
                   </div>
-                  <div className="h-2 overflow-hidden rounded-full bg-muted">
-                    <div
-                      className={`h-full rounded-full ${row.color}`}
-                      style={{
-                        width: `${Math.max(3, (row.value / pipelineMax) * 100)}%`,
-                      }}
-                    />
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  {pipeline.map((row) => (
+                    <div key={row.label} className="space-y-1">
+                      <div className="flex justify-between text-sm">
+                        <span className="text-muted-foreground">{row.label}</span>
+                        <span className="font-medium tabular-nums">{row.value}</span>
+                      </div>
+                      <div className="h-2 overflow-hidden rounded-full bg-muted">
+                        <div
+                          className={`h-full rounded-full ${row.color}`}
+                          style={{
+                            width: `${Math.max(3, (row.value / pipelineMax) * 100)}%`,
+                          }}
+                        />
+                      </div>
+                    </div>
+                  ))}
+                </CardContent>
+              </Card>
+            </div>
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2 text-base">
+                  <MousePointerClick className="h-4 w-4 text-sky-500" />
+                  Sante des envois
+                </CardTitle>
+                <CardDescription>
+                  KPIs techniques pour ajuster volume et contenu
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="grid gap-3 text-sm sm:grid-cols-2">
+                <div className="flex items-start justify-between gap-4 rounded-lg border bg-muted/30 p-3">
+                  <span className="text-muted-foreground">Delivrabilite</span>
+                  <span className="text-right font-semibold tabular-nums">
+                    {stats.deliverabilityPct}%
+                  </span>
+                </div>
+                <div className="flex items-start justify-between gap-4 rounded-lg border bg-muted/30 p-3">
+                  <span className="text-muted-foreground">Taux de rebond</span>
+                  <span className="text-right font-semibold tabular-nums text-amber-700 dark:text-amber-400">
+                    {stats.bounceRatePct}%
+                  </span>
+                </div>
+                <div className="flex items-start justify-between gap-4 rounded-lg border bg-muted/30 p-3">
+                  <span className="text-muted-foreground">Echecs d&apos;envoi</span>
+                  <span className="text-right font-semibold tabular-nums text-red-600 dark:text-red-400">
+                    {stats.failRatePct}%
+                  </span>
+                </div>
+                <div className="flex items-start justify-between gap-4 rounded-lg border bg-muted/30 p-3">
+                  <span className="text-muted-foreground">Clics / livres</span>
+                  <span className="text-right font-semibold tabular-nums">
+                    {stats.clickRateOfDelivered}%
+                  </span>
+                </div>
+                {Number(stats.bounceRatePct) > 3 ? (
+                  <div className="flex gap-2 rounded-md border border-amber-200 bg-amber-50 p-2 text-xs text-amber-900 dark:border-amber-900/50 dark:bg-amber-950/40 dark:text-amber-100 sm:col-span-2">
+                    <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+                    Rebonds eleves : verifier listes, double opt-in et warm-up du domaine.
                   </div>
-                </div>
-              ))}
-            </CardContent>
-          </Card>
-
-          <Card className="lg:col-span-1">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2 text-base">
-                <MousePointerClick className="h-4 w-4 text-sky-500" />
-                Sante des envois
-              </CardTitle>
-              <CardDescription>
-                KPIs techniques pour ajuster volume et contenu
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4 text-sm">
-              <div className="flex items-start justify-between gap-4 rounded-lg border bg-muted/30 p-3">
-                <span className="text-muted-foreground">Delivrabilite</span>
-                <span className="text-right font-semibold tabular-nums">
-                  {stats.deliverabilityPct}%
-                </span>
-              </div>
-              <div className="flex items-start justify-between gap-4 rounded-lg border bg-muted/30 p-3">
-                <span className="text-muted-foreground">Taux de rebond</span>
-                <span className="text-right font-semibold tabular-nums text-amber-700 dark:text-amber-400">
-                  {stats.bounceRatePct}%
-                </span>
-              </div>
-              <div className="flex items-start justify-between gap-4 rounded-lg border bg-muted/30 p-3">
-                <span className="text-muted-foreground">Echecs d&apos;envoi</span>
-                <span className="text-right font-semibold tabular-nums text-red-600 dark:text-red-400">
-                  {stats.failRatePct}%
-                </span>
-              </div>
-              <div className="flex items-start justify-between gap-4 rounded-lg border bg-muted/30 p-3">
-                <span className="text-muted-foreground">Clics / livres</span>
-                <span className="text-right font-semibold tabular-nums">
-                  {stats.clickRateOfDelivered}%
-                </span>
-              </div>
-              {Number(stats.bounceRatePct) > 3 ? (
-                <div className="flex gap-2 rounded-md border border-amber-200 bg-amber-50 p-2 text-xs text-amber-900 dark:border-amber-900/50 dark:bg-amber-950/40 dark:text-amber-100">
-                  <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
-                  Rebonds eleves : verifier listes, double opt-in et
-                  warm-up du domaine.
-                </div>
-              ) : null}
-            </CardContent>
-          </Card>
+                ) : null}
+              </CardContent>
+            </Card>
+          </div>
         </div>
       )}
 
