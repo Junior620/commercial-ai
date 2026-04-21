@@ -252,6 +252,8 @@ REGLES STRICTES :
    - 1 preuve de credibilite (ex: qualite, capacite, process, certif)
    - 1 CTA unique, direct et facile a accepter (ex: "15 min cette semaine ?")
 12. Evite les longues listes et le jargon inutile. Priorite a la clarte et a la conversion.
+13. Evite les tirets cadratins (—) et les parenthesees trop techniques. Prefere des phrases naturelles, fluides et conversationnelles.
+14. N'utilise jamais plus d'un tiret cadratin (—) dans tout le corps du mail. Idealement, zero.
 
 FORMAT DE REPONSE (JSON uniquement) :
 {
@@ -299,6 +301,8 @@ REGLES STRICTES :
 6. NE METS JAMAIS de placeholders comme [Your Name], [Company], etc. La signature sera ajoutee automatiquement.
 7. Termine le corps AVANT la signature.
 8. Commence par "Dear ${prospectName}," ou "Hi ${prospectName},"
+9. Evite les tirets cadratins (—) et garde un style naturel, simple et humain.
+10. N'utilise jamais plus d'un tiret cadratin (—) dans tout le corps du mail. Idealement, zero.
 
 FORMAT DE REPONSE (JSON uniquement) :
 {

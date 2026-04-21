@@ -43,6 +43,19 @@ const CSV_PRODUCT_SUBCATEGORIES = new Set([
   "circular",
 ]);
 
+const SCRAPING_NETWORK_LIMITS = {
+  runStartConcurrency: 3,
+  runPollConcurrency: 3,
+  contactChunkSize: 20,
+  contactMaxRequestsPerUrl: 2,
+  deepContactChunkSize: 15,
+  deepContactMaxRequestsPerUrl: 6,
+  googleSearchChunkSize: 10,
+  websiteCrawlerChunkSize: 12,
+  fallbackConcurrency: 4,
+  fallbackBatchDelayMs: 350,
+} as const;
+
 type ProgressRun = { runId: string; label: string };
 
 type ProgressPayload = {
@@ -273,6 +286,12 @@ async function processScraping(
   };
 
   try {
+    logScrapingPhase(jobId, "start", {
+      keywords: keywords.length,
+      countries: countries?.length ?? 0,
+      maxResults: maxResults || 100,
+    });
+
     await persistProgress(jobId, {
       phase: "Preparation",
       percent: 3,
@@ -284,20 +303,25 @@ async function processScraping(
     // ═══════════════════════════════════════════════════════════
     // PHASE 1 : Google Maps
     // ═══════════════════════════════════════════════════════════
-    const batches = [];
+    const batchInputs: { country?: string }[] = [];
     if (countries && countries.length > 0) {
       for (const country of countries) {
-        batches.push(
-          scrapeGoogleMaps({ keywords, country, maxResults: maxResults || 100 })
-        );
+        batchInputs.push({ country });
       }
     } else {
-      batches.push(
-        scrapeGoogleMaps({ keywords, maxResults: maxResults || 100 })
-      );
+      batchInputs.push({});
     }
 
-    const results = await Promise.all(batches);
+    logScrapingPhase(jobId, "phase-1-launch-runs", {
+      totalRuns: batchInputs.length,
+      runStartConcurrency: SCRAPING_NETWORK_LIMITS.runStartConcurrency,
+    });
+    const results = await mapWithConcurrency(
+      batchInputs,
+      SCRAPING_NETWORK_LIMITS.runStartConcurrency,
+      ({ country }) =>
+        scrapeGoogleMaps({ keywords, country, maxResults: maxResults || 100 })
+    );
     runEntries = results.map((r, i) => ({
       runId: r.runId,
       label:
@@ -319,10 +343,14 @@ async function processScraping(
     });
 
     const shouldCancel = () => isScrapingJobCancelled(jobId);
-    const settled = await Promise.allSettled(
-      results.map(({ runId }) =>
-        waitForRunAndFetchPlaces(runId, { shouldCancel })
-      )
+    logScrapingPhase(jobId, "phase-1-wait-runs", {
+      totalRuns: results.length,
+      runPollConcurrency: SCRAPING_NETWORK_LIMITS.runPollConcurrency,
+    });
+    const settled = await mapSettledWithConcurrency(
+      results,
+      SCRAPING_NETWORK_LIMITS.runPollConcurrency,
+      ({ runId }) => waitForRunAndFetchPlaces(runId, { shouldCancel })
     );
 
     if (await isScrapingJobCancelled(jobId)) {
@@ -389,6 +417,11 @@ async function processScraping(
       .map((p) => p.website!);
 
     if (websiteUrls.length > 0) {
+      logScrapingPhase(jobId, "phase-2-contact-info", {
+        websites: Math.min(websiteUrls.length, 200),
+        chunkSize: SCRAPING_NETWORK_LIMITS.contactChunkSize,
+        maxRequestsPerUrl: SCRAPING_NETWORK_LIMITS.contactMaxRequestsPerUrl,
+      });
       await persistProgress(jobId, {
         phase: "Source 2 — Contact Info Scraper",
         percent: 35,
@@ -399,7 +432,11 @@ async function processScraping(
       try {
         const contactMap = await scrapeContactInfo(
           websiteUrls.slice(0, 200),
-          { shouldCancel, maxRequestsPerStartUrl: 3 }
+          {
+            shouldCancel,
+            maxRequestsPerStartUrl: SCRAPING_NETWORK_LIMITS.contactMaxRequestsPerUrl,
+            chunkSize: SCRAPING_NETWORK_LIMITS.contactChunkSize,
+          }
         );
         mergeContactMap(enriched, contactMap, "apify", stats);
       } catch (e) {
@@ -421,6 +458,11 @@ async function processScraping(
       const deepUrls = stillNoEmail
         .map((p) => p.place.website!)
         .slice(0, 100);
+      logScrapingPhase(jobId, "phase-3-contact-deep", {
+        websites: deepUrls.length,
+        chunkSize: SCRAPING_NETWORK_LIMITS.deepContactChunkSize,
+        maxRequestsPerUrl: SCRAPING_NETWORK_LIMITS.deepContactMaxRequestsPerUrl,
+      });
 
       await persistProgress(jobId, {
         phase: "Source 3 — Contact Info DEEP (10 pages/site)",
@@ -432,8 +474,8 @@ async function processScraping(
       try {
         const deepMap = await scrapeContactInfo(deepUrls, {
           shouldCancel,
-          maxRequestsPerStartUrl: 10,
-          chunkSize: 25,
+          maxRequestsPerStartUrl: SCRAPING_NETWORK_LIMITS.deepContactMaxRequestsPerUrl,
+          chunkSize: SCRAPING_NETWORK_LIMITS.deepContactChunkSize,
         });
         mergeContactMap(enriched, deepMap, "deep-apify", stats);
       } catch (e) {
@@ -468,10 +510,15 @@ async function processScraping(
         detail: `Recherche Google de ${searchQueries.length} requete(s) pour emails...`,
         runs: runEntries,
       });
+      logScrapingPhase(jobId, "phase-4-google-search", {
+        queries: searchQueries.length,
+        chunkSize: SCRAPING_NETWORK_LIMITS.googleSearchChunkSize,
+      });
 
       try {
         const searchResults = await searchGoogleForEmails(searchQueries, {
           shouldCancel,
+          chunkSize: SCRAPING_NETWORK_LIMITS.googleSearchChunkSize,
         });
 
         for (let idx = 0; idx < Math.min(stillNoEmail2.length, maxSearch); idx++) {
@@ -506,6 +553,10 @@ async function processScraping(
       const crawlUrls = stillNoEmail3
         .map((p) => p.place.website!)
         .slice(0, 80);
+      logScrapingPhase(jobId, "phase-5-website-crawler", {
+        websites: crawlUrls.length,
+        chunkSize: SCRAPING_NETWORK_LIMITS.websiteCrawlerChunkSize,
+      });
 
       await persistProgress(jobId, {
         phase: "Source 5 — Website Content Crawler (crawl profond)",
@@ -517,6 +568,7 @@ async function processScraping(
       try {
         const contentMap = await scrapeWebsiteContent(crawlUrls, {
           shouldCancel,
+          chunkSize: SCRAPING_NETWORK_LIMITS.websiteCrawlerChunkSize,
         });
 
         for (const entry of enriched) {
@@ -563,6 +615,10 @@ async function processScraping(
     if (fallbackTargets.length > 0) {
       const maxFallback = 150;
       const count = Math.min(fallbackTargets.length, maxFallback);
+      logScrapingPhase(jobId, "phase-6-fallback", {
+        targets: count,
+        concurrency: SCRAPING_NETWORK_LIMITS.fallbackConcurrency,
+      });
 
       await persistProgress(jobId, {
         phase: "Source 6 — Fallback multi-pages (fetch direct)",
@@ -572,7 +628,7 @@ async function processScraping(
       });
       if (await isScrapingJobCancelled(jobId)) return;
 
-      const CONCURRENCY = 8;
+      const CONCURRENCY = SCRAPING_NETWORK_LIMITS.fallbackConcurrency;
       for (let i = 0; i < count; i += CONCURRENCY) {
         if (await isScrapingJobCancelled(jobId)) return;
         const batch = fallbackTargets.slice(i, i + CONCURRENCY);
@@ -599,7 +655,9 @@ async function processScraping(
         });
 
         if (i + CONCURRENCY < count) {
-          await new Promise((r) => setTimeout(r, 200));
+          await new Promise((r) =>
+            setTimeout(r, SCRAPING_NETWORK_LIMITS.fallbackBatchDelayMs)
+          );
         }
       }
     }
@@ -686,9 +744,18 @@ async function processScraping(
       }
     }
 
+    logScrapingPhase(jobId, "completed", {
+      created,
+      deduped: deduped.length,
+      withEmail: withEmail.length,
+      skippedNoEmail: stats.skippedNoEmail,
+    });
     await markJobCompleted(jobId, created, runEntries, stats);
   } catch (err) {
     if (err instanceof ScrapingCancelledError) return;
+    logScrapingPhase(jobId, "failed", {
+      error: err instanceof Error ? err.message : String(err),
+    });
     const msg = truncateErr(
       err instanceof Error ? err.message : "Unknown error"
     );
@@ -746,4 +813,72 @@ function mergeContactMap(
       }
     }
   }
+}
+
+function logScrapingPhase(
+  jobId: string,
+  phase: string,
+  details: Record<string, unknown>
+) {
+  console.info(
+    `[scraping][${jobId}] ${phase} :: ${JSON.stringify(details)}`
+  );
+}
+
+async function mapWithConcurrency<T, R>(
+  items: T[],
+  concurrency: number,
+  worker: (item: T, index: number) => Promise<R>
+): Promise<R[]> {
+  if (items.length === 0) return [];
+  const out: R[] = new Array(items.length);
+  let cursor = 0;
+
+  const runners = Array.from({
+    length: Math.max(1, Math.min(concurrency, items.length)),
+  }).map(async () => {
+    while (true) {
+      const idx = cursor;
+      cursor += 1;
+      if (idx >= items.length) break;
+      out[idx] = await worker(items[idx], idx);
+    }
+  });
+
+  await Promise.all(runners);
+  return out;
+}
+
+async function mapSettledWithConcurrency<T, R>(
+  items: T[],
+  concurrency: number,
+  worker: (item: T, index: number) => Promise<R>
+): Promise<PromiseSettledResult<R>[]> {
+  if (items.length === 0) return [];
+  const out: PromiseSettledResult<R>[] = new Array(items.length);
+  let cursor = 0;
+
+  const runners = Array.from({
+    length: Math.max(1, Math.min(concurrency, items.length)),
+  }).map(async () => {
+    while (true) {
+      const idx = cursor;
+      cursor += 1;
+      if (idx >= items.length) break;
+      try {
+        out[idx] = {
+          status: "fulfilled",
+          value: await worker(items[idx], idx),
+        };
+      } catch (error) {
+        out[idx] = {
+          status: "rejected",
+          reason: error,
+        };
+      }
+    }
+  });
+
+  await Promise.all(runners);
+  return out;
 }
