@@ -22,6 +22,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { Bot, Loader2, Copy, Check } from "lucide-react";
 import { toast } from "sonner";
 import { PageTitle } from "@/components/layout/page-title";
+import { AIBadge } from "@/components/ui/ai-badge";
+import { AIBanner } from "@/components/ui/ai-banner";
 import { CAMPAIGN_PRODUCT_OPTIONS } from "@/lib/product-catalog";
 
 export default function AIPage() {
@@ -74,10 +76,18 @@ export default function AIPage() {
 
   return (
     <div className="space-y-6">
-      <PageTitle
-        title="Agent IA"
-        description="Générez des emails commerciaux personnalisés avec Claude"
-        icon={Bot}
+      <div className="flex items-start justify-between gap-3">
+        <PageTitle
+          title="Agent IA"
+          description="Générez des emails commerciaux personnalisés avec Claude"
+          icon={Bot}
+        />
+        <AIBadge label="Claude 3.5" size="md" variant="solid" className="mt-1" />
+      </div>
+
+      <AIBanner
+        title="Studio de rédaction IA"
+        description="Décrivez le prospect, choisissez le ton et la langue : l’IA rédige un email personnalisé, naturel et prêt à envoyer."
       />
 
       <div className="grid gap-6 lg:grid-cols-2">
@@ -240,7 +250,10 @@ export default function AIPage() {
         <Card>
           <CardHeader>
             <div className="flex items-center justify-between">
-              <CardTitle>Aperçu de l&apos;e-mail</CardTitle>
+              <div className="flex items-center gap-2">
+                <CardTitle>Aperçu de l&apos;e-mail</CardTitle>
+                <AIBadge label="Généré par IA" size="xs" variant="soft" />
+              </div>
               {result && (
                 <Button variant="ghost" size="sm" onClick={handleCopy}>
                   {copied ? (

@@ -39,6 +39,7 @@ import {
 import { Search, Play, Loader2, Activity, StopCircle } from "lucide-react";
 import { toast } from "sonner";
 import { PageTitle } from "@/components/layout/page-title";
+import { AIBadge } from "@/components/ui/ai-badge";
 import { Separator } from "@/components/ui/separator";
 import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
@@ -314,11 +315,20 @@ export default function ScrapingPage() {
 
   return (
     <div className="space-y-6">
-      <PageTitle
-        title="Scraping"
-        description="Recherche automatique de prospects via Google Maps et enrichissement email"
-        icon={Search}
-      />
+      <div className="flex items-start justify-between gap-3">
+        <PageTitle
+          title="Scraping"
+          description="Recherche automatique de prospects via Google Maps et enrichissement email"
+          icon={Search}
+        />
+        <AIBadge
+          label="Enrichissement IA"
+          size="sm"
+          variant="soft"
+          className="mt-1"
+          title="Emails, sites et donnees enrichis par IA"
+        />
+      </div>
 
       <div className="grid gap-6 lg:grid-cols-2 lg:items-start">
         <Card className="lg:sticky lg:top-4 lg:z-10 shadow-sm">

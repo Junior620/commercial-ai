@@ -68,6 +68,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { PageTitle } from "@/components/layout/page-title";
+import { AIBadge } from "@/components/ui/ai-badge";
 import { ListPagination } from "@/components/shared/list-pagination";
 
 interface Prospect {
@@ -1238,7 +1239,27 @@ export function ProspectsClient({
                     <TableHead className="min-w-[8.5rem] max-w-[14rem] whitespace-normal bg-muted/95">
                       Secteur
                     </TableHead>
-                    <SortHead label="Score" colKey="score" className="bg-muted/95" />
+                    <TableHead className="bg-muted/95">
+                      <div className="flex items-center gap-2">
+                        <button
+                          type="button"
+                          className="inline-flex items-center gap-1 font-semibold text-foreground hover:text-primary"
+                          onClick={() => toggleSort("score")}
+                        >
+                          Score
+                          {sortKey === "score" ? (
+                            sortDir === "asc" ? (
+                              <ArrowUp className="h-3.5 w-3.5 opacity-70" />
+                            ) : (
+                              <ArrowDown className="h-3.5 w-3.5 opacity-70" />
+                            )
+                          ) : (
+                            <ArrowUpDown className="h-3.5 w-3.5 opacity-40" />
+                          )}
+                        </button>
+                        <AIBadge label="IA" size="xs" variant="soft" title="Score calcule par IA" />
+                      </div>
+                    </TableHead>
                     <SortHead label="Statut" colKey="status" className="bg-muted/95" />
                     <TableHead className="bg-muted/95">Priorite</TableHead>
                     <TableHead className="w-[100px] bg-muted/95 text-right">
@@ -1396,16 +1417,19 @@ export function ProspectsClient({
                   >
                     {PRIORITY_LABELS[selectedProspect.priority] ?? selectedProspect.priority}
                   </Badge>
-                  <span
-                    className={`ml-auto text-sm font-semibold ${
-                      selectedProspect.score >= 60
-                        ? "text-green-600"
-                        : selectedProspect.score >= 30
-                          ? "text-yellow-600"
-                          : "text-gray-600"
-                    }`}
-                  >
-                    Score : {selectedProspect.score}
+                  <span className="ml-auto inline-flex items-center gap-2">
+                    <AIBadge label="IA" size="xs" variant="soft" title="Score IA" />
+                    <span
+                      className={`text-sm font-semibold ${
+                        selectedProspect.score >= 60
+                          ? "text-green-600"
+                          : selectedProspect.score >= 30
+                            ? "text-yellow-600"
+                            : "text-gray-600"
+                      }`}
+                    >
+                      Score : {selectedProspect.score}
+                    </span>
                   </span>
                 </SheetDescription>
               </SheetHeader>

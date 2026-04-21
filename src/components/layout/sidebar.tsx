@@ -19,16 +19,22 @@ import {
 } from "lucide-react";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
+import { AIBadge } from "@/components/ui/ai-badge";
 
-const navigation = [
+const navigation: Array<{
+  name: string;
+  href: string;
+  icon: typeof LayoutDashboard;
+  aiTag?: boolean;
+}> = [
   { name: "Dashboard", href: "/", icon: LayoutDashboard },
-  { name: "Prospects", href: "/prospects", icon: Users },
+  { name: "Prospects", href: "/prospects", icon: Users, aiTag: true },
   { name: "Segments", href: "/segments", icon: Layers },
-  { name: "Scraping", href: "/scraping", icon: Search },
-  { name: "Campagnes", href: "/campaigns", icon: Mail },
+  { name: "Scraping", href: "/scraping", icon: Search, aiTag: true },
+  { name: "Campagnes", href: "/campaigns", icon: Mail, aiTag: true },
   { name: "Envoi", href: "/sending", icon: Send },
   { name: "Reponses", href: "/responses", icon: MessageSquare },
-  { name: "Agent IA", href: "/ai", icon: Bot },
+  { name: "Agent IA", href: "/ai", icon: Bot, aiTag: true },
   { name: "Parametres", href: "/settings", icon: Settings },
 ];
 
@@ -56,10 +62,15 @@ export function Sidebar() {
             />
           </div>
           {!collapsed && (
-            <div>
-              <h1 className="text-sm font-semibold">SCPB Commercial AI</h1>
+            <div className="min-w-0">
+              <div className="flex items-center gap-1.5">
+                <h1 className="truncate text-sm font-semibold">
+                  SCPB Commercial AI
+                </h1>
+                <AIBadge label="IA" size="xs" variant="solid" animated />
+              </div>
               <p className="text-[10px] text-muted-foreground">
-                SCPB - Intelligence Commerciale
+                SCPB · Intelligence Commerciale
               </p>
             </div>
           )}
@@ -96,7 +107,19 @@ export function Sidebar() {
               title={collapsed ? item.name : undefined}
             >
               <item.icon className="h-4 w-4 shrink-0" />
-              {!collapsed && <span>{item.name}</span>}
+              {!collapsed && (
+                <span className="flex flex-1 items-center justify-between gap-2">
+                  <span className="truncate">{item.name}</span>
+                  {item.aiTag && !isActive ? (
+                    <span
+                      title="Propulse par IA"
+                      className="inline-flex h-4 items-center gap-0.5 rounded-full border border-violet-200/70 bg-violet-50 px-1.5 text-[9px] font-semibold uppercase tracking-wide text-violet-700 dark:border-violet-900/60 dark:bg-violet-950/40 dark:text-violet-200"
+                    >
+                      IA
+                    </span>
+                  ) : null}
+                </span>
+              )}
             </Link>
           );
         })}

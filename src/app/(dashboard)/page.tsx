@@ -30,6 +30,8 @@ import { EngagementFunnel } from "@/components/dashboard/engagement-funnel";
 import { StrategicDashboardSections } from "@/components/dashboard/strategic-blocks";
 import { getDashboardExtras } from "@/lib/dashboard-extras";
 import { PageTitle } from "@/components/layout/page-title";
+import { AIBanner } from "@/components/ui/ai-banner";
+import { AIBadge } from "@/components/ui/ai-badge";
 
 const SCRAPE_LABELS: Record<string, string> = {
   PENDING: "En attente",
@@ -358,6 +360,30 @@ export default async function DashboardPage() {
         icon={TrendingUp}
       />
 
+      {stats ? (
+        <AIBanner
+          title="Assistant IA actif"
+          description="Scoring des prospects, priorisation des leads chauds et generation des emails sont pilotes en continu par l IA."
+          stats={[
+            {
+              icon: "sparkles",
+              label: "Prospects chauds",
+              value: String(stats.hotProspects),
+            },
+            {
+              icon: "brain",
+              label: "Leads prioritaires",
+              value: String(stats.highPriorityProspects),
+            },
+            {
+              icon: "zap",
+              label: "Emails IA (7 j.)",
+              value: String(stats.emailsLast7Days),
+            },
+          ]}
+        />
+      ) : null}
+
       {!stats ? (
         <Card className="border-destructive/50 bg-destructive/5">
           <CardHeader className="pb-2">
@@ -460,13 +486,18 @@ export default async function DashboardPage() {
 
           <Card className="lg:col-span-1">
             <CardHeader>
-              <CardTitle className="flex items-center gap-2 text-base">
-                <Sparkles className="h-4 w-4 text-violet-500" />
-                Pipeline commercial
-              </CardTitle>
-              <CardDescription>
-                Repartition des statuts prospect — priorisez la conversion
-              </CardDescription>
+              <div className="flex items-start justify-between gap-2">
+                <div>
+                  <CardTitle className="flex items-center gap-2 text-base">
+                    <Sparkles className="h-4 w-4 text-violet-500" />
+                    Pipeline commercial
+                  </CardTitle>
+                  <CardDescription>
+                    Repartition des statuts prospect — priorisez la conversion
+                  </CardDescription>
+                </div>
+                <AIBadge label="Scoring IA" size="xs" variant="soft" />
+              </div>
             </CardHeader>
             <CardContent className="space-y-4">
               {pipeline.map((row) => (

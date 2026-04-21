@@ -28,6 +28,7 @@ import { PageTitle } from "@/components/layout/page-title";
 import { ListPagination } from "@/components/shared/list-pagination";
 import { cn } from "@/lib/utils";
 import { PRODUCT_LABELS } from "@/lib/product-catalog";
+import { AIBadge } from "@/components/ui/ai-badge";
 
 interface Campaign {
   id: string;
@@ -172,15 +173,23 @@ export default function CampaignsPage() {
                       {campaign.name}
                     </span>
                   </CardTitle>
-                  <Badge
-                    variant="outline"
-                    className={cn(
-                      "shrink-0 text-[10px] font-semibold uppercase tracking-wide",
-                      STATUS_STYLES[campaign.status]
-                    )}
-                  >
-                    {formatCampaignStatus(campaign.status)}
-                  </Badge>
+                  <div className="flex shrink-0 flex-col items-end gap-1">
+                    <Badge
+                      variant="outline"
+                      className={cn(
+                        "text-[10px] font-semibold uppercase tracking-wide",
+                        STATUS_STYLES[campaign.status]
+                      )}
+                    >
+                      {formatCampaignStatus(campaign.status)}
+                    </Badge>
+                    <AIBadge
+                      label="Emails IA"
+                      size="xs"
+                      variant="soft"
+                      title="Emails rediges par IA"
+                    />
+                  </div>
                 </div>
                 <CardDescription
                   className="line-clamp-2 text-xs leading-relaxed"
