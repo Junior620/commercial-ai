@@ -63,7 +63,7 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="flex min-h-screen">
+    <div className="flex min-h-dvh w-screen overflow-x-hidden bg-[#050505]">
       {/* ── Left panel: form ── */}
       <div className="relative flex w-full flex-col justify-between bg-[#0a0a0a] px-3 py-6 text-white max-[360px]:px-2.5 max-[360px]:py-5 sm:px-6 sm:py-10 lg:w-1/2 lg:px-8">
         {/* Logo */}
@@ -263,7 +263,7 @@ export default function LoginPage() {
       </div>
 
       {/* ── Right panel: AI showcase ── */}
-      <div className="relative hidden overflow-hidden bg-[#050505] text-white lg:block lg:w-1/2">
+      <div className="relative hidden min-h-dvh overflow-hidden bg-[#050505] text-white lg:block lg:w-1/2">
         {/* Ambient aurora background */}
         <div className="absolute inset-0">
           <div className="absolute bottom-[15%] right-[10%] h-[520px] w-[520px] rounded-full bg-[#6d28d9] opacity-40 blur-[110px]" />
@@ -283,16 +283,16 @@ export default function LoginPage() {
         <div className="relative flex h-full min-h-0 flex-col justify-between px-6 py-8 xl:px-10 xl:py-10">
           {/* Top: status pill */}
           <div className="flex flex-wrap items-center justify-between gap-2">
-            <div className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/5 px-3 py-1 text-xs text-neutral-200 backdrop-blur">
+            <div className="inline-flex max-w-full items-center gap-2 rounded-full border border-white/15 bg-white/5 px-3 py-1 text-xs text-neutral-200 backdrop-blur">
               <span className="relative flex h-2 w-2">
                 <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75" />
                 <span className="relative inline-flex h-2 w-2 rounded-full bg-emerald-500" />
               </span>
-              Assistant IA · en ligne
+              <span className="truncate">Assistant IA · en ligne</span>
             </div>
-            <div className="inline-flex items-center gap-1.5 rounded-full border border-violet-400/40 bg-violet-500/20 px-3 py-1 text-xs font-medium text-violet-100 backdrop-blur">
+            <div className="inline-flex max-w-full items-center gap-1.5 rounded-full border border-violet-400/40 bg-violet-500/20 px-3 py-1 text-xs font-medium text-violet-100 backdrop-blur">
               <Brain className="h-3 w-3" />
-              Claude 3.5 + scoring maison
+              <span className="truncate">Claude 3.5 + scoring maison</span>
             </div>
           </div>
 
@@ -312,10 +312,10 @@ export default function LoginPage() {
             </div>
 
             {/* Live typing demo */}
-            <AITypingDemo className="max-w-md" />
+            <AITypingDemo className="w-full max-w-[32rem]" />
 
             {/* Floating feature cards (compact) */}
-            <div className="grid max-w-md grid-cols-1 gap-2.5 sm:grid-cols-2 sm:gap-3">
+            <div className="grid w-full max-w-[32rem] grid-cols-1 gap-2.5 sm:grid-cols-2 sm:gap-3">
               <FeatureCard
                 icon={Radar}
                 title="Scraping intelligent"
