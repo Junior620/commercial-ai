@@ -6,11 +6,18 @@ import {
   normalizeSegmentFilters,
 } from "@/lib/segment-filters-normalize";
 
-export async function GET() {
+export async function GET(req: NextRequest) {
+  const url = new URL(req.url);
+  const includeLiveCount = url.searchParams.get("live") === "1";
+
   const segments = await prisma.segment.findMany({
     include: { _count: { select: { prospectLinks: true } } },
     orderBy: { createdAt: "desc" },
   });
+
+  if (!includeLiveCount) {
+    return NextResponse.json(segments);
+  }
 
   const segmentsWithLiveCount = await Promise.all(
     segments.map(async (segment) => {

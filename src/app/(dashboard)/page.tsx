@@ -42,6 +42,48 @@ const SCRAPE_LABELS: Record<string, string> = {
   CANCELLED: "Annule",
 };
 
+function getFallbackStats() {
+  return {
+    totalProspects: 0,
+    totalEmails: 0,
+    sentEmails: 0,
+    deliveredEmails: 0,
+    openedEmails: 0,
+    clickedEmails: 0,
+    repliedEmails: 0,
+    bouncedEmails: 0,
+    failedEmails: 0,
+    openRate: "0",
+    replyRate: "0",
+    deliverabilityPct: "0",
+    bounceRatePct: "0",
+    failRatePct: "0",
+    clickRateOfDelivered: "0",
+    activeCampaigns: 0,
+    hotProspects: 0,
+    prospectsByCountry: [],
+    prospectsByStatus: [],
+    responsesCount: 0,
+    prospectsNew: 0,
+    prospectsContacted: 0,
+    prospectsInDiscussion: 0,
+    prospectsConverted: 0,
+    highPriorityProspects: 0,
+    warmNewLeads: 0,
+    lastScrape: null,
+    activeCampaignsDetail: [],
+    emailsLast7Days: 0,
+    emailsPrev7Days: 0,
+    emailTrendLabel: "—",
+    funnelSteps: [
+      { label: "Tentatives (hors brouillon)", value: 0 },
+      { label: "Livres", value: 0 },
+      { label: "Ouverts (tracking)", value: 0 },
+      { label: "Clics trackes", value: 0 },
+    ],
+  } as Awaited<ReturnType<typeof getStats>>;
+}
+
 async function getStats() {
   const now = Date.now();
   const weekAgo = new Date(now - 7 * 24 * 60 * 60 * 1000);
@@ -228,17 +270,16 @@ async function getStats() {
 }
 
 export default async function DashboardPage() {
-  let stats: Awaited<ReturnType<typeof getStats>> | null = null;
+  let stats: Awaited<ReturnType<typeof getStats>> = getFallbackStats();
   try {
     stats = await getStats();
   } catch (e) {
     console.error("[dashboard] getStats:", e);
-    stats = null;
+    stats = getFallbackStats();
   }
   const extras = await getDashboardExtras();
 
-  const kpis = stats
-    ? [
+  const kpis = [
         {
           label: "Prospects",
           value: stats.totalProspects,
@@ -284,54 +325,9 @@ export default async function DashboardPage() {
           color: "text-amber-600",
           hint: "Score ≥ 60",
         },
-      ]
-    : [
-        {
-          label: "Prospects",
-          value: 0,
-          icon: Users,
-          color: "text-blue-600",
-          hint: "",
-        },
-        {
-          label: "Emails partis (7 j.)",
-          value: 0,
-          icon: Send,
-          color: "text-green-600",
-          hint: "",
-        },
-        {
-          label: "Delivrabilite",
-          value: "0%",
-          icon: Mail,
-          color: "text-orange-600",
-          hint: "",
-        },
-        {
-          label: "Engagement",
-          value: "0%",
-          icon: TrendingUp,
-          color: "text-purple-600",
-          hint: "",
-        },
-        {
-          label: "Campagnes actives",
-          value: 0,
-          icon: Target,
-          color: "text-red-600",
-          hint: "",
-        },
-        {
-          label: "Prospects chauds",
-          value: 0,
-          icon: Globe,
-          color: "text-amber-600",
-          hint: "",
-        },
       ];
 
-  const pipeline = stats
-    ? [
+  const pipeline = [
         { label: "Nouveaux", value: stats.prospectsNew, color: "bg-slate-500" },
         {
           label: "Contactes",
@@ -348,8 +344,7 @@ export default async function DashboardPage() {
           value: stats.prospectsConverted,
           color: "bg-emerald-500",
         },
-      ]
-    : [];
+      ];
 
   const pipelineMax = Math.max(1, ...pipeline.map((p) => p.value));
 
@@ -361,46 +356,27 @@ export default async function DashboardPage() {
         icon={TrendingUp}
       />
 
-      {stats ? (
-        <AIBanner
-          title="Assistant IA actif"
-          description="Scoring des prospects, priorisation des leads chauds et generation des emails sont pilotes en continu par l IA."
-          stats={[
-            {
-              icon: "sparkles",
-              label: "Prospects chauds",
-              value: stats.hotProspects,
-            },
-            {
-              icon: "brain",
-              label: "Leads prioritaires",
-              value: stats.highPriorityProspects,
-            },
-            {
-              icon: "zap",
-              label: "Emails IA (7 j.)",
-              value: stats.emailsLast7Days,
-            },
-          ]}
-        />
-      ) : null}
-
-      {!stats ? (
-        <Card className="border-destructive/50 bg-destructive/5">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-base text-destructive">
-              Impossible de charger les statistiques
-            </CardTitle>
-            <CardDescription>
-              Verifiez <code className="text-xs">DATABASE_URL</code>, que la base
-              est joignable, et que{" "}
-              <code className="text-xs">npx prisma migrate dev</code> a ete
-              execute apres la derniere mise a jour. Consultez la console du
-              serveur (terminal) pour le detail de l erreur.
-            </CardDescription>
-          </CardHeader>
-        </Card>
-      ) : null}
+      <AIBanner
+        title="Assistant IA actif"
+        description="Scoring des prospects, priorisation des leads chauds et generation des emails sont pilotes en continu par l IA."
+        stats={[
+          {
+            icon: "sparkles",
+            label: "Prospects chauds",
+            value: stats.hotProspects,
+          },
+          {
+            icon: "brain",
+            label: "Leads prioritaires",
+            value: stats.highPriorityProspects,
+          },
+          {
+            icon: "zap",
+            label: "Emails IA (7 j.)",
+            value: stats.emailsLast7Days,
+          },
+        ]}
+      />
 
       <div className="flex flex-wrap gap-3">
         <Link
@@ -462,8 +438,7 @@ export default async function DashboardPage() {
 
       <StrategicDashboardSections extras={extras} />
 
-      {stats && (
-        <div className="grid gap-4 lg:grid-cols-3">
+      <div className="grid gap-4 lg:grid-cols-3">
           <div className="lg:col-span-1">
             <AITimeline />
           </div>
@@ -568,9 +543,8 @@ export default async function DashboardPage() {
             </Card>
           </div>
         </div>
-      )}
 
-      {stats && stats.activeCampaignsDetail.length > 0 && (
+      {stats.activeCampaignsDetail.length > 0 && (
         <Card>
           <CardHeader className="flex flex-row items-center justify-between">
             <div>
@@ -631,7 +605,7 @@ export default async function DashboardPage() {
         </Card>
       )}
 
-      {stats?.lastScrape && (
+      {stats.lastScrape && (
         <Card>
           <CardHeader className="flex flex-row items-center justify-between">
             <div>
@@ -675,8 +649,7 @@ export default async function DashboardPage() {
         </Card>
       )}
 
-      {stats && (
-        <div className="grid gap-4 md:grid-cols-2">
+      <div className="grid gap-4 md:grid-cols-2">
           <Card>
             <CardHeader>
               <CardTitle>Prospects par pays</CardTitle>
@@ -702,7 +675,6 @@ export default async function DashboardPage() {
             </CardContent>
           </Card>
         </div>
-      )}
     </div>
   );
 }

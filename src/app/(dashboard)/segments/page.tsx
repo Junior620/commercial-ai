@@ -121,6 +121,7 @@ const PREDEFINED_SEGMENTS = [
 
 export default function SegmentsPage() {
   const [segments, setSegments] = useState<Segment[]>([]);
+  const [loadingSegments, setLoadingSegments] = useState(true);
   const [page, setPage] = useState(1);
   const PAGE_SIZE = 9;
   const [addOpen, setAddOpen] = useState(false);
@@ -147,11 +148,14 @@ export default function SegmentsPage() {
   }, []);
 
   const fetchSegments = async () => {
+    setLoadingSegments(true);
     try {
       const res = await fetch("/api/segments");
       if (res.ok) setSegments(await res.json());
     } catch {
       // ignore
+    } finally {
+      setLoadingSegments(false);
     }
   };
 
@@ -410,13 +414,21 @@ export default function SegmentsPage() {
         <div>
           <h2 className="text-lg font-semibold tracking-tight">Vos segments</h2>
           <p className="text-sm text-muted-foreground">
-            {segments.length === 0
+            {loadingSegments
+              ? "Chargement des segments..."
+              : segments.length === 0
               ? "Aucun segment pour l’instant."
               : `${segments.length} segment${segments.length > 1 ? "s" : ""} — membres comptés selon les filtres en base.`}
           </p>
         </div>
         <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-3">
-        {paginatedSegments.map((segment) => {
+        {loadingSegments && (
+          <div className="col-span-full rounded-lg border border-dashed bg-muted/10 py-12 text-center text-muted-foreground">
+            Chargement...
+          </div>
+        )}
+        {!loadingSegments &&
+          paginatedSegments.map((segment) => {
           const count =
             segment.liveProspectsCount ?? segment._count?.prospectLinks ?? 0;
           const chips = formatSegmentFilterChips(segment.filters);
@@ -521,7 +533,7 @@ export default function SegmentsPage() {
             </Card>
           );
         })}
-        {segments.length === 0 && (
+        {!loadingSegments && segments.length === 0 && (
           <div className="col-span-full rounded-lg border border-dashed bg-muted/10 py-12 text-center text-muted-foreground">
             <Layers className="mx-auto mb-2 h-8 w-8 opacity-50" />
             <p className="text-sm">Aucun segment créé</p>
@@ -531,7 +543,7 @@ export default function SegmentsPage() {
           </div>
         )}
         </div>
-        {segments.length > 0 && (
+        {!loadingSegments && segments.length > 0 && (
           <ListPagination
             page={safePage}
             totalPages={totalPages}
