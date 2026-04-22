@@ -149,12 +149,16 @@ export function AITypingDemo({ className }: { className?: string }) {
           </div>
           <div className="min-w-0 leading-tight">
             <p className="font-medium text-white max-[360px]:text-[10px]">Brouillon · IA</p>
-            <p className="text-[9px] text-neutral-400 sm:text-[10px]">
+            <p className="text-[9px] text-neutral-300 sm:text-[10px]">
               <span className="block truncate">Pour {sample.to} · {sample.company}</span>
             </p>
           </div>
         </div>
-        <div className="inline-flex items-center gap-1 rounded-full border border-violet-400/40 bg-violet-500/20 px-1.5 py-0.5 text-[9px] font-medium text-violet-100 sm:px-2 sm:text-[10px]">
+        <div
+          className="inline-flex items-center gap-1 rounded-full border border-violet-400/40 bg-violet-500/20 px-1.5 py-0.5 text-[9px] font-medium text-violet-100 sm:px-2 sm:text-[10px]"
+          role="status"
+          aria-live="polite"
+        >
           {isTyping ? (
             <>
               <Sparkles className="h-3 w-3 animate-pulse" />
@@ -171,7 +175,7 @@ export function AITypingDemo({ className }: { className?: string }) {
 
       {/* subject */}
       <div className="mb-1.5 sm:mb-2">
-        <p className="text-[9px] uppercase tracking-wide text-neutral-400 sm:text-[10px]">
+        <p className="text-[9px] uppercase tracking-wide text-neutral-300 sm:text-[10px]">
           Objet
         </p>
         <p className="text-xs font-semibold text-white sm:text-sm">
@@ -181,11 +185,14 @@ export function AITypingDemo({ className }: { className?: string }) {
       </div>
 
       {/* body */}
-      <div className="space-y-1 rounded-lg border border-white/10 bg-black/30 p-2.5 sm:p-3">
-        <p className="text-[9px] uppercase tracking-wide text-neutral-400 sm:text-[10px]">
+      <div className="space-y-1 rounded-lg border border-white/15 bg-black/35 p-2.5 sm:p-3">
+        <p className="text-[9px] uppercase tracking-wide text-neutral-300 sm:text-[10px]">
           Message
         </p>
-        <pre className="max-h-40 min-h-[6.75rem] overflow-hidden whitespace-pre-wrap break-words font-sans text-[11px] leading-relaxed text-neutral-100 sm:max-h-44 sm:min-h-[8.5rem] sm:text-xs">
+        <pre
+          className="max-h-40 min-h-[6.75rem] overflow-hidden whitespace-pre-wrap break-words font-sans text-[11px] leading-relaxed text-neutral-100 sm:max-h-44 sm:min-h-[8.5rem] sm:text-xs"
+          aria-live="polite"
+        >
 {body}
           {phase === "body" && <BlinkingCursor />}
           {phase === "done" && (
@@ -197,7 +204,7 @@ export function AITypingDemo({ className }: { className?: string }) {
       </div>
 
       {/* footer: model row */}
-      <div className="mt-2.5 flex flex-wrap items-center justify-between gap-1.5 text-[9px] text-neutral-400 sm:mt-3 sm:gap-2 sm:text-[10px]">
+      <div className="mt-2.5 flex flex-wrap items-center justify-between gap-1.5 text-[9px] text-neutral-300 sm:mt-3 sm:gap-2 sm:text-[10px]">
         <div className="inline-flex min-w-0 items-center gap-1">
           <Bot className="h-3 w-3 text-violet-300" />
           <span className="truncate">Claude 3.5 · ton commercial</span>

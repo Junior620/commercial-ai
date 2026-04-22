@@ -98,14 +98,14 @@ export default function LoginPage() {
           <h1 className="mb-1.5 text-xl font-semibold tracking-tight sm:text-2xl">
             {isSignUp ? "Créer votre compte" : "Bon retour"}
           </h1>
-          <p className="mb-5 text-xs text-neutral-400 sm:mb-6 sm:text-sm">
+          <p className="mb-5 text-xs text-neutral-300 sm:mb-6 sm:text-sm">
             {isSignUp
               ? "Activez votre assistant commercial IA : scraping, scoring, rédaction et suivi automatiques."
               : "Connectez-vous pour retrouver votre assistant IA et vos campagnes en cours."}
           </p>
 
           {isSignUp && (
-            <ul className="mb-5 space-y-1.5 rounded-lg border border-white/10 bg-white/[0.03] p-2.5 text-[11px] text-neutral-300 sm:mb-6 sm:space-y-2 sm:p-3 sm:text-xs">
+            <ul className="mb-5 space-y-1.5 rounded-lg border border-white/15 bg-white/[0.04] p-2.5 text-[11px] text-neutral-200 sm:mb-6 sm:space-y-2 sm:p-3 sm:text-xs">
               {[
                 "Scraping intelligent + enrichissement des contacts",
                 "Scoring IA des prospects et priorisation auto",
@@ -127,7 +127,8 @@ export default function LoginPage() {
             <button
               type="button"
               onClick={() => handleOAuth("google")}
-              className="flex h-9 w-full items-center justify-center gap-2 rounded-lg border border-white/15 bg-white/5 text-xs font-medium text-white transition-colors hover:bg-white/10 sm:h-10 sm:gap-2.5 sm:text-sm"
+              className="flex min-h-11 w-full items-center justify-center gap-2 rounded-lg border border-white/20 bg-white/5 px-3 text-sm font-medium text-white transition-colors hover:bg-white/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-400/80 focus-visible:ring-offset-2 focus-visible:ring-offset-[#0a0a0a] sm:min-h-10 sm:gap-2.5"
+              aria-label="Continuer avec Google"
             >
               <svg className="h-4 w-4" viewBox="0 0 24 24">
                 <path
@@ -154,7 +155,7 @@ export default function LoginPage() {
           {/* Divider */}
           <div className="my-5 flex items-center gap-3 sm:my-6">
             <div className="h-px flex-1 bg-white/10" />
-            <span className="text-xs text-neutral-500">ou</span>
+            <span className="text-xs text-neutral-400">ou</span>
             <div className="h-px flex-1 bg-white/10" />
           </div>
 
@@ -174,7 +175,7 @@ export default function LoginPage() {
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 required
-                className="h-9 w-full rounded-lg border border-white/15 bg-white/5 px-3 text-xs text-white placeholder:text-neutral-500 outline-none transition-colors focus:border-emerald-500/50 focus:ring-2 focus:ring-emerald-500/20 sm:h-10 sm:text-sm"
+                className="min-h-11 w-full rounded-lg border border-white/20 bg-white/5 px-3 text-sm text-white placeholder:text-neutral-400 outline-none transition-colors focus:border-emerald-400/70 focus:ring-2 focus:ring-emerald-400/40 sm:min-h-10"
               />
             </div>
             <div className="space-y-2">
@@ -193,12 +194,13 @@ export default function LoginPage() {
                   onChange={(e) => setPassword(e.target.value)}
                   required
                   minLength={6}
-                  className="h-9 w-full rounded-lg border border-white/15 bg-white/5 px-3 pr-10 text-xs text-white placeholder:text-neutral-500 outline-none transition-colors focus:border-emerald-500/50 focus:ring-2 focus:ring-emerald-500/20 sm:h-10 sm:text-sm"
+                  className="min-h-11 w-full rounded-lg border border-white/20 bg-white/5 px-3 pr-11 text-sm text-white placeholder:text-neutral-400 outline-none transition-colors focus:border-emerald-400/70 focus:ring-2 focus:ring-emerald-400/40 sm:min-h-10"
                 />
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-neutral-500 transition-colors hover:text-neutral-300"
+                  className="absolute right-2 top-1/2 inline-flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-md text-neutral-300 transition-colors hover:bg-white/10 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-400/80"
+                  aria-label={showPassword ? "Masquer le mot de passe" : "Afficher le mot de passe"}
                 >
                   {showPassword ? (
                     <EyeOff className="h-4 w-4" />
@@ -212,21 +214,21 @@ export default function LoginPage() {
             <button
               type="submit"
               disabled={loading}
-              className="h-9 w-full rounded-lg bg-emerald-600 text-xs font-semibold text-white transition-colors hover:bg-emerald-500 disabled:cursor-not-allowed disabled:opacity-50 sm:h-10 sm:text-sm"
+              className="min-h-11 w-full rounded-lg bg-emerald-600 text-sm font-semibold text-white transition-colors hover:bg-emerald-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300/80 focus-visible:ring-offset-2 focus-visible:ring-offset-[#0a0a0a] disabled:cursor-not-allowed disabled:opacity-50 sm:min-h-10"
             >
               {loading ? "Chargement..." : "Continuer"}
             </button>
           </form>
 
           {/* Toggle sign-up / sign-in */}
-          <p className="mt-5 text-center text-xs text-neutral-400 sm:mt-6 sm:text-sm">
+          <p className="mt-5 text-center text-xs text-neutral-300 sm:mt-6 sm:text-sm">
             {isSignUp ? (
               <>
                 Vous avez déjà un compte ?{" "}
                 <button
                   type="button"
                   onClick={() => setIsSignUp(false)}
-                  className="font-medium text-emerald-400 transition-colors hover:text-emerald-300"
+                  className="rounded-sm font-medium text-emerald-300 underline-offset-2 transition-colors hover:text-emerald-200 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300/80"
                 >
                   Se connecter
                 </button>
@@ -237,7 +239,7 @@ export default function LoginPage() {
                 <button
                   type="button"
                   onClick={() => setIsSignUp(true)}
-                  className="font-medium text-emerald-400 transition-colors hover:text-emerald-300"
+                  className="rounded-sm font-medium text-emerald-300 underline-offset-2 transition-colors hover:text-emerald-200 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300/80"
                 >
                   S&apos;inscrire
                 </button>
@@ -247,7 +249,7 @@ export default function LoginPage() {
         </div>
 
         {/* Footer */}
-        <p className="text-center text-[11px] text-neutral-600 sm:text-xs">
+        <p className="text-center text-[11px] text-neutral-400 sm:text-xs">
           En continuant, vous acceptez nos{" "}
           <span className="text-neutral-400 underline underline-offset-2">
             Conditions d&apos;utilisation

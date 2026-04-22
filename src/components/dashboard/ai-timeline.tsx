@@ -297,11 +297,11 @@ export async function AITimeline() {
                       </span>
                     ) : null}
                   </div>
-                  <p className="text-[11px] text-muted-foreground sm:text-xs">
+                  <p className="text-[11px] text-foreground/75 sm:text-xs">
                     {ev.description}
                   </p>
                   {ev.at ? (
-                    <p className="text-[10px] uppercase tracking-wide text-muted-foreground/70">
+                    <p className="text-[10px] uppercase tracking-wide text-foreground/60">
                       {relativeTime(ev.at)}
                     </p>
                   ) : null}

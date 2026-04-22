@@ -113,7 +113,7 @@ export function HowAIWorks({ className, compact }: HowAIWorksProps) {
                 <p className="break-words text-xs font-semibold leading-tight sm:text-sm">
                   {step.title}
                 </p>
-                <p className="mt-1 text-[11px] leading-relaxed text-muted-foreground sm:text-xs">
+                <p className="mt-1 text-[11px] leading-relaxed text-foreground/75 sm:text-xs">
                   {step.description}
                 </p>
                 <span className="mt-2 inline-flex max-w-full items-center rounded-full border border-violet-200/60 bg-violet-50 px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide text-violet-700 dark:border-violet-900/50 dark:bg-violet-950/40 dark:text-violet-200">
