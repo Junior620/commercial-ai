@@ -171,7 +171,7 @@ export function MobileSidebar() {
       >
         <Menu className="h-5 w-5" />
       </SheetTrigger>
-      <SheetContent side="left" className="w-[86vw] max-w-xs p-0">
+      <SheetContent side="left" className="w-[82vw] max-w-xs p-0">
         <div className="flex h-16 items-center gap-2 border-b px-4">
           <div className="flex h-8 w-8 items-center justify-center overflow-hidden rounded-lg border bg-background">
             <Image
