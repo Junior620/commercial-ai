@@ -74,13 +74,13 @@ export function HowAIWorks({ className, compact }: HowAIWorksProps) {
         className
       )}
     >
-      <CardHeader className="flex flex-col gap-3 space-y-0 sm:flex-row sm:items-start sm:justify-between">
+      <CardHeader className="flex flex-col gap-2.5 space-y-0 sm:flex-row sm:items-start sm:justify-between">
         <div>
-          <CardTitle className="flex items-center gap-2 text-base">
+          <CardTitle className="flex items-center gap-2 text-sm sm:text-base">
             <Workflow className="h-4 w-4 text-violet-500" />
             Comment l&apos;IA travaille ici
           </CardTitle>
-          <CardDescription>
+          <CardDescription className="text-xs sm:text-sm">
             Un pipeline intelligent de la detection du prospect jusqu au suivi de la reponse
           </CardDescription>
         </div>
@@ -100,7 +100,7 @@ export function HowAIWorks({ className, compact }: HowAIWorksProps) {
             return (
               <li
                 key={step.title}
-                className="group relative overflow-hidden rounded-xl border border-border/60 bg-background/80 p-3 shadow-sm backdrop-blur transition-colors hover:border-violet-300/80 dark:hover:border-violet-700/60"
+                className="group relative overflow-hidden rounded-xl border border-border/60 bg-background/80 p-2.5 shadow-sm backdrop-blur transition-colors hover:border-violet-300/80 dark:hover:border-violet-700/60 sm:p-3"
               >
                 <div
                   className={cn(
@@ -110,10 +110,10 @@ export function HowAIWorks({ className, compact }: HowAIWorksProps) {
                 >
                   <Icon className="h-4 w-4" />
                 </div>
-                <p className="break-words text-sm font-semibold leading-tight">
+                <p className="break-words text-xs font-semibold leading-tight sm:text-sm">
                   {step.title}
                 </p>
-                <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
+                <p className="mt-1 text-[11px] leading-relaxed text-muted-foreground sm:text-xs">
                   {step.description}
                 </p>
                 <span className="mt-2 inline-flex max-w-full items-center rounded-full border border-violet-200/60 bg-violet-50 px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide text-violet-700 dark:border-violet-900/50 dark:bg-violet-950/40 dark:text-violet-200">

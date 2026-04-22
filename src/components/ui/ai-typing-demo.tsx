@@ -137,24 +137,24 @@ export function AITypingDemo({ className }: { className?: string }) {
   return (
     <div
       className={cn(
-        "relative overflow-hidden rounded-xl border border-white/10 bg-white/[0.04] p-3 shadow-xl backdrop-blur sm:p-4",
+        "relative overflow-hidden rounded-xl border border-white/10 bg-white/[0.04] p-2.5 shadow-xl backdrop-blur max-[360px]:p-2 sm:p-4",
         className
       )}
     >
       {/* header: envelope + ai pill */}
-      <div className="mb-3 flex flex-wrap items-start justify-between gap-2">
-        <div className="flex min-w-0 flex-1 items-center gap-2 text-xs text-neutral-300">
-          <div className="flex h-7 w-7 items-center justify-center rounded-lg border border-white/10 bg-white/[0.06]">
+      <div className="mb-2.5 flex flex-wrap items-start justify-between gap-1.5 sm:mb-3 sm:gap-2">
+        <div className="flex min-w-0 flex-1 items-center gap-1.5 text-[11px] text-neutral-300 sm:gap-2 sm:text-xs">
+          <div className="flex h-6 w-6 items-center justify-center rounded-lg border border-white/10 bg-white/[0.06] sm:h-7 sm:w-7">
             <Mail className="h-3.5 w-3.5" />
           </div>
           <div className="min-w-0 leading-tight">
-            <p className="font-medium text-white">Brouillon · IA</p>
-            <p className="text-[10px] text-neutral-400">
+            <p className="font-medium text-white max-[360px]:text-[10px]">Brouillon · IA</p>
+            <p className="text-[9px] text-neutral-400 sm:text-[10px]">
               <span className="block truncate">Pour {sample.to} · {sample.company}</span>
             </p>
           </div>
         </div>
-        <div className="inline-flex items-center gap-1 rounded-full border border-violet-400/40 bg-violet-500/20 px-2 py-0.5 text-[10px] font-medium text-violet-100">
+        <div className="inline-flex items-center gap-1 rounded-full border border-violet-400/40 bg-violet-500/20 px-1.5 py-0.5 text-[9px] font-medium text-violet-100 sm:px-2 sm:text-[10px]">
           {isTyping ? (
             <>
               <Sparkles className="h-3 w-3 animate-pulse" />
@@ -170,22 +170,22 @@ export function AITypingDemo({ className }: { className?: string }) {
       </div>
 
       {/* subject */}
-      <div className="mb-2">
-        <p className="text-[10px] uppercase tracking-wide text-neutral-400">
+      <div className="mb-1.5 sm:mb-2">
+        <p className="text-[9px] uppercase tracking-wide text-neutral-400 sm:text-[10px]">
           Objet
         </p>
-        <p className="text-sm font-semibold text-white">
+        <p className="text-xs font-semibold text-white sm:text-sm">
           {subject}
           {phase === "subject" && <BlinkingCursor />}
         </p>
       </div>
 
       {/* body */}
-      <div className="space-y-1 rounded-lg border border-white/10 bg-black/30 p-3">
-        <p className="text-[10px] uppercase tracking-wide text-neutral-400">
+      <div className="space-y-1 rounded-lg border border-white/10 bg-black/30 p-2.5 sm:p-3">
+        <p className="text-[9px] uppercase tracking-wide text-neutral-400 sm:text-[10px]">
           Message
         </p>
-        <pre className="max-h-44 min-h-[7.5rem] overflow-hidden whitespace-pre-wrap break-words font-sans text-xs leading-relaxed text-neutral-100 sm:min-h-[8.5rem]">
+        <pre className="max-h-40 min-h-[6.75rem] overflow-hidden whitespace-pre-wrap break-words font-sans text-[11px] leading-relaxed text-neutral-100 sm:max-h-44 sm:min-h-[8.5rem] sm:text-xs">
 {body}
           {phase === "body" && <BlinkingCursor />}
           {phase === "done" && (
@@ -197,7 +197,7 @@ export function AITypingDemo({ className }: { className?: string }) {
       </div>
 
       {/* footer: model row */}
-      <div className="mt-3 flex flex-wrap items-center justify-between gap-2 text-[10px] text-neutral-400">
+      <div className="mt-2.5 flex flex-wrap items-center justify-between gap-1.5 text-[9px] text-neutral-400 sm:mt-3 sm:gap-2 sm:text-[10px]">
         <div className="inline-flex min-w-0 items-center gap-1">
           <Bot className="h-3 w-3 text-violet-300" />
           <span className="truncate">Claude 3.5 · ton commercial</span>

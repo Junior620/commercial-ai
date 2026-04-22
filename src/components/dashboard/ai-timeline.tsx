@@ -249,13 +249,13 @@ export async function AITimeline() {
 
   return (
     <Card className="border-violet-200/70 bg-gradient-to-br from-violet-50/60 via-background to-indigo-50/60 dark:border-violet-900/40 dark:from-violet-950/30 dark:via-background dark:to-indigo-950/30">
-      <CardHeader className="flex flex-col gap-3 space-y-0 sm:flex-row sm:items-start sm:justify-between">
+      <CardHeader className="flex flex-col gap-2.5 space-y-0 sm:flex-row sm:items-start sm:justify-between">
         <div>
-          <CardTitle className="flex items-center gap-2 text-base">
+          <CardTitle className="flex items-center gap-2 text-sm sm:text-base">
             <Activity className="h-4 w-4 text-violet-500" />
             Activité de l&apos;IA
           </CardTitle>
-          <CardDescription>
+          <CardDescription className="text-xs sm:text-sm">
             Ce que l&apos;IA a fait pour vous récemment
           </CardDescription>
         </div>
@@ -283,11 +283,11 @@ export async function AITimeline() {
                 >
                   <span className={cn("h-2 w-2 rounded-full", styles.dot)} />
                 </span>
-                <div className="flex flex-col gap-1 rounded-lg border border-border/60 bg-background/70 p-3 shadow-sm backdrop-blur">
+                <div className="flex flex-col gap-1 rounded-lg border border-border/60 bg-background/70 p-2.5 shadow-sm backdrop-blur sm:p-3">
                   <div className="flex flex-wrap items-center justify-between gap-2">
                     <div className="flex min-w-0 items-center gap-2">
                       <Icon className={cn("h-4 w-4", styles.icon)} />
-                      <span className="min-w-0 break-words text-sm font-semibold leading-tight">
+                      <span className="min-w-0 break-words text-xs font-semibold leading-tight sm:text-sm">
                         {ev.title}
                       </span>
                     </div>
@@ -297,7 +297,7 @@ export async function AITimeline() {
                       </span>
                     ) : null}
                   </div>
-                  <p className="text-xs text-muted-foreground">
+                  <p className="text-[11px] text-muted-foreground sm:text-xs">
                     {ev.description}
                   </p>
                   {ev.at ? (

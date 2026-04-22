@@ -65,10 +65,10 @@ export default function LoginPage() {
   return (
     <div className="flex min-h-screen">
       {/* ── Left panel: form ── */}
-      <div className="relative flex w-full flex-col justify-between bg-[#0a0a0a] px-4 py-8 text-white sm:px-6 sm:py-10 lg:w-1/2 lg:px-8">
+      <div className="relative flex w-full flex-col justify-between bg-[#0a0a0a] px-3 py-6 text-white max-[360px]:px-2.5 max-[360px]:py-5 sm:px-6 sm:py-10 lg:w-1/2 lg:px-8">
         {/* Logo */}
         <div className="flex flex-wrap items-center gap-2 sm:gap-3">
-          <div className="flex h-9 w-9 items-center justify-center overflow-hidden rounded-lg border border-white/10 bg-white/5">
+          <div className="flex h-8 w-8 items-center justify-center overflow-hidden rounded-lg border border-white/10 bg-white/5 sm:h-9 sm:w-9">
             <Image
               src="/logo.png"
               alt="Logo SCPB Commercial AI"
@@ -79,7 +79,7 @@ export default function LoginPage() {
             />
           </div>
           <div className="flex min-w-0 flex-wrap items-center gap-1.5 sm:gap-2">
-            <span className="truncate text-base font-bold tracking-tight sm:text-lg">
+            <span className="truncate text-sm font-bold tracking-tight max-[360px]:max-w-[9.5rem] sm:text-lg">
               SCPB Commercial AI
             </span>
             <span className="inline-flex items-center gap-1 rounded-full border border-violet-400/40 bg-gradient-to-r from-violet-500 via-indigo-500 to-fuchsia-500 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-white shadow-sm">
@@ -91,21 +91,21 @@ export default function LoginPage() {
 
         {/* Form area */}
         <div className="mx-auto w-full max-w-sm">
-          <div className="mb-2 inline-flex max-w-full items-center gap-1.5 rounded-full border border-violet-500/30 bg-violet-500/10 px-2.5 py-1 text-[10px] font-medium text-violet-200 sm:text-[11px]">
+          <div className="mb-2 inline-flex max-w-full items-center gap-1.5 rounded-full border border-violet-500/30 bg-violet-500/10 px-2 py-1 text-[10px] font-medium text-violet-200 max-[360px]:text-[9px] sm:px-2.5 sm:text-[11px]">
             <Sparkles className="h-3 w-3 animate-pulse" />
             Plateforme commerciale propulsée par l’IA
           </div>
-          <h1 className="mb-1.5 text-2xl font-semibold tracking-tight">
+          <h1 className="mb-1.5 text-xl font-semibold tracking-tight sm:text-2xl">
             {isSignUp ? "Créer votre compte" : "Bon retour"}
           </h1>
-          <p className="mb-6 text-sm text-neutral-400">
+          <p className="mb-5 text-xs text-neutral-400 sm:mb-6 sm:text-sm">
             {isSignUp
               ? "Activez votre assistant commercial IA : scraping, scoring, rédaction et suivi automatiques."
               : "Connectez-vous pour retrouver votre assistant IA et vos campagnes en cours."}
           </p>
 
           {isSignUp && (
-            <ul className="mb-6 space-y-2 rounded-lg border border-white/10 bg-white/[0.03] p-3 text-xs text-neutral-300">
+            <ul className="mb-5 space-y-1.5 rounded-lg border border-white/10 bg-white/[0.03] p-2.5 text-[11px] text-neutral-300 sm:mb-6 sm:space-y-2 sm:p-3 sm:text-xs">
               {[
                 "Scraping intelligent + enrichissement des contacts",
                 "Scoring IA des prospects et priorisation auto",
@@ -127,7 +127,7 @@ export default function LoginPage() {
             <button
               type="button"
               onClick={() => handleOAuth("google")}
-              className="flex h-10 w-full items-center justify-center gap-2.5 rounded-lg border border-white/15 bg-white/5 text-sm font-medium text-white transition-colors hover:bg-white/10"
+              className="flex h-9 w-full items-center justify-center gap-2 rounded-lg border border-white/15 bg-white/5 text-xs font-medium text-white transition-colors hover:bg-white/10 sm:h-10 sm:gap-2.5 sm:text-sm"
             >
               <svg className="h-4 w-4" viewBox="0 0 24 24">
                 <path
@@ -152,14 +152,14 @@ export default function LoginPage() {
           </div>
 
           {/* Divider */}
-          <div className="my-6 flex items-center gap-3">
+          <div className="my-5 flex items-center gap-3 sm:my-6">
             <div className="h-px flex-1 bg-white/10" />
             <span className="text-xs text-neutral-500">ou</span>
             <div className="h-px flex-1 bg-white/10" />
           </div>
 
           {/* Email / Password form */}
-          <form onSubmit={handleSubmit} className="space-y-4">
+          <form onSubmit={handleSubmit} className="space-y-3.5 sm:space-y-4">
             <div className="space-y-2">
               <label
                 htmlFor="email"
@@ -174,7 +174,7 @@ export default function LoginPage() {
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 required
-                className="h-10 w-full rounded-lg border border-white/15 bg-white/5 px-3 text-sm text-white placeholder:text-neutral-500 outline-none transition-colors focus:border-emerald-500/50 focus:ring-2 focus:ring-emerald-500/20"
+                className="h-9 w-full rounded-lg border border-white/15 bg-white/5 px-3 text-xs text-white placeholder:text-neutral-500 outline-none transition-colors focus:border-emerald-500/50 focus:ring-2 focus:ring-emerald-500/20 sm:h-10 sm:text-sm"
               />
             </div>
             <div className="space-y-2">
@@ -193,7 +193,7 @@ export default function LoginPage() {
                   onChange={(e) => setPassword(e.target.value)}
                   required
                   minLength={6}
-                  className="h-10 w-full rounded-lg border border-white/15 bg-white/5 px-3 pr-10 text-sm text-white placeholder:text-neutral-500 outline-none transition-colors focus:border-emerald-500/50 focus:ring-2 focus:ring-emerald-500/20"
+                  className="h-9 w-full rounded-lg border border-white/15 bg-white/5 px-3 pr-10 text-xs text-white placeholder:text-neutral-500 outline-none transition-colors focus:border-emerald-500/50 focus:ring-2 focus:ring-emerald-500/20 sm:h-10 sm:text-sm"
                 />
                 <button
                   type="button"
@@ -212,14 +212,14 @@ export default function LoginPage() {
             <button
               type="submit"
               disabled={loading}
-              className="h-10 w-full rounded-lg bg-emerald-600 text-sm font-semibold text-white transition-colors hover:bg-emerald-500 disabled:opacity-50 disabled:cursor-not-allowed"
+              className="h-9 w-full rounded-lg bg-emerald-600 text-xs font-semibold text-white transition-colors hover:bg-emerald-500 disabled:cursor-not-allowed disabled:opacity-50 sm:h-10 sm:text-sm"
             >
               {loading ? "Chargement..." : "Continuer"}
             </button>
           </form>
 
           {/* Toggle sign-up / sign-in */}
-          <p className="mt-6 text-center text-sm text-neutral-400">
+          <p className="mt-5 text-center text-xs text-neutral-400 sm:mt-6 sm:text-sm">
             {isSignUp ? (
               <>
                 Vous avez déjà un compte ?{" "}
@@ -247,7 +247,7 @@ export default function LoginPage() {
         </div>
 
         {/* Footer */}
-        <p className="text-center text-xs text-neutral-600">
+        <p className="text-center text-[11px] text-neutral-600 sm:text-xs">
           En continuant, vous acceptez nos{" "}
           <span className="text-neutral-400 underline underline-offset-2">
             Conditions d&apos;utilisation
