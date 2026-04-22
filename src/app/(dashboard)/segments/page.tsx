@@ -151,11 +151,34 @@ export default function SegmentsPage() {
     setLoadingSegments(true);
     try {
       const res = await fetch("/api/segments");
-      if (res.ok) setSegments(await res.json());
+      if (res.ok) {
+        const fastSegments = (await res.json()) as Segment[];
+        setSegments(fastSegments);
+      }
     } catch {
       // ignore
     } finally {
       setLoadingSegments(false);
+    }
+
+    // 2e passe non bloquante: remonte les compteurs live exacts.
+    // On garde ainsi un affichage rapide + des chiffres fiables quelques
+    // instants après le rendu initial.
+    try {
+      const resLive = await fetch("/api/segments?live=1");
+      if (!resLive.ok) return;
+      const liveSegments = (await resLive.json()) as Segment[];
+      const liveCountById = new Map(
+        liveSegments.map((s) => [s.id, s.liveProspectsCount ?? 0])
+      );
+      setSegments((prev) =>
+        prev.map((s) => ({
+          ...s,
+          liveProspectsCount: liveCountById.get(s.id) ?? s.liveProspectsCount,
+        }))
+      );
+    } catch {
+      // ignore
     }
   };
 
