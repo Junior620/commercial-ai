@@ -11,7 +11,28 @@ export async function GET() {
     include: { _count: { select: { prospectLinks: true } } },
     orderBy: { createdAt: "desc" },
   });
-  return NextResponse.json(segments);
+
+  const segmentsWithLiveCount = await Promise.all(
+    segments.map(async (segment) => {
+      const rawFilters =
+        segment.filters && typeof segment.filters === "object"
+          ? (segment.filters as Record<string, unknown>)
+          : {};
+      const normalized = normalizeSegmentFilters(rawFilters);
+      const where = buildProspectWhereFromFilters(normalized);
+
+      // Si aucun critère n'est défini, on considère le segment comme non ciblé.
+      const liveProspectsCount =
+        Object.keys(where).length > 0 ? await prisma.prospect.count({ where }) : 0;
+
+      return {
+        ...segment,
+        liveProspectsCount,
+      };
+    })
+  );
+
+  return NextResponse.json(segmentsWithLiveCount);
 }
 
 export async function POST(req: NextRequest) {

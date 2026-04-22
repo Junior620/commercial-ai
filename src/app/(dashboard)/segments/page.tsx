@@ -39,6 +39,7 @@ interface Segment {
   description: string | null;
   filters: Record<string, unknown>;
   _count?: { prospectLinks: number };
+  liveProspectsCount?: number;
   createdAt: string;
 }
 
@@ -375,7 +376,8 @@ export default function SegmentsPage() {
         </div>
         <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-3">
         {paginatedSegments.map((segment) => {
-          const count = segment._count?.prospectLinks ?? 0;
+          const count =
+            segment.liveProspectsCount ?? segment._count?.prospectLinks ?? 0;
           const chips = formatSegmentFilterChips(segment.filters);
           const isPresetDesc =
             !!segment.description &&
