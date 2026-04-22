@@ -74,7 +74,7 @@ export function HowAIWorks({ className, compact }: HowAIWorksProps) {
         className
       )}
     >
-      <CardHeader className="flex flex-row items-start justify-between gap-3 space-y-0">
+      <CardHeader className="flex flex-col gap-3 space-y-0 sm:flex-row sm:items-start sm:justify-between">
         <div>
           <CardTitle className="flex items-center gap-2 text-base">
             <Workflow className="h-4 w-4 text-violet-500" />
@@ -110,11 +110,13 @@ export function HowAIWorks({ className, compact }: HowAIWorksProps) {
                 >
                   <Icon className="h-4 w-4" />
                 </div>
-                <p className="text-sm font-semibold leading-tight">{step.title}</p>
+                <p className="break-words text-sm font-semibold leading-tight">
+                  {step.title}
+                </p>
                 <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
                   {step.description}
                 </p>
-                <span className="mt-2 inline-flex items-center rounded-full border border-violet-200/60 bg-violet-50 px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide text-violet-700 dark:border-violet-900/50 dark:bg-violet-950/40 dark:text-violet-200">
+                <span className="mt-2 inline-flex max-w-full items-center rounded-full border border-violet-200/60 bg-violet-50 px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide text-violet-700 dark:border-violet-900/50 dark:bg-violet-950/40 dark:text-violet-200">
                   {step.tag}
                 </span>
                 <span

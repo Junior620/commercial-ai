@@ -249,7 +249,7 @@ export async function AITimeline() {
 
   return (
     <Card className="border-violet-200/70 bg-gradient-to-br from-violet-50/60 via-background to-indigo-50/60 dark:border-violet-900/40 dark:from-violet-950/30 dark:via-background dark:to-indigo-950/30">
-      <CardHeader className="flex flex-row items-start justify-between gap-3 space-y-0">
+      <CardHeader className="flex flex-col gap-3 space-y-0 sm:flex-row sm:items-start sm:justify-between">
         <div>
           <CardTitle className="flex items-center gap-2 text-base">
             <Activity className="h-4 w-4 text-violet-500" />
@@ -262,7 +262,7 @@ export async function AITimeline() {
         <AIBadge label="Temps réel" size="xs" variant="solid" animated />
       </CardHeader>
       <CardContent>
-        <ol className="relative ml-2 border-l border-border/70 pl-6">
+        <ol className="relative ml-1 border-l border-border/70 pl-5 sm:ml-2 sm:pl-6">
           {events.map((ev, idx) => {
             const styles = COLOR_STYLES[ev.color];
             const Icon = ev.icon;
@@ -284,10 +284,10 @@ export async function AITimeline() {
                   <span className={cn("h-2 w-2 rounded-full", styles.dot)} />
                 </span>
                 <div className="flex flex-col gap-1 rounded-lg border border-border/60 bg-background/70 p-3 shadow-sm backdrop-blur">
-                  <div className="flex items-center justify-between gap-2">
-                    <div className="flex items-center gap-2">
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <div className="flex min-w-0 items-center gap-2">
                       <Icon className={cn("h-4 w-4", styles.icon)} />
-                      <span className="text-sm font-semibold leading-tight">
+                      <span className="min-w-0 break-words text-sm font-semibold leading-tight">
                         {ev.title}
                       </span>
                     </div>
@@ -311,7 +311,7 @@ export async function AITimeline() {
           })}
         </ol>
 
-        <div className="mt-4 grid grid-cols-3 gap-2 rounded-lg border border-border/60 bg-muted/20 p-3 text-center text-xs">
+        <div className="mt-4 grid grid-cols-1 gap-2 rounded-lg border border-border/60 bg-muted/20 p-3 text-center text-xs sm:grid-cols-3">
           <div>
             <div className="flex items-center justify-center gap-1 text-muted-foreground">
               <Users className="h-3 w-3" /> Scorés 24h

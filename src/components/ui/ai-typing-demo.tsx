@@ -137,20 +137,20 @@ export function AITypingDemo({ className }: { className?: string }) {
   return (
     <div
       className={cn(
-        "relative overflow-hidden rounded-xl border border-white/10 bg-white/[0.04] p-4 shadow-xl backdrop-blur",
+        "relative overflow-hidden rounded-xl border border-white/10 bg-white/[0.04] p-3 shadow-xl backdrop-blur sm:p-4",
         className
       )}
     >
       {/* header: envelope + ai pill */}
-      <div className="mb-3 flex items-center justify-between gap-2">
-        <div className="flex items-center gap-2 text-xs text-neutral-300">
+      <div className="mb-3 flex flex-wrap items-start justify-between gap-2">
+        <div className="flex min-w-0 flex-1 items-center gap-2 text-xs text-neutral-300">
           <div className="flex h-7 w-7 items-center justify-center rounded-lg border border-white/10 bg-white/[0.06]">
             <Mail className="h-3.5 w-3.5" />
           </div>
-          <div className="leading-tight">
+          <div className="min-w-0 leading-tight">
             <p className="font-medium text-white">Brouillon · IA</p>
             <p className="text-[10px] text-neutral-400">
-              Pour {sample.to} · {sample.company}
+              <span className="block truncate">Pour {sample.to} · {sample.company}</span>
             </p>
           </div>
         </div>
@@ -185,7 +185,7 @@ export function AITypingDemo({ className }: { className?: string }) {
         <p className="text-[10px] uppercase tracking-wide text-neutral-400">
           Message
         </p>
-        <pre className="max-h-40 min-h-[8.5rem] overflow-hidden whitespace-pre-wrap font-sans text-xs leading-relaxed text-neutral-100">
+        <pre className="max-h-44 min-h-[7.5rem] overflow-hidden whitespace-pre-wrap break-words font-sans text-xs leading-relaxed text-neutral-100 sm:min-h-[8.5rem]">
 {body}
           {phase === "body" && <BlinkingCursor />}
           {phase === "done" && (
@@ -197,10 +197,10 @@ export function AITypingDemo({ className }: { className?: string }) {
       </div>
 
       {/* footer: model row */}
-      <div className="mt-3 flex items-center justify-between text-[10px] text-neutral-400">
-        <div className="inline-flex items-center gap-1">
+      <div className="mt-3 flex flex-wrap items-center justify-between gap-2 text-[10px] text-neutral-400">
+        <div className="inline-flex min-w-0 items-center gap-1">
           <Bot className="h-3 w-3 text-violet-300" />
-          Claude 3.5 · ton commercial
+          <span className="truncate">Claude 3.5 · ton commercial</span>
         </div>
         <div className="inline-flex items-center gap-2 uppercase tracking-wide">
           {/* Pastilles de progression (boucle infinie) */}

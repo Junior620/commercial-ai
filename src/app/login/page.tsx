@@ -65,9 +65,9 @@ export default function LoginPage() {
   return (
     <div className="flex min-h-screen">
       {/* ── Left panel: form ── */}
-      <div className="relative flex w-full flex-col justify-between bg-[#0a0a0a] px-8 py-10 text-white lg:w-1/2">
+      <div className="relative flex w-full flex-col justify-between bg-[#0a0a0a] px-4 py-8 text-white sm:px-6 sm:py-10 lg:w-1/2 lg:px-8">
         {/* Logo */}
-        <div className="flex items-center gap-3">
+        <div className="flex flex-wrap items-center gap-2 sm:gap-3">
           <div className="flex h-9 w-9 items-center justify-center overflow-hidden rounded-lg border border-white/10 bg-white/5">
             <Image
               src="/logo.png"
@@ -78,8 +78,8 @@ export default function LoginPage() {
               priority
             />
           </div>
-          <div className="flex items-center gap-2">
-            <span className="text-lg font-bold tracking-tight">
+          <div className="flex min-w-0 flex-wrap items-center gap-1.5 sm:gap-2">
+            <span className="truncate text-base font-bold tracking-tight sm:text-lg">
               SCPB Commercial AI
             </span>
             <span className="inline-flex items-center gap-1 rounded-full border border-violet-400/40 bg-gradient-to-r from-violet-500 via-indigo-500 to-fuchsia-500 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-white shadow-sm">
@@ -91,7 +91,7 @@ export default function LoginPage() {
 
         {/* Form area */}
         <div className="mx-auto w-full max-w-sm">
-          <div className="mb-2 inline-flex items-center gap-1.5 rounded-full border border-violet-500/30 bg-violet-500/10 px-2.5 py-1 text-[11px] font-medium text-violet-200">
+          <div className="mb-2 inline-flex max-w-full items-center gap-1.5 rounded-full border border-violet-500/30 bg-violet-500/10 px-2.5 py-1 text-[10px] font-medium text-violet-200 sm:text-[11px]">
             <Sparkles className="h-3 w-3 animate-pulse" />
             Plateforme commerciale propulsée par l’IA
           </div>
@@ -278,9 +278,9 @@ export default function LoginPage() {
         />
 
         {/* Showcase content */}
-        <div className="relative flex h-full flex-col justify-between px-10 py-12 xl:px-14">
+        <div className="relative flex h-full min-h-0 flex-col justify-between px-6 py-8 xl:px-10 xl:py-10">
           {/* Top: status pill */}
-          <div className="flex items-center justify-between">
+          <div className="flex flex-wrap items-center justify-between gap-2">
             <div className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/5 px-3 py-1 text-xs text-neutral-200 backdrop-blur">
               <span className="relative flex h-2 w-2">
                 <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75" />
@@ -313,7 +313,7 @@ export default function LoginPage() {
             <AITypingDemo className="max-w-md" />
 
             {/* Floating feature cards (compact) */}
-            <div className="grid max-w-md grid-cols-2 gap-3">
+            <div className="grid max-w-md grid-cols-1 gap-2.5 sm:grid-cols-2 sm:gap-3">
               <FeatureCard
                 icon={Radar}
                 title="Scraping intelligent"
@@ -342,7 +342,7 @@ export default function LoginPage() {
           </div>
 
           {/* Bottom: trust row */}
-          <div className="flex items-center justify-between gap-4 rounded-xl border border-white/10 bg-white/[0.04] px-4 py-3 text-xs text-neutral-300 backdrop-blur">
+          <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-white/10 bg-white/[0.04] px-3 py-3 text-xs text-neutral-300 backdrop-blur sm:px-4">
             <div className="flex items-center gap-2">
               <ShieldCheck className="h-4 w-4 text-emerald-400" />
               <span>Données chiffrées · Auth Supabase · RGPD-friendly</span>
