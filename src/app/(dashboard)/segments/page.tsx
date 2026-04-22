@@ -578,7 +578,7 @@ export default function SegmentsPage() {
       </div>
 
       <Dialog open={detailsOpen} onOpenChange={setDetailsOpen}>
-        <DialogContent className="max-w-5xl">
+        <DialogContent className="w-[min(96vw,88rem)] sm:max-w-6xl">
           <DialogHeader>
             <DialogTitle>
               {selectedSegment?.name ?? "Segment"} · {selectedLiveCount} prospect
@@ -596,7 +596,7 @@ export default function SegmentsPage() {
               Aucun prospect trouvé pour ce segment.
             </div>
           ) : (
-            <div className="max-h-[70vh] overflow-auto rounded-lg border">
+            <div className="max-h-[78vh] overflow-auto rounded-lg border">
               <table className="w-full min-w-[820px] text-left text-sm">
                 <thead className="sticky top-0 z-10 bg-muted/90">
                   <tr className="border-b">
