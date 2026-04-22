@@ -12,6 +12,7 @@ import {
 import { Bell, LogOut, Search, User } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { useRouter } from "next/navigation";
+import { MobileSidebar } from "@/components/layout/sidebar";
 
 export function Header() {
   const router = useRouter();
@@ -23,10 +24,13 @@ export function Header() {
   };
 
   return (
-    <header className="flex h-16 items-center justify-between border-b bg-background/80 px-6 backdrop-blur">
+    <header className="flex h-16 items-center justify-between border-b bg-background/80 px-3 backdrop-blur sm:px-4 md:px-6">
+      <div className="flex items-center gap-2">
+        <MobileSidebar />
       <div className="hidden items-center gap-2 rounded-lg border bg-card px-3 py-1.5 text-sm text-muted-foreground md:flex">
         <Search className="h-4 w-4" />
         Rechercher...
+      </div>
       </div>
       <div className="flex items-center gap-2">
         <Button variant="ghost" size="icon" className="h-8 w-8 rounded-full">
