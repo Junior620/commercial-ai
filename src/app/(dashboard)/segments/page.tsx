@@ -20,7 +20,7 @@ import {
 } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Layers, MoreVertical, Plus, Users } from "lucide-react";
+import { Layers, Loader2, MoreVertical, Plus, Users } from "lucide-react";
 import { toast } from "sonner";
 import { PageTitle } from "@/components/layout/page-title";
 import { ListPagination } from "@/components/shared/list-pagination";
@@ -40,6 +40,23 @@ interface Segment {
   filters: Record<string, unknown>;
   _count?: { prospectLinks: number };
   liveProspectsCount?: number;
+  createdAt: string;
+}
+
+interface SegmentProspect {
+  id: string;
+  company: string;
+  contact: string | null;
+  email: string;
+  country: string;
+  sector: string | null;
+  clientType: string | null;
+  product: string | null;
+  language: string;
+  score: number;
+  status: string;
+  priority: string;
+  source: string | null;
   createdAt: string;
 }
 
@@ -107,6 +124,11 @@ export default function SegmentsPage() {
   const [page, setPage] = useState(1);
   const PAGE_SIZE = 9;
   const [addOpen, setAddOpen] = useState(false);
+  const [detailsOpen, setDetailsOpen] = useState(false);
+  const [detailsLoading, setDetailsLoading] = useState(false);
+  const [selectedSegment, setSelectedSegment] = useState<Segment | null>(null);
+  const [selectedProspects, setSelectedProspects] = useState<SegmentProspect[]>([]);
+  const [selectedLiveCount, setSelectedLiveCount] = useState(0);
   const [formData, setFormData] = useState({
     name: "",
     description: "",
@@ -212,6 +234,25 @@ export default function SegmentsPage() {
       fetchSegments();
     } catch {
       toast.error("Suppression impossible");
+    }
+  };
+
+  const openSegmentDetails = async (segment: Segment) => {
+    setSelectedSegment(segment);
+    setSelectedProspects([]);
+    setSelectedLiveCount(segment.liveProspectsCount ?? 0);
+    setDetailsLoading(true);
+    setDetailsOpen(true);
+    try {
+      const res = await fetch(`/api/segments/${segment.id}`);
+      if (!res.ok) throw new Error("Erreur de chargement du segment");
+      const data = await res.json();
+      setSelectedProspects((data?.prospects as SegmentProspect[]) ?? []);
+      setSelectedLiveCount(Number(data?.liveProspectsCount ?? 0));
+    } catch {
+      toast.error("Impossible de charger les prospects de ce segment");
+    } finally {
+      setDetailsLoading(false);
     }
   };
 
@@ -386,7 +427,16 @@ export default function SegmentsPage() {
           return (
             <Card
               key={segment.id}
-              className="border-border/80 transition-shadow hover:shadow-md"
+              className="cursor-pointer border-border/80 transition-shadow hover:shadow-md"
+              role="button"
+              tabIndex={0}
+              onClick={() => openSegmentDetails(segment)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" || e.key === " ") {
+                  e.preventDefault();
+                  openSegmentDetails(segment);
+                }
+              }}
             >
               <CardHeader className="space-y-2 pb-3">
                 <div className="flex items-start gap-2">
@@ -407,7 +457,10 @@ export default function SegmentsPage() {
                       </CardDescription>
                     )}
                   </div>
-                  <div className="flex shrink-0 items-center gap-0.5">
+                  <div
+                    className="flex shrink-0 items-center gap-0.5"
+                    onClick={(e) => e.stopPropagation()}
+                  >
                     <Badge
                       variant={count > 0 ? "secondary" : "outline"}
                       className={cn(
@@ -488,6 +541,69 @@ export default function SegmentsPage() {
           />
         )}
       </div>
+
+      <Dialog open={detailsOpen} onOpenChange={setDetailsOpen}>
+        <DialogContent className="max-w-5xl">
+          <DialogHeader>
+            <DialogTitle>
+              {selectedSegment?.name ?? "Segment"} · {selectedLiveCount} prospect
+              {selectedLiveCount > 1 ? "s" : ""}
+            </DialogTitle>
+          </DialogHeader>
+
+          {detailsLoading ? (
+            <div className="flex items-center justify-center gap-2 py-10 text-muted-foreground">
+              <Loader2 className="h-4 w-4 animate-spin" />
+              Chargement des prospects...
+            </div>
+          ) : selectedProspects.length === 0 ? (
+            <div className="rounded-lg border border-dashed bg-muted/20 p-8 text-center text-muted-foreground">
+              Aucun prospect trouvé pour ce segment.
+            </div>
+          ) : (
+            <div className="max-h-[70vh] overflow-auto rounded-lg border">
+              <table className="w-full min-w-[820px] text-left text-sm">
+                <thead className="sticky top-0 z-10 bg-muted/90">
+                  <tr className="border-b">
+                    <th className="px-3 py-2 font-medium">Entreprise</th>
+                    <th className="px-3 py-2 font-medium">Contact</th>
+                    <th className="px-3 py-2 font-medium">Email</th>
+                    <th className="px-3 py-2 font-medium">Pays</th>
+                    <th className="px-3 py-2 font-medium">Secteur</th>
+                    <th className="px-3 py-2 font-medium">Type</th>
+                    <th className="px-3 py-2 font-medium">Score</th>
+                    <th className="px-3 py-2 font-medium">Statut</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {selectedProspects.map((p) => (
+                    <tr key={p.id} className="border-b last:border-0">
+                      <td className="px-3 py-2 font-medium">{p.company}</td>
+                      <td className="px-3 py-2 text-muted-foreground">
+                        {p.contact || "—"}
+                      </td>
+                      <td className="px-3 py-2">{p.email}</td>
+                      <td className="px-3 py-2">{p.country}</td>
+                      <td className="px-3 py-2 text-muted-foreground">
+                        {p.sector || "—"}
+                      </td>
+                      <td className="px-3 py-2 text-muted-foreground">
+                        {p.clientType || "—"}
+                      </td>
+                      <td className="px-3 py-2">
+                        <Badge variant="outline" className="tabular-nums">
+                          {p.score}
+                        </Badge>
+                      </td>
+                      <td className="px-3 py-2">{p.status}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
