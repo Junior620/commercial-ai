@@ -280,7 +280,7 @@ export function StrategicDashboardSections({
                   >
                     <span className="font-medium">{s.name}</span>
                     <Badge variant="secondary">
-                      {s._count.prospectLinks} prospects
+                      {s.liveProspectsCount} prospects
                     </Badge>
                   </li>
                 ))

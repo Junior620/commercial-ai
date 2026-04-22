@@ -85,48 +85,44 @@ async function loadAITimelineData() {
   const dayAgo = new Date(now - 24 * 60 * 60 * 1000);
   const weekAgo = new Date(now - 7 * 24 * 60 * 60 * 1000);
 
-  const [
-    prospectsScoredDay,
-    hotProspectsDay,
-    emailsGeneratedDay,
-    emailsRepliedDay,
-    emailsOpenedWeek,
-    lastScrape,
-    lastCampaign,
-    lastReply,
-    lastHotProspect,
-  ] = await Promise.all([
-    prisma.prospect.count({ where: { createdAt: { gte: dayAgo } } }),
-    prisma.prospect.count({
-      where: { createdAt: { gte: dayAgo }, score: { gte: 60 } },
-    }),
-    prisma.email.count({ where: { createdAt: { gte: dayAgo } } }),
-    prisma.email.count({ where: { repliedAt: { gte: dayAgo } } }),
-    prisma.email.count({ where: { openedAt: { gte: weekAgo } } }),
-    prisma.scrapingJob.findFirst({
-      orderBy: { createdAt: "desc" },
-      select: {
-        id: true,
-        status: true,
-        resultsCount: true,
-        completedAt: true,
-        createdAt: true,
-      },
-    }),
-    prisma.campaign.findFirst({
-      orderBy: { updatedAt: "desc" },
-      select: { id: true, name: true, status: true, updatedAt: true },
-    }),
-    prisma.response.findFirst({
-      orderBy: { createdAt: "desc" },
-      select: { id: true, classification: true, createdAt: true },
-    }),
-    prisma.prospect.findFirst({
-      where: { score: { gte: 60 } },
-      orderBy: { updatedAt: "desc" },
-      select: { id: true, company: true, score: true, updatedAt: true },
-    }),
-  ]);
+  const prospectsScoredDay = await prisma.prospect.count({
+    where: { createdAt: { gte: dayAgo } },
+  });
+  const hotProspectsDay = await prisma.prospect.count({
+    where: { createdAt: { gte: dayAgo }, score: { gte: 60 } },
+  });
+  const emailsGeneratedDay = await prisma.email.count({
+    where: { createdAt: { gte: dayAgo } },
+  });
+  const emailsRepliedDay = await prisma.email.count({
+    where: { repliedAt: { gte: dayAgo } },
+  });
+  const emailsOpenedWeek = await prisma.email.count({
+    where: { openedAt: { gte: weekAgo } },
+  });
+  const lastScrape = await prisma.scrapingJob.findFirst({
+    orderBy: { createdAt: "desc" },
+    select: {
+      id: true,
+      status: true,
+      resultsCount: true,
+      completedAt: true,
+      createdAt: true,
+    },
+  });
+  const lastCampaign = await prisma.campaign.findFirst({
+    orderBy: { updatedAt: "desc" },
+    select: { id: true, name: true, status: true, updatedAt: true },
+  });
+  const lastReply = await prisma.response.findFirst({
+    orderBy: { createdAt: "desc" },
+    select: { id: true, classification: true, createdAt: true },
+  });
+  const lastHotProspect = await prisma.prospect.findFirst({
+    where: { score: { gte: 60 } },
+    orderBy: { updatedAt: "desc" },
+    select: { id: true, company: true, score: true, updatedAt: true },
+  });
 
   return {
     prospectsScoredDay,

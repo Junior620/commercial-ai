@@ -20,7 +20,7 @@ import {
 } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Layers, Loader2, MoreVertical, Plus, Users } from "lucide-react";
+import { Download, Layers, Loader2, MoreVertical, Plus, Users } from "lucide-react";
 import { toast } from "sonner";
 import { PageTitle } from "@/components/layout/page-title";
 import { ListPagination } from "@/components/shared/list-pagination";
@@ -281,6 +281,73 @@ export default function SegmentsPage() {
     } finally {
       setDetailsLoading(false);
     }
+  };
+
+  const escapeCsvCell = (value: unknown) => {
+    const text = String(value ?? "");
+    return `"${text.replace(/"/g, '""')}"`;
+  };
+
+  const buildSegmentCsv = (prospects: SegmentProspect[]) => {
+    const header = [
+      "Entreprise",
+      "Contact",
+      "Email",
+      "Pays",
+      "Secteur",
+      "Type client",
+      "Produit",
+      "Langue",
+      "Score",
+      "Statut",
+      "Priorite",
+      "Source",
+      "Date creation",
+    ];
+
+    const rows = prospects.map((p) => [
+      p.company,
+      p.contact ?? "",
+      p.email,
+      p.country,
+      p.sector ?? "",
+      p.clientType ?? "",
+      p.product ?? "",
+      p.language,
+      p.score,
+      p.status,
+      p.priority,
+      p.source ?? "",
+      new Date(p.createdAt).toLocaleString("fr-FR"),
+    ]);
+
+    return [header, ...rows]
+      .map((cols) => cols.map((cell) => escapeCsvCell(cell)).join(","))
+      .join("\n");
+  };
+
+  const exportSelectedProspectsCsv = () => {
+    if (!selectedSegment || selectedProspects.length === 0) {
+      toast.error("Aucun prospect a exporter");
+      return;
+    }
+
+    const csv = buildSegmentCsv(selectedProspects);
+    const blob = new Blob([`\uFEFF${csv}`], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    const safeName = selectedSegment.name
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, "-")
+      .replace(/(^-|-$)/g, "");
+
+    link.href = url;
+    link.download = `segment-${safeName || "prospects"}.csv`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+    toast.success("Export CSV lance");
   };
 
   const totalPages = Math.max(1, Math.ceil(segments.length / PAGE_SIZE));
@@ -579,11 +646,22 @@ export default function SegmentsPage() {
 
       <Dialog open={detailsOpen} onOpenChange={setDetailsOpen}>
         <DialogContent className="w-[min(96vw,88rem)] sm:max-w-6xl">
-          <DialogHeader>
-            <DialogTitle>
+          <DialogHeader className="gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <DialogTitle className="pr-8">
               {selectedSegment?.name ?? "Segment"} · {selectedLiveCount} prospect
               {selectedLiveCount > 1 ? "s" : ""}
             </DialogTitle>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={exportSelectedProspectsCsv}
+              disabled={detailsLoading || selectedProspects.length === 0}
+              className="w-full sm:mr-8 sm:w-auto"
+            >
+              <Download className="mr-2 h-4 w-4" />
+              Exporter CSV
+            </Button>
           </DialogHeader>
 
           {detailsLoading ? (

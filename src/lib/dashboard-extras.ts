@@ -1,4 +1,8 @@
 import { prisma } from "@/lib/prisma";
+import {
+  buildProspectWhereFromFilters,
+  normalizeSegmentFilters,
+} from "@/lib/segment-filters-normalize";
 
 const MS_DAY = 24 * 60 * 60 * 1000;
 
@@ -31,7 +35,7 @@ export type DashboardExtra = {
   segments: Array<{
     id: string;
     name: string;
-    _count: { prospectLinks: number };
+    liveProspectsCount: number;
   }>;
   sendVolumeByDay: Array<{ day: string; count: number }>;
   bounceRate30: string;
@@ -92,117 +96,124 @@ async function loadDashboardExtrasCore(): Promise<DashboardExtra> {
   const thirtyDaysAgo = new Date(now - 30 * MS_DAY);
   const thirtyDaysContact = new Date(now - 30 * MS_DAY);
 
-  const [settings, weeklyEmailsSent, weeklyNewProspects, weeklyRepliesMarked] =
-    await Promise.all([
-    prisma.appSettings.findUnique({ where: { id: "default" } }),
-    prisma.email.count({
-      where: {
-        sentAt: { gte: weekAgo },
-        status: { not: "PENDING" },
-      },
-    }),
-    prisma.prospect.count({ where: { createdAt: { gte: weekAgo } } }),
-    prisma.email.count({
-      where: {
-        status: "REPLIED",
-        repliedAt: { gte: weekAgo },
-      },
-    }),
-  ]);
+  const settings = await prisma.appSettings.findUnique({ where: { id: "default" } });
+  const weeklyEmailsSent = await prisma.email.count({
+    where: {
+      sentAt: { gte: weekAgo },
+      status: { not: "PENDING" },
+    },
+  });
+  const weeklyNewProspects = await prisma.prospect.count({
+    where: { createdAt: { gte: weekAgo } },
+  });
+  const weeklyRepliesMarked = await prisma.email.count({
+    where: {
+      status: "REPLIED",
+      repliedAt: { gte: weekAgo },
+    },
+  });
 
-  const [hotNewNoOutreach, staleContacted, segments, emailsForVolume] =
-    await Promise.all([
-    prisma.prospect.findMany({
-      where: {
-        status: "NEW",
-        score: { gte: 50 },
-        NOT: {
-          emails: { some: { status: { not: "PENDING" } } },
-        },
+  const hotNewNoOutreach = await prisma.prospect.findMany({
+    where: {
+      status: "NEW",
+      score: { gte: 50 },
+      NOT: {
+        emails: { some: { status: { not: "PENDING" } } },
       },
-      orderBy: { score: "desc" },
-      take: 8,
-      select: {
-        id: true,
-        company: true,
-        email: true,
-        country: true,
-        score: true,
-      },
-    }),
-    prisma.prospect.findMany({
-      where: {
-        status: "CONTACTED",
-        OR: [
-          { lastContactedAt: { lt: thirtyDaysContact } },
-          { lastContactedAt: null },
-        ],
-      },
-      orderBy: { updatedAt: "desc" },
-      take: 8,
-      select: {
-        id: true,
-        company: true,
-        email: true,
-        country: true,
-        lastContactedAt: true,
-      },
-    }),
-    prisma.segment.findMany({
-      orderBy: { createdAt: "desc" },
-      take: 8,
-      select: {
-        id: true,
-        name: true,
-        _count: { select: { prospectLinks: true } },
-      },
-    }),
-    prisma.email.findMany({
-      where: { sentAt: { gte: new Date(now - 7 * MS_DAY) } },
-      select: { sentAt: true },
-    }),
-  ]);
+    },
+    orderBy: { score: "desc" },
+    take: 8,
+    select: {
+      id: true,
+      company: true,
+      email: true,
+      country: true,
+      score: true,
+    },
+  });
+  const staleContacted = await prisma.prospect.findMany({
+    where: {
+      status: "CONTACTED",
+      OR: [{ lastContactedAt: { lt: thirtyDaysContact } }, { lastContactedAt: null }],
+    },
+    orderBy: { updatedAt: "desc" },
+    take: 8,
+    select: {
+      id: true,
+      company: true,
+      email: true,
+      country: true,
+      lastContactedAt: true,
+    },
+  });
+  const rawSegments = await prisma.segment.findMany({
+    orderBy: { createdAt: "desc" },
+    take: 8,
+    select: {
+      id: true,
+      name: true,
+      filters: true,
+    },
+  });
+  const segmentsWithLiveCount: DashboardExtra["segments"] = [];
+  for (const segment of rawSegments) {
+    const rawFilters =
+      segment.filters && typeof segment.filters === "object"
+        ? (segment.filters as Record<string, unknown>)
+        : {};
+    const normalized = normalizeSegmentFilters(rawFilters);
+    const where = buildProspectWhereFromFilters(normalized);
+    const liveProspectsCount =
+      Object.keys(where).length > 0 ? await prisma.prospect.count({ where }) : 0;
 
-  const [attempted30, bounced30, prospectsBySource, failedScrapes7d] =
-    await Promise.all([
-    prisma.email.count({
-      where: {
-        sentAt: { gte: thirtyDaysAgo },
-        status: { not: "PENDING" },
-      },
-    }),
-    prisma.email.count({
-      where: {
-        status: "BOUNCED",
-        sentAt: { gte: thirtyDaysAgo },
-      },
-    }),
-    prisma.prospect.groupBy({
-      by: ["source"],
-      _count: true,
-      orderBy: { _count: { source: "desc" } },
-      take: 12,
-    }),
-    prisma.scrapingJob.count({
-      where: {
-        status: "FAILED",
-        createdAt: { gte: weekAgo },
-      },
-    }),
-  ]);
+    if (liveProspectsCount > 0) {
+      segmentsWithLiveCount.push({
+        id: segment.id,
+        name: segment.name,
+        liveProspectsCount,
+      });
+    }
+  }
+  const emailsForVolume = await prisma.email.findMany({
+    where: { sentAt: { gte: new Date(now - 7 * MS_DAY) } },
+    select: { sentAt: true },
+  });
 
-  const [recentBouncedSamples] = await Promise.all([
-    prisma.email.findMany({
-      where: { status: "BOUNCED" },
-      orderBy: { updatedAt: "desc" },
-      take: 5,
-      select: {
-        id: true,
-        subject: true,
-        prospect: { select: { company: true, email: true } },
-      },
-    }),
-  ]);
+  const attempted30 = await prisma.email.count({
+    where: {
+      sentAt: { gte: thirtyDaysAgo },
+      status: { not: "PENDING" },
+    },
+  });
+  const bounced30 = await prisma.email.count({
+    where: {
+      status: "BOUNCED",
+      sentAt: { gte: thirtyDaysAgo },
+    },
+  });
+  const prospectsBySource = await prisma.prospect.groupBy({
+    by: ["source"],
+    _count: true,
+    orderBy: { _count: { source: "desc" } },
+    take: 12,
+  });
+  const failedScrapes7d = await prisma.scrapingJob.count({
+    where: {
+      status: "FAILED",
+      createdAt: { gte: weekAgo },
+    },
+  });
+
+  const recentBouncedSamples = await prisma.email.findMany({
+    where: { status: "BOUNCED" },
+    orderBy: { updatedAt: "desc" },
+    take: 5,
+    select: {
+      id: true,
+      subject: true,
+      prospect: { select: { company: true, email: true } },
+    },
+  });
 
   const byDay = new Map<string, number>();
   for (let i = 6; i >= 0; i--) {
@@ -264,7 +275,7 @@ async function loadDashboardExtrasCore(): Promise<DashboardExtra> {
     },
     hotNewNoOutreach,
     staleContacted,
-    segments,
+    segments: segmentsWithLiveCount,
     sendVolumeByDay,
     bounceRate30,
     attempted30,

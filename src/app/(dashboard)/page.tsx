@@ -91,103 +91,95 @@ async function getStats() {
 
   // Evite de saturer le pool SQL en session mode:
   // on limite le nombre de requetes Prisma executees en parallele.
-  const [totalProspects, totalEmails, sentEmails, deliveredEmails] =
-    await Promise.all([
-    prisma.prospect.count(),
-    prisma.email.count(),
-    prisma.email.count({
-      where: { status: { not: "PENDING" } },
-    }),
-    prisma.email.count({
-      where: { status: { in: ["DELIVERED", "OPENED", "CLICKED", "REPLIED"] } },
-    }),
-  ]);
+  const totalProspects = await prisma.prospect.count();
+  const totalEmails = await prisma.email.count();
+  const sentEmails = await prisma.email.count({
+    where: { status: { not: "PENDING" } },
+  });
+  const deliveredEmails = await prisma.email.count({
+    where: { status: { in: ["DELIVERED", "OPENED", "CLICKED", "REPLIED"] } },
+  });
 
-  const [openedEmails, repliedEmails, clickedEmails, bouncedEmails] =
-    await Promise.all([
-    prisma.email.count({
-      where: { status: { in: ["OPENED", "CLICKED", "REPLIED"] } },
-    }),
-    prisma.email.count({ where: { status: "REPLIED" } }),
-    prisma.email.count({ where: { status: "CLICKED" } }),
-    prisma.email.count({ where: { status: "BOUNCED" } }),
-  ]);
+  const openedEmails = await prisma.email.count({
+    where: { status: { in: ["OPENED", "CLICKED", "REPLIED"] } },
+  });
+  const repliedEmails = await prisma.email.count({ where: { status: "REPLIED" } });
+  const clickedEmails = await prisma.email.count({ where: { status: "CLICKED" } });
+  const bouncedEmails = await prisma.email.count({ where: { status: "BOUNCED" } });
 
-  const [failedEmails, activeCampaigns, hotProspects, prospectsByCountry] =
-    await Promise.all([
-    prisma.email.count({ where: { status: "FAILED" } }),
-    prisma.campaign.count({ where: { status: "ACTIVE" } }),
-    prisma.prospect.count({ where: { score: { gte: 60 } } }),
-    prisma.prospect.groupBy({
-      by: ["country"],
-      _count: true,
-      orderBy: { _count: { country: "desc" } },
-      take: 10,
-    }),
-  ]);
+  const failedEmails = await prisma.email.count({ where: { status: "FAILED" } });
+  const activeCampaigns = await prisma.campaign.count({ where: { status: "ACTIVE" } });
+  const hotProspects = await prisma.prospect.count({ where: { score: { gte: 60 } } });
+  const prospectsByCountry = await prisma.prospect.groupBy({
+    by: ["country"],
+    _count: true,
+    orderBy: { _count: { country: "desc" } },
+    take: 10,
+  });
 
-  const [prospectsByStatus, responsesCount, prospectsNew, prospectsContacted] =
-    await Promise.all([
-    prisma.prospect.groupBy({ by: ["status"], _count: true }),
-    prisma.response.count(),
-    prisma.prospect.count({ where: { status: "NEW" } }),
-    prisma.prospect.count({ where: { status: "CONTACTED" } }),
-  ]);
+  const prospectsByStatus = await prisma.prospect.groupBy({
+    by: ["status"],
+    _count: true,
+  });
+  const responsesCount = await prisma.response.count();
+  const prospectsNew = await prisma.prospect.count({ where: { status: "NEW" } });
+  const prospectsContacted = await prisma.prospect.count({
+    where: { status: "CONTACTED" },
+  });
 
-  const [prospectsInDiscussion, prospectsConverted, highPriorityProspects] =
-    await Promise.all([
-    prisma.prospect.count({ where: { status: "IN_DISCUSSION" } }),
-    prisma.prospect.count({ where: { status: "CONVERTED" } }),
-    prisma.prospect.count({ where: { priority: "HIGH" } }),
-  ]);
+  const prospectsInDiscussion = await prisma.prospect.count({
+    where: { status: "IN_DISCUSSION" },
+  });
+  const prospectsConverted = await prisma.prospect.count({
+    where: { status: "CONVERTED" },
+  });
+  const highPriorityProspects = await prisma.prospect.count({
+    where: { priority: "HIGH" },
+  });
 
-  const [warmNewLeads, lastScrape, activeCampaignsDetail] = await Promise.all([
-    prisma.prospect.count({
-      where: { status: "NEW", score: { gte: 50 } },
-    }),
-    prisma.scrapingJob.findFirst({
-      orderBy: { createdAt: "desc" },
-      select: {
-        id: true,
-        status: true,
-        resultsCount: true,
-        createdAt: true,
-        completedAt: true,
-        errorMessage: true,
-      },
-    }),
-    prisma.campaign.findMany({
-      where: { status: "ACTIVE" },
-      orderBy: { updatedAt: "desc" },
-      take: 5,
-      select: {
-        id: true,
-        name: true,
-        sentCount: true,
-        deliveredCount: true,
-        openCount: true,
-        clickCount: true,
-        replyCount: true,
-        bounceCount: true,
-        dailyLimit: true,
-      },
-    }),
-  ]);
+  const warmNewLeads = await prisma.prospect.count({
+    where: { status: "NEW", score: { gte: 50 } },
+  });
+  const lastScrape = await prisma.scrapingJob.findFirst({
+    orderBy: { createdAt: "desc" },
+    select: {
+      id: true,
+      status: true,
+      resultsCount: true,
+      createdAt: true,
+      completedAt: true,
+      errorMessage: true,
+    },
+  });
+  const activeCampaignsDetail = await prisma.campaign.findMany({
+    where: { status: "ACTIVE" },
+    orderBy: { updatedAt: "desc" },
+    take: 5,
+    select: {
+      id: true,
+      name: true,
+      sentCount: true,
+      deliveredCount: true,
+      openCount: true,
+      clickCount: true,
+      replyCount: true,
+      bounceCount: true,
+      dailyLimit: true,
+    },
+  });
 
-  const [emailsLast7Days, emailsPrev7Days] = await Promise.all([
-    prisma.email.count({
-      where: {
-        sentAt: { gte: weekAgo },
-        status: { not: "PENDING" },
-      },
-    }),
-    prisma.email.count({
-      where: {
-        sentAt: { gte: twoWeeksAgo, lt: weekAgo },
-        status: { not: "PENDING" },
-      },
-    }),
-  ]);
+  const emailsLast7Days = await prisma.email.count({
+    where: {
+      sentAt: { gte: weekAgo },
+      status: { not: "PENDING" },
+    },
+  });
+  const emailsPrev7Days = await prisma.email.count({
+    where: {
+      sentAt: { gte: twoWeeksAgo, lt: weekAgo },
+      status: { not: "PENDING" },
+    },
+  });
 
   const attempted = Math.max(0, sentEmails);
 
