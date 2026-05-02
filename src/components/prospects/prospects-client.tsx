@@ -88,6 +88,8 @@ interface Prospect {
   website: string | null;
   source: string | null;
   notes: string | null;
+  prospectType?: "COMMERCIAL" | "FINANCIAL";
+  financialCategory?: string | null;
   createdAt?: string;
 }
 
@@ -108,8 +110,12 @@ const PRIORITY_COLORS: Record<string, string> = {
 
 export function ProspectsClient({
   initialProspects,
+  prospectType = "COMMERCIAL",
+  title = "Prospects",
 }: {
   initialProspects: Prospect[];
+  prospectType?: "COMMERCIAL" | "FINANCIAL";
+  title?: string;
 }) {
   const [prospects, setProspects] = useState(initialProspects);
   const [search, setSearch] = useState("");
@@ -516,7 +522,7 @@ export function ProspectsClient({
       const res = await fetch("/api/prospects", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(formData),
+        body: JSON.stringify({ ...formData, prospectType }),
       });
       if (!res.ok) {
         const err = await res.json();
@@ -573,7 +579,7 @@ export function ProspectsClient({
     <div className="space-y-6">
       <div className="flex items-center justify-between gap-4">
         <PageTitle
-          title="Prospects"
+          title={title}
           description={`${prospects.length} en base${
             filtered.length !== prospects.length
               ? ` · ${filtered.length} apres filtres`

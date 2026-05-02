@@ -1,15 +1,23 @@
 import Anthropic from "@anthropic-ai/sdk";
 import OpenAI from "openai";
 
+export type EmailGenerationMission =
+  | "COMMODITY_SALES"
+  | "STARTUP_FUNDING_PARTNER";
+
 interface GenerateEmailParams {
   prospectName: string;
   companyName: string;
   country: string;
   sector: string;
   product: string;
+  prospectType?: "COMMERCIAL" | "FINANCIAL";
+  financialCategory?: string | null;
   language: string;
   tone: "FORMAL" | "FRIENDLY" | "TECHNICAL" | "PREMIUM";
   campaignProduct: string;
+  /** Campagnes fin. : demande exploratoire financement / partenariat institutionnel */
+  emailMission?: EmailGenerationMission;
   senderName?: string;
   senderCompany?: string;
   customInstructions?: string;
@@ -65,8 +73,74 @@ const LANG_MAP: Record<string, string> = {
   ar: "arabe",
 };
 
-const SYSTEM_PROMPT =
+function normalizeLanguageCode(input: string | null | undefined): string {
+  const raw = (input || "").trim().toLowerCase().replace("_", "-");
+  if (!raw) return "en";
+  if (raw === "auto") return "en";
+  if (
+    raw === "fr" ||
+    raw.startsWith("fr-") ||
+    raw === "french" ||
+    raw === "francais" ||
+    raw === "français"
+  ) {
+    return "fr";
+  }
+  if (raw === "en" || raw.startsWith("en-") || raw === "english") return "en";
+  if (raw === "es" || raw.startsWith("es-") || raw === "spanish") return "es";
+  if (raw === "pt" || raw.startsWith("pt-") || raw === "portuguese") return "pt";
+  if (raw === "de" || raw.startsWith("de-") || raw === "german") return "de";
+  if (raw === "ar" || raw.startsWith("ar-") || raw === "arabic") return "ar";
+  return raw.slice(0, 2);
+}
+
+function getSalutationInstructions(langCode: string): string {
+  switch (langCode) {
+    case "fr":
+      return `8. Salutation uniquement en francais (ex : "Bonjour [prenom ou nom]," "Bonjour Madame, Bonjour Monsieur,"). INTERDIT : "Dear", "Hi", toute formulation anglophone dans l ouverture.`;
+    case "es":
+      return `8. Saludo solo en español (ej: "Estimado/a …," "Hola …,"). PROHIBIDO usar "Dear".`;
+    case "pt":
+      return `8. Saudacao apenas em portugues (ex: "Olá …," "Prezado/a …"). Nao usar "Dear".`;
+    case "de":
+      return `8. Ansprache nur auf Deutsch (z. B. "Guten Tag …," "Sehr geehrte …"). Kein "Dear".`;
+    case "ar":
+      return `8. Ouverture en arabe moderne standard, ton professionnel. Pas d ouverture en anglais.`;
+    default:
+      return `8. Commence par "Dear [nom du contact]," ou "Dear [nom entreprise] Team," PAS "Dear Sir/Madam".`;
+  }
+}
+
+const FINANCIAL_CATEGORY_GUIDANCE: Record<string, string> = {
+  bank:
+    "Angle banque/trade finance: fiabilite d'execution, couverture documentaire, securisation des flux import/export.",
+  dfi:
+    "Angle DFI/multilateral: impact developpement, inclusion des producteurs, conformite et gouvernance.",
+  impact_fund:
+    "Angle impact fund: impact mesurable ESG, traçabilite, resilience climatique, performance durable.",
+  commodity_fund:
+    "Angle commodity fund/hedge: gestion de volatilite, securisation d'approvisionnement, discipline risque/prix.",
+  corporate:
+    "Angle corporate strategique: partenariat long terme, qualite constante, capacite industrielle, execution multi-pays.",
+  vc_pe:
+    "Angle VC/PE: scalabilite, traction commerciale, efficience operationnelle, feuille de route de croissance.",
+  family_office:
+    "Angle family office/angels: horizon long terme, capital patient, gouvernance et impact terrain.",
+  agency:
+    "Angle agences/programmes: alignement avec programmes publics, conformite, capacite de deploiement local.",
+};
+
+const SYSTEM_PROMPT_COMMODITY =
   "Tu es un expert en prospection commerciale B2B dans les secteurs du cacao et du cafe (beurre/poudre/masse/feves de cacao, grains/cafe vert/moulu/soluble). Tu reponds UNIQUEMENT en JSON valide, sans texte avant ni apres.";
+
+const SYSTEM_PROMPT_STARTUP_FUNDING =
+  "Tu es un expert en relations investisseurs et partenariats financiers B2B (banques trade finance DFI fonds impact commodity finance VC institutional). Tu rediges une sollicitation professionnelle pour une startup projet dans la chaine valeur agricole durable cacao cafe. Jamais comme un vulgaire email de vente de marchandises. Tu reponds UNIQUEMENT en JSON valide, sans texte avant ni apres.";
+
+function fundingPitchFromEnv(): string {
+  const one = process.env.FUNDING_PITCH_SUMMARY?.trim();
+  if (one) return one;
+  return "Projet/industrial venture dans la chaine de valeur cacao et cafe (origine tractabilite developpement fournisseur) en phase de structuration ou de croissance cherchant dialogue avec financements institutions strategiques adaptes.";
+}
 
 // ─── Lazy singleton clients ──────────────────────────────────────
 
@@ -95,7 +169,10 @@ const anthropicModel =
   process.env.ANTHROPIC_MODEL?.trim() || "claude-sonnet-4-20250514";
 const openaiModel = process.env.OPENAI_MODEL?.trim() || "gpt-5.4";
 
-async function runWithAnthropic(prompt: string): Promise<string> {
+async function runWithAnthropic(
+  prompt: string,
+  systemPrompt: string
+): Promise<string> {
   const client = getAnthropicClient();
   if (!client) throw new Error("ANTHROPIC_API_KEY is not set");
 
@@ -103,7 +180,7 @@ async function runWithAnthropic(prompt: string): Promise<string> {
     model: anthropicModel,
     max_tokens: 1024,
     temperature: 0.7,
-    system: SYSTEM_PROMPT,
+    system: systemPrompt,
     messages: [{ role: "user", content: prompt }],
   });
 
@@ -114,7 +191,10 @@ async function runWithAnthropic(prompt: string): Promise<string> {
   return block.text;
 }
 
-async function runWithOpenAI(prompt: string): Promise<string> {
+async function runWithOpenAI(
+  prompt: string,
+  systemPrompt: string
+): Promise<string> {
   const client = getOpenAIClient();
   if (!client) throw new Error("OPENAI_API_KEY is not set");
 
@@ -124,7 +204,7 @@ async function runWithOpenAI(prompt: string): Promise<string> {
     temperature: 0.7,
     response_format: { type: "json_object" },
     messages: [
-      { role: "system", content: SYSTEM_PROMPT },
+      { role: "system", content: systemPrompt },
       { role: "user", content: prompt },
     ],
   });
@@ -136,7 +216,10 @@ async function runWithOpenAI(prompt: string): Promise<string> {
 
 // ─── Fallback orchestrator ───────────────────────────────────────
 
-async function runLLM(prompt: string): Promise<string> {
+async function runLLM(
+  prompt: string,
+  systemPrompt: string = SYSTEM_PROMPT_COMMODITY
+): Promise<string> {
   const hasAnthropic = !!process.env.ANTHROPIC_API_KEY?.trim();
   const hasOpenAI = !!process.env.OPENAI_API_KEY?.trim();
 
@@ -148,7 +231,7 @@ async function runLLM(prompt: string): Promise<string> {
 
   if (hasAnthropic) {
     try {
-      return await runWithAnthropic(prompt);
+      return await runWithAnthropic(prompt, systemPrompt);
     } catch (err) {
       if (!hasOpenAI) throw err;
       console.warn(
@@ -158,7 +241,7 @@ async function runLLM(prompt: string): Promise<string> {
     }
   }
 
-  return await runWithOpenAI(prompt);
+  return await runWithOpenAI(prompt, systemPrompt);
 }
 
 // ─── JSON parsing ────────────────────────────────────────────────
@@ -205,23 +288,103 @@ function sanitizeGeneratedBody(body: string): string {
 export async function generateEmail(
   params: GenerateEmailParams
 ): Promise<GeneratedEmail> {
+  const mission = params.emailMission ?? "COMMODITY_SALES";
   const tonDesc = TONE_MAP[params.tone] || TONE_MAP.FORMAL;
   const tonePlaybook = TONE_SALES_PLAYBOOK[params.tone] || TONE_SALES_PLAYBOOK.FORMAL;
-  const langDesc = LANG_MAP[params.language] || params.language;
+  const langCode = normalizeLanguageCode(params.language);
+  const langDesc = LANG_MAP[langCode] || langCode;
+  const prospectType = params.prospectType || "COMMERCIAL";
+  const financialCategory = params.financialCategory?.trim() || "";
+  const financialGuidance =
+    prospectType === "FINANCIAL"
+      ? FINANCIAL_CATEGORY_GUIDANCE[financialCategory] ||
+        "Angle finance B2B: fiabilite, conformite, gestion du risque, impact et execution."
+      : "";
+  const financialRulesBlock =
+    prospectType === "FINANCIAL"
+      ? `\nREGLES SPECIFIQUES PROSPECT FINANCIER :
+FIN-1. Le prospect est financier. Adapte le discours au type d'institution: ${financialCategory || "non precise"}.
+FIN-2. Mets en avant des elements attendus par un acteur financier: gestion du risque, conformite, traçabilite, stabilite d'approvisionnement et gouvernance.
+FIN-3. Evite le discours purement "achat produit". Parle en termes de partenariat, mitigation du risque et creation de valeur durable.
+FIN-4. ${financialGuidance}`
+      : "";
   const sender = getSenderInfo();
 
   const senderName = params.senderName || sender.name;
   const senderCompany = params.senderCompany || sender.company;
   const senderPosition = sender.position;
 
-  const prompt = `Genere un email de prospection commerciale B2B avec ces parametres :
+  const langBlock =
+    langCode === "fr"
+      ? `LANGUE IMPERATIVE (priorite maximale) : email 100% en francais (objet + corps).\nPas d anglais hors noms propres, marques ou sigles (IFC, DFI…).\n\n`
+      : `LANGUE IMPERATIVE (priorite maximale) : ecris l integralite de "subject" et "body" en ${langDesc} (code ISO ${langCode}), sans melange avec d autres langues (sauf noms propres / sigles).\n\n`;
 
-DESTINATAIRE :
+  const fundingPitch = fundingPitchFromEnv();
+  const institutionalAngle =
+    financialGuidance ||
+    "Adapte la demande au mandat probable de l institution (financement structuration partenariat programmes impact trade finance).";
+  const fundingPartnerBlock = `\nREGLES SPECIFIQUES FINANCEMENT / PARTENARIAT INSTITUTIONNEL :
+FP-1. Objectif : obtenir un premier echange professionnel (partenariat strategique et/ou financement) entre ${senderCompany} et l institution cible. Ce n est PAS un email pour vendre des lots de matieres premieres.
+FP-2. Contexte projet (synthese a respecter, tu peux la reformuler) : ${fundingPitch}
+FP-3. Adapte le ton et les formulations au mandat probable du destinataire (${financialCategory || "institution financiere"}). ${institutionalAngle}
+FP-4. Propose un chemin concret : echange court (15-20 min) et/ou envoi d un teaser ou deck synthétique ; mentionne la confidentialite si pertinent. Ne demande pas "de l argent" de facon maladroite : cadre exploration alignment mandat.
+FP-5. Honnetete : n invente AUCUN chiffre (CA, valorisation, serie, volumes) ; dis plutot que les elements detailles peuvent etre partages apres alignment.
+FP-6. Reste sobre et credible (gouvernance, risque, impact, conformite, chaine d approvisionnement durable le cas echeant).`;
+
+  let systemPrompt = SYSTEM_PROMPT_COMMODITY;
+  let prompt: string;
+
+  if (mission === "STARTUP_FUNDING_PARTNER") {
+    systemPrompt = SYSTEM_PROMPT_STARTUP_FUNDING;
+    prompt = `Redige un email de premiere prise de contact institutionnelle (financement / partenariat) avec ces parametres :
+
+${langBlock}DESTINATAIRE / INSTITUTION :
+- Interlocuteur : ${params.prospectName}
+- Organisation : ${params.companyName}
+- Pays : ${params.country}
+- Secteur / activite percue : ${params.sector || "non specifie"}
+- Categorie (si connue) : ${financialCategory || "non specifiee"}
+
+NOTRE COTE (expediteur) :
+- Nom : ${senderName}
+- Poste : ${senderPosition}
+- Structure : ${senderCompany}
+
+PARAMETRES DE REDACTION :
+- Ton : ${tonDesc}
+- Guideline : ${tonePlaybook}
+- Langue : ${langDesc}
+${params.customInstructions ? `- Instructions supplementaires : ${params.customInstructions}` : ""}
+
+REGLES STRICTES :
+1. Email naturel, professionnel, jamais marketing agressif ni discours fournisseur purement commercial.
+2. Accroche liee au role de l institution (mandat, impact, trade finance, risque, programme, etc.), pas un template generique.
+3. Le corps : 120-180 mots maximum.
+4. Objet : max 50 caracteres, specifique, evite les cliches type "Partnership Opportunity".
+5. Pas de placeholders type [Your Name]. Pas de formule de signature finale (ajoutee par l app).
+${getSalutationInstructions(langCode)}
+7. Repete le nom de l organisation du destinataire au plus 2 fois.
+8. Structure : contexte bref -> pourquoi cette institution -> proposition d etape utile (appel / document) -> CTA unique.
+9. Evite tirets cadratins (—), idealement zero.
+10. Respecte STRICTEMENT la langue (${langCode}).
+${fundingPartnerBlock}
+
+FORMAT DE REPONSE (JSON uniquement) :
+{
+  "subject": "objet court et accrocheur",
+  "body": "corps du mail SANS signature finale"
+}`;
+  } else {
+    prompt = `Genere un email de prospection commerciale B2B avec ces parametres :
+
+${langBlock}DESTINATAIRE :
 - Nom du contact : ${params.prospectName}
 - Entreprise : ${params.companyName}
 - Pays : ${params.country}
 - Secteur : ${params.sector || "non specifie"}
 - Produit d'interet : ${params.product || "non specifie"}
+- Type de prospect : ${prospectType}
+- Categorie financiere : ${financialCategory || "non specifiee"}
 
 EXPEDITEUR :
 - Nom : ${senderName}
@@ -243,7 +406,7 @@ REGLES STRICTES :
 5. Le corps fait 120-180 mots maximum — concis et impactant.
 6. L'objet doit etre accrocheur, specifique et court (max 50 caracteres). PAS de "Partnership Opportunity" ou cliches generiques.
 7. NE METS JAMAIS de placeholders comme [Your Name], [Company], [Phone Number], [Position], etc. La signature sera ajoutee automatiquement. Termine le corps AVANT la signature (pas de "Best regards," ni de nom a la fin).
-8. Commence directement par "Dear [nom du contact]," ou "Dear [nom entreprise] Team," — PAS "Dear Sir/Madam".
+${getSalutationInstructions(langCode)}
 9. Ne repete pas le nom de l'entreprise du prospect plus de 2 fois dans le mail.
 10. Mentionne des avantages concrets : qualite constante, livraison fiable, prix competitifs, certifications, etc.
 11. Style commercial obligatoire :
@@ -254,14 +417,17 @@ REGLES STRICTES :
 12. Evite les longues listes et le jargon inutile. Priorite a la clarte et a la conversion.
 13. Evite les tirets cadratins (—) et les parenthesees trop techniques. Prefere des phrases naturelles, fluides et conversationnelles.
 14. N'utilise jamais plus d'un tiret cadratin (—) dans tout le corps du mail. Idealement, zero.
+15. Respecte STRICTEMENT la langue demandee (${langCode}). L'objet et le corps doivent etre entierement dans cette langue, sans melange.
+${financialRulesBlock}
 
 FORMAT DE REPONSE (JSON uniquement) :
 {
   "subject": "objet court et accrocheur",
   "body": "corps du mail SANS signature finale"
 }`;
+  }
 
-  const raw = await runLLM(prompt);
+  const raw = await runLLM(prompt, systemPrompt);
   const parsed = parseJson<GeneratedEmail>(raw);
   return {
     subject: parsed.subject?.trim() || "",
@@ -279,7 +445,8 @@ export async function generateFollowUp(
 ): Promise<GeneratedEmail> {
   const tonDesc = TONE_MAP[tone] || TONE_MAP.FORMAL;
   const tonePlaybook = TONE_SALES_PLAYBOOK[tone] || TONE_SALES_PLAYBOOK.FORMAL;
-  const langDesc = LANG_MAP[language] || language;
+  const langCode = normalizeLanguageCode(language);
+  const langDesc = LANG_MAP[langCode] || langCode;
   const sender = getSenderInfo();
 
   const prompt = `Voici l'email initial envoye :
@@ -303,6 +470,7 @@ REGLES STRICTES :
 8. Commence par "Dear ${prospectName}," ou "Hi ${prospectName},"
 9. Evite les tirets cadratins (—) et garde un style naturel, simple et humain.
 10. N'utilise jamais plus d'un tiret cadratin (—) dans tout le corps du mail. Idealement, zero.
+11. Respecte STRICTEMENT la langue demandee (${langCode}). L'objet et le corps doivent etre entierement dans cette langue, sans melange.
 
 FORMAT DE REPONSE (JSON uniquement) :
 {

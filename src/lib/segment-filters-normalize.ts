@@ -23,6 +23,7 @@ export function normalizeSegmentFilters(
   promote("priority", "priorities");
   promote("language", "languages");
   promote("status", "statuses");
+  promote("prospectType", "prospectTypes");
 
   const arrayKeys = [
     "countries",
@@ -32,6 +33,7 @@ export function normalizeSegmentFilters(
     "priorities",
     "languages",
     "statuses",
+    "prospectTypes",
   ] as const;
 
   for (const key of arrayKeys) {
@@ -84,6 +86,9 @@ export function buildProspectWhereFromFilters(
 
   const statuses = filters.statuses as string[] | undefined;
   if (statuses?.length) where.status = { in: statuses };
+
+  const prospectTypes = filters.prospectTypes as string[] | undefined;
+  if (prospectTypes?.length) where.prospectType = { in: prospectTypes };
 
   if (filters.minScore != null) {
     const n =

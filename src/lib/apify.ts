@@ -57,9 +57,14 @@ export async function scrapeGoogleMaps(
     );
   }
 
-  const searchQueries = cleaned.map((keyword) =>
-    params.country ? `${keyword} in ${params.country}` : keyword
-  );
+  const searchQueries = cleaned.map((keyword) => {
+    if (!params.country) return keyword;
+    // Evite les requetes du style "in X in Y"
+    if (/\bin\s+[A-Za-z][A-Za-z\s.'-]{1,40}$/i.test(keyword)) {
+      return keyword;
+    }
+    return `${keyword} in ${params.country}`;
+  });
 
   const run = await client.actor("compass/crawler-google-places").call({
     searchStringsArray: searchQueries,

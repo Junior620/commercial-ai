@@ -82,6 +82,16 @@ enum Tone {
   PREMIUM
 }
 
+enum ProspectType {
+  COMMERCIAL
+  FINANCIAL
+}
+
+enum ScrapingJobKind {
+  COMMERCIAL
+  FINANCIAL
+}
+
 // ─── Models ──────────────────────────────────────────────
 
 model User {
@@ -119,6 +129,9 @@ model Prospect {
   lastContactedAt DateTime?
   createdAt       DateTime       @default(now())
   updatedAt       DateTime       @updatedAt
+  prospectType    ProspectType   @default(COMMERCIAL)
+  /// bank, dfi, impact_fund, commodity_fund, corporate, vc_pe, family_office, multilateral, agency
+  financialCategory String?
 
   emails          Email[]
   responses       Response[]
@@ -129,6 +142,7 @@ model Prospect {
   @@index([status])
   @@index([score])
   @@index([sector])
+  @@index([prospectType])
   @@map("prospects")
 }
 
@@ -253,6 +267,7 @@ model ScrapingJob {
   keywords     Json
   countries    Json?
   categories   Json?
+  kind         ScrapingJobKind  @default(COMMERCIAL)
   status       ScrapingJobStatus @default(PENDING)
   apifyRunId   String?
   resultsCount Int              @default(0)

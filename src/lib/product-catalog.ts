@@ -46,4 +46,5 @@ export const PRODUCT_LABELS: Record<string, string> = {
   ground_coffee: "Café moulu",
   instant_coffee: "Café soluble",
   all: "Tous produits",
+  financial_all_prospects: "Tous prospects financiers",
 };

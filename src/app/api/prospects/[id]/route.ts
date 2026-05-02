@@ -27,6 +27,8 @@ const UpdateProspectSchema = z
     website: z.string().nullable().optional(),
     source: z.string().nullable().optional(),
     notes: z.string().nullable().optional(),
+    prospectType: z.enum(["COMMERCIAL", "FINANCIAL"]).optional(),
+    financialCategory: z.string().nullable().optional(),
   })
   .strict();
 

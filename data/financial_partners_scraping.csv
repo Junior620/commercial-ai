@@ -1,0 +1,44 @@
+category,subcategory,language,target_type,keyword,geo_scope,country,notes
+bank_trade_finance,trade_finance,en,financial_partner,trade finance bank cocoa coffee,global,,Global bank keyword
+bank_trade_finance,trade_finance,en,financial_partner,commodity trade finance bank,global,,Global bank keyword
+bank_trade_finance,trade_finance,en,financial_partner,agri commodity trade finance,global,,Global bank keyword
+bank_trade_finance,trade_finance,en,financial_partner,trade finance bank in Cameroon,country,Cameroon,Geo keyword
+bank_trade_finance,trade_finance,en,financial_partner,trade finance bank in France,country,France,Geo keyword
+bank_trade_finance,trade_finance,en,financial_partner,trade finance bank in UK,country,UK,Geo keyword
+bank_trade_finance,trade_finance,en,financial_partner,trade finance bank in Switzerland,country,Switzerland,Geo keyword
+bank_trade_finance,trade_finance,en,financial_partner,trade finance bank in Singapore,country,Singapore,Geo keyword
+dfi_multilateral,dfi,en,financial_partner,development finance institution agribusiness,global,,Global dfi keyword
+dfi_multilateral,dfi,en,financial_partner,ifc agribusiness financing africa,global,,Global dfi keyword
+dfi_multilateral,dfi,en,financial_partner,proparco agrifood financing,global,,Global dfi keyword
+dfi_multilateral,dfi,en,financial_partner,afdb agricultural value chain financing,global,,Global dfi keyword
+dfi_multilateral,dfi,en,financial_partner,bii bio deg fmo blended finance,global,,Global dfi keyword
+impact_fund_esg,impact,en,financial_partner,impact fund cocoa coffee smallholders,global,,Global impact keyword
+impact_fund_esg,impact,en,financial_partner,esg fund agrifood africa,global,,Global impact keyword
+impact_fund_esg,impact,en,financial_partner,blueorchard impact agriculture fund,global,,Global impact keyword
+impact_fund_esg,impact,en,financial_partner,oikocredit agriculture cooperative finance,global,,Global impact keyword
+impact_fund_esg,impact,en,financial_partner,abc fund agribusiness capital,global,,Global impact keyword
+commodity_fund_hedge,commodity,en,financial_partner,commodity trading fund cocoa coffee,global,,Global commodity keyword
+commodity_fund_hedge,commodity,en,financial_partner,structured trade finance fund agriculture,global,,Global commodity keyword
+commodity_fund_hedge,commodity,en,financial_partner,hedge fund soft commodities cocoa,global,,Global commodity keyword
+commodity_fund_hedge,commodity,en,financial_partner,barak fund management structured trade finance,global,,Global commodity keyword
+commodity_fund_hedge,commodity,en,financial_partner,scipion capital trade finance africa,global,,Global commodity keyword
+corporate_strategic,corporate,en,financial_partner,cargill sustainability cocoa investment,global,,Global corporate keyword
+corporate_strategic,corporate,en,financial_partner,nestle coffee cocoa regenerative agriculture program,global,,Global corporate keyword
+corporate_strategic,corporate,en,financial_partner,barry callebaut cocoa farmer financing,global,,Global corporate keyword
+corporate_strategic,corporate,en,financial_partner,ofi olam cocoa coffee sustainability program,global,,Global corporate keyword
+corporate_strategic,corporate,en,financial_partner,nkg volcafe coffee sustainability management,global,,Global corporate keyword
+vc_pe_agritech,vc_pe,en,financial_partner,agritech venture capital africa coffee cocoa,global,,Global vc keyword
+vc_pe_agritech,vc_pe,en,financial_partner,agrifood venture capital traceability,global,,Global vc keyword
+vc_pe_agritech,vc_pe,en,financial_partner,novastar ventures agritech africa,global,,Global vc keyword
+vc_pe_agritech,vc_pe,en,financial_partner,omnivore agritech fund,global,,Global vc keyword
+vc_pe_agritech,vc_pe,en,financial_partner,the yield lab agrifoodtech fund,global,,Global vc keyword
+family_office_angel,family_office,en,financial_partner,family office impact agriculture africa,global,,Global family office keyword
+family_office_angel,family_office,en,financial_partner,business angel network agritech africa,global,,Global angel keyword
+family_office_angel,family_office,en,financial_partner,ceniarth agriculture impact investing,global,,Global family office keyword
+family_office_angel,family_office,en,financial_partner,rockefeller capital sustainable agriculture,global,,Global family office keyword
+family_office_angel,family_office,en,financial_partner,aban cameroon angel network agritech,global,,Global angel keyword
+agency_program,program,en,financial_partner,icco cocoa finance program,global,,Global agency keyword
+agency_program,program,en,financial_partner,ico coffee sustainability fund,global,,Global agency keyword
+agency_program,program,en,financial_partner,gafsp private sector agriculture financing,global,,Global agency keyword
+agency_program,program,en,financial_partner,cafi agroforestry financing central africa,global,,Global agency keyword
+agency_program,program,en,financial_partner,international agricultural development fund coffee cocoa,global,,Global agency keyword

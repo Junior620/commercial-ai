@@ -193,7 +193,20 @@ export async function GET(req: NextRequest) {
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
-    const { categories, countries, product, customKeywords, maxResults } = body;
+    const {
+      categories,
+      countries,
+      product,
+      customKeywords,
+      maxResults,
+      maxKeywords,
+    } = body;
+
+    const keywordLimitRaw = Number(maxKeywords);
+    const keywordLimit =
+      Number.isFinite(keywordLimitRaw) && keywordLimitRaw > 0
+        ? Math.min(500, Math.max(10, Math.floor(keywordLimitRaw)))
+        : 200;
 
     let keywords: string[] = [...(customKeywords || [])];
 
@@ -232,7 +245,7 @@ export async function POST(req: NextRequest) {
           .map((k) => (typeof k === "string" ? k.trim() : ""))
           .filter(Boolean)
       ),
-    ].slice(0, 50);
+    ].slice(0, keywordLimit);
 
     if (keywords.length === 0) {
       return NextResponse.json(

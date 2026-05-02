@@ -1,11 +1,11 @@
 import { prisma } from "@/lib/prisma";
 import { ProspectsClient } from "@/components/prospects/prospects-client";
 
-export default async function ProspectsPage() {
+export default async function FinancialProspectsPage() {
   let prospects: Awaited<ReturnType<typeof prisma.prospect.findMany>> = [];
   try {
     prospects = await prisma.prospect.findMany({
-      where: { prospectType: "COMMERCIAL" },
+      where: { prospectType: "FINANCIAL" },
       orderBy: { createdAt: "desc" },
       take: 2000,
     });
@@ -16,8 +16,8 @@ export default async function ProspectsPage() {
   return (
     <ProspectsClient
       initialProspects={JSON.parse(JSON.stringify(prospects))}
-      prospectType="COMMERCIAL"
-      title="Prospects"
+      prospectType="FINANCIAL"
+      title="Partenaires financiers"
     />
   );
 }

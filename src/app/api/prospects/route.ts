@@ -16,6 +16,8 @@ const ProspectSchema = z.object({
   website: z.string().optional(),
   source: z.string().optional(),
   notes: z.string().optional(),
+  prospectType: z.enum(["COMMERCIAL", "FINANCIAL"]).optional(),
+  financialCategory: z.string().optional(),
 });
 
 export async function GET(req: NextRequest) {
@@ -25,8 +27,14 @@ export async function GET(req: NextRequest) {
   const search = searchParams.get("search");
   const limit = parseInt(searchParams.get("limit") || "100");
   const offset = parseInt(searchParams.get("offset") || "0");
+  const typeParam = searchParams.get("type");
+  const type =
+    typeParam === "FINANCIAL" || typeParam === "COMMERCIAL"
+      ? typeParam
+      : "COMMERCIAL";
 
   const where: Record<string, unknown> = {};
+  where.prospectType = type;
   if (status && status !== "all") where.status = status;
   if (country) where.country = country;
   if (search) {
@@ -64,7 +72,13 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const prospect = await prisma.prospect.create({ data });
+    const prospect = await prisma.prospect.create({
+      data: {
+        ...data,
+        prospectType: data.prospectType ?? "COMMERCIAL",
+        financialCategory: data.financialCategory,
+      },
+    });
     return NextResponse.json(prospect, { status: 201 });
   } catch (err) {
     if (err instanceof z.ZodError) {

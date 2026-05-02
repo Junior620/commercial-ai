@@ -153,6 +153,7 @@ export default function ScrapingPage() {
   const [selectedProduct, setSelectedProduct] = useState("all");
   const [customKeywords, setCustomKeywords] = useState("");
   const [maxResults, setMaxResults] = useState("100");
+  const [maxKeywords, setMaxKeywords] = useState("200");
   const [isRunning, setIsRunning] = useState(false);
   const [jobs, setJobs] = useState<ScrapingJob[]>([]);
   const [historyPage, setHistoryPage] = useState(1);
@@ -278,6 +279,7 @@ export default function ScrapingPage() {
             .split("\n")
             .filter((k) => k.trim()),
           maxResults: parseInt(maxResults),
+          maxKeywords: parseInt(maxKeywords),
         }),
       });
       const payload = await res.json().catch(() => ({}));
@@ -456,6 +458,21 @@ export default function ScrapingPage() {
                 max="500"
                 className="max-w-[12rem]"
               />
+            </div>
+
+            <div className="space-y-2">
+              <Label className="text-sm font-semibold">Max. mots-clés utilisés</Label>
+              <Input
+                type="number"
+                value={maxKeywords}
+                onChange={(e) => setMaxKeywords(e.target.value)}
+                min="10"
+                max="500"
+                className="max-w-[12rem]"
+              />
+              <p className="text-xs text-muted-foreground">
+                Limite le volume de mots-clés chargés (prédéfinis + personnalisés).
+              </p>
             </div>
 
             <Button

@@ -10,6 +10,8 @@ export async function POST(req: NextRequest) {
       country: body.country || "",
       sector: body.sector || "",
       product: body.product || "",
+      prospectType: body.prospectType,
+      financialCategory: body.financialCategory,
       language: body.language || "en",
       tone: body.tone || "FORMAL",
       campaignProduct: body.campaignProduct || "cocoa or coffee products",
