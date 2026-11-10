@@ -591,7 +591,7 @@ export function ProspectsClient({
           <input
             ref={fileInputRef}
             type="file"
-            accept=".csv,.xlsx"
+            accept=".csv"
             className="hidden"
             onChange={handleImportCSV}
           />
