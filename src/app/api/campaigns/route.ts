@@ -1,22 +1,27 @@
 import { NextRequest, NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
 import { z } from "zod";
+import { prisma } from "@/lib/prisma";
+import { requireUser, WRITE_ROLES } from "@/lib/auth";
+import { parseJsonBody, serverError } from "@/lib/api";
 
 const CampaignCreateSchema = z
   .object({
-    name: z.string().min(1),
-    segmentId: z.string().optional(),
-    product: z.string().optional(),
-    language: z.string().optional(),
+    name: z.string().trim().min(1, "Nom requis").max(120),
+    segmentId: z.string().max(60).optional(),
+    product: z.string().max(60).optional(),
+    language: z.string().max(10).optional(),
     tone: z.enum(["FORMAL", "FRIENDLY", "TECHNICAL", "PREMIUM"]).optional(),
-    maxFollowUps: z.number().int().min(0).max(10).optional(),
+    maxFollowUps: z.number().int().min(0).max(3).optional(),
     followUpDelayDays: z.number().int().min(1).max(60).optional(),
     dailyLimit: z.number().int().min(1).max(500).optional(),
-    signature: z.string().optional(),
+    signature: z.string().max(2000).optional(),
   })
   .strict();
 
 export async function GET() {
+  const auth = await requireUser();
+  if (!auth.ok) return auth.response;
+
   const campaigns = await prisma.campaign.findMany({
     include: { segment: { select: { name: true } } },
     orderBy: { createdAt: "desc" },
@@ -25,35 +30,30 @@ export async function GET() {
 }
 
 export async function POST(req: NextRequest) {
-  try {
-    const body = await req.json();
-    const parsed = CampaignCreateSchema.safeParse(body);
-    if (!parsed.success) {
-      return NextResponse.json(
-        { error: parsed.error.issues[0]?.message ?? "Donnees invalides" },
-        { status: 400 }
-      );
-    }
+  const auth = await requireUser(WRITE_ROLES);
+  if (!auth.ok) return auth.response;
 
-    const data = parsed.data;
+  const parsed = await parseJsonBody(req, CampaignCreateSchema);
+  if (!parsed.ok) return parsed.response;
+  const data = parsed.data;
+
+  try {
     const campaign = await prisma.campaign.create({
       data: {
         name: data.name,
         segmentId: data.segmentId || null,
         product: data.product || null,
-        language: data.language || "en",
+        language: data.language || "auto",
         tone: data.tone || "FORMAL",
         maxFollowUps: data.maxFollowUps ?? 2,
         followUpDelayDays: data.followUpDelayDays ?? 4,
         dailyLimit: data.dailyLimit ?? 50,
         signature: data.signature || null,
+        createdById: auth.user.id,
       },
     });
     return NextResponse.json(campaign, { status: 201 });
-  } catch {
-    return NextResponse.json(
-      { error: "Erreur de creation" },
-      { status: 500 }
-    );
+  } catch (err) {
+    return serverError("campaigns:create", err, "Erreur de création de la campagne");
   }
 }

@@ -1,28 +1,36 @@
 import { NextRequest, NextResponse } from "next/server";
+import { z } from "zod";
 import { generateEmail } from "@/lib/claude";
+import { requireUser, WRITE_ROLES } from "@/lib/auth";
+import { parseJsonBody, serverError } from "@/lib/api";
+
+const GenerateSchema = z.object({
+  prospectName: z.string().trim().min(1, "Nom du contact requis").max(120),
+  companyName: z.string().trim().min(1, "Entreprise requise").max(200),
+  country: z.string().trim().max(80).optional().default(""),
+  sector: z.string().trim().max(200).optional().default(""),
+  product: z.string().trim().max(120).optional().default(""),
+  language: z.string().trim().max(10).optional().default("fr"),
+  tone: z.enum(["FORMAL", "FRIENDLY", "TECHNICAL", "PREMIUM"]).optional().default("FORMAL"),
+  campaignProduct: z.string().trim().max(200).optional(),
+  customInstructions: z.string().trim().max(1000).optional(),
+});
 
 export async function POST(req: NextRequest) {
+  const auth = await requireUser(WRITE_ROLES);
+  if (!auth.ok) return auth.response;
+
+  const parsed = await parseJsonBody(req, GenerateSchema);
+  if (!parsed.ok) return parsed.response;
+  const body = parsed.data;
+
   try {
-    const body = await req.json();
     const result = await generateEmail({
-      prospectName: body.prospectName,
-      companyName: body.companyName,
-      country: body.country || "",
-      sector: body.sector || "",
-      product: body.product || "",
-      prospectType: body.prospectType,
-      financialCategory: body.financialCategory,
-      language: body.language || "en",
-      tone: body.tone || "FORMAL",
-      campaignProduct: body.campaignProduct || "cocoa or coffee products",
-      senderName: process.env.SENDER_NAME?.trim(),
-      senderCompany: process.env.SENDER_COMPANY?.trim(),
-      customInstructions: body.customInstructions,
+      ...body,
+      campaignProduct: body.campaignProduct || "fèves de cacao et produits dérivés",
     });
     return NextResponse.json(result);
   } catch (err) {
-    const message = err instanceof Error ? err.message : "Erreur de generation";
-    console.error("[AI Generate]", message, err);
-    return NextResponse.json({ error: message }, { status: 500 });
+    return serverError("ai:generate", err, "La génération a échoué. Réessayez dans un instant.");
   }
 }

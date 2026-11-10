@@ -4,8 +4,20 @@
 import "proxy-agent";
 import { ApifyClient } from "apify-client";
 
-const client = new ApifyClient({
-  token: process.env.APIFY_API_TOKEN,
+let _client: ApifyClient | null = null;
+function getClient(): ApifyClient {
+  if (_client) return _client;
+  const token = process.env.APIFY_API_TOKEN?.trim();
+  if (!token) throw new Error("APIFY_API_TOKEN non configuré : scraping impossible");
+  _client = new ApifyClient({ token });
+  return _client;
+}
+const client = new Proxy({} as ApifyClient, {
+  get: (_target, prop) => {
+    const real = getClient();
+    const value = Reflect.get(real, prop);
+    return typeof value === "function" ? value.bind(real) : value;
+  },
 });
 
 function extractDomain(url: string): string | null {
@@ -66,7 +78,8 @@ export async function scrapeGoogleMaps(
     return `${keyword} in ${params.country}`;
   });
 
-  const run = await client.actor("compass/crawler-google-places").call({
+  // start() : on n'attend pas la fin du run, Inngest interroge son statut ensuite.
+  const run = await client.actor("compass/crawler-google-places").start({
     searchStringsArray: searchQueries,
     maxCrawledPlacesPerSearch: params.maxResults || 100,
     language: "en",

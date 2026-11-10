@@ -1,87 +1,61 @@
 import { NextRequest, NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
 import { z } from "zod";
+import { prisma } from "@/lib/prisma";
+import { requireUser, WRITE_ROLES } from "@/lib/auth";
+import { parseJsonBody, prismaErrorCode, serverError } from "@/lib/api";
 
 const PatchEmailSchema = z
   .object({
-    subject: z.string().min(1).max(998).optional(),
-    body: z.string().min(1).optional(),
+    subject: z.string().trim().min(1).max(200).optional(),
+    body: z.string().trim().min(1).max(10000).optional(),
   })
   .strict();
 
-export async function PATCH(
-  req: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
-) {
+type Params = { params: Promise<{ id: string }> };
+
+export async function PATCH(req: NextRequest, { params }: Params) {
+  const auth = await requireUser(WRITE_ROLES);
+  if (!auth.ok) return auth.response;
+
+  const { id } = await params;
+  const parsed = await parseJsonBody(req, PatchEmailSchema);
+  if (!parsed.ok) return parsed.response;
+  if (Object.keys(parsed.data).length === 0) {
+    return NextResponse.json({ error: "Aucun champ à mettre à jour" }, { status: 400 });
+  }
+
   try {
-    const { id } = await params;
-    const json = await req.json();
-    const parsed = PatchEmailSchema.safeParse(json);
-    if (!parsed.success) {
-      return NextResponse.json(
-        { error: parsed.error.issues[0]?.message ?? "Donnees invalides" },
-        { status: 400 }
-      );
+    const { count } = await prisma.email.updateMany({ where: { id, status: "PENDING" }, data: parsed.data });
+    if (count === 0) {
+      const exists = await prisma.email.findUnique({ where: { id }, select: { id: true } });
+      return exists
+        ? NextResponse.json({ error: "Seuls les emails en attente peuvent être modifiés" }, { status: 400 })
+        : NextResponse.json({ error: "Email introuvable" }, { status: 404 });
     }
-    const data = parsed.data;
-    if (Object.keys(data).length === 0) {
-      return NextResponse.json(
-        { error: "Aucun champ a mettre a jour" },
-        { status: 400 }
-      );
-    }
-
-    const existing = await prisma.email.findUnique({ where: { id } });
-    if (!existing) {
-      return NextResponse.json({ error: "Email introuvable" }, { status: 404 });
-    }
-
-    if (existing.status !== "PENDING") {
-      return NextResponse.json(
-        {
-          error:
-            "Seuls les emails en attente (PENDING) peuvent etre modifies avant envoi",
-        },
-        { status: 400 }
-      );
-    }
-
-    const updated = await prisma.email.update({
+    const updated = await prisma.email.findUnique({
       where: { id },
-      data,
-      include: {
-        prospect: { select: { company: true, email: true, contact: true } },
-      },
+      include: { prospect: { select: { company: true, email: true, contact: true } } },
     });
     return NextResponse.json(updated);
   } catch (err) {
-    const code =
-      err && typeof err === "object" && "code" in err
-        ? (err as { code: string }).code
-        : "";
-    if (code === "P2025") {
-      return NextResponse.json({ error: "Email introuvable" }, { status: 404 });
-    }
-    return NextResponse.json({ error: "Erreur interne" }, { status: 500 });
+    if (prismaErrorCode(err) === "P2025") return NextResponse.json({ error: "Email introuvable" }, { status: 404 });
+    return serverError("emails:update", err);
   }
 }
 
-export async function DELETE(
-  _req: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
-) {
+export async function DELETE(_req: NextRequest, { params }: Params) {
+  const auth = await requireUser(WRITE_ROLES);
+  if (!auth.ok) return auth.response;
+
+  const { id } = await params;
   try {
-    const { id } = await params;
-    await prisma.email.delete({ where: { id } });
+    // Un email déjà parti fait partie de l'historique (statistiques, relances) : on le conserve.
+    const { count } = await prisma.email.deleteMany({ where: { id, status: { in: ["PENDING", "FAILED"] } } });
+    if (count === 0) {
+      return NextResponse.json({ error: "Seuls les emails non envoyés peuvent être supprimés" }, { status: 400 });
+    }
     return NextResponse.json({ ok: true });
   } catch (err) {
-    const code =
-      err && typeof err === "object" && "code" in err
-        ? (err as { code: string }).code
-        : "";
-    if (code === "P2025") {
-      return NextResponse.json({ error: "Email introuvable" }, { status: 404 });
-    }
-    return NextResponse.json({ error: "Erreur interne" }, { status: 500 });
+    return serverError("emails:delete", err);
   }
 }

@@ -1,110 +1,75 @@
 import { NextRequest, NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
 import { z } from "zod";
+import { prisma } from "@/lib/prisma";
+import { requireUser, WRITE_ROLES } from "@/lib/auth";
+import { parseJsonBody, prismaErrorCode, serverError } from "@/lib/api";
+import { normalizeCountryToIso2 } from "@/lib/prospect-language";
+import { suppressEmail } from "@/lib/sending";
+
+const nullableText = (max: number) => z.string().trim().max(max).nullable().optional();
 
 const UpdateProspectSchema = z
   .object({
-    company: z.string().min(1).optional(),
-    contact: z.string().nullable().optional(),
-    email: z.string().email().optional(),
-    phone: z.string().nullable().optional(),
-    country: z.string().min(1).optional(),
-    sector: z.string().nullable().optional(),
-    clientType: z.string().nullable().optional(),
-    product: z.string().nullable().optional(),
-    language: z.string().optional(),
+    company: z.string().trim().min(1).max(200).optional(),
+    contact: nullableText(120),
+    email: z.string().trim().toLowerCase().email().max(200).optional(),
+    phone: nullableText(60),
+    country: z.string().trim().min(1).max(80).optional(),
+    sector: nullableText(200),
+    clientType: nullableText(60),
+    product: nullableText(60),
+    language: z.string().trim().max(10).optional(),
     priority: z.enum(["HIGH", "MEDIUM", "LOW"]).optional(),
-    status: z
-      .enum([
-        "NEW",
-        "CONTACTED",
-        "IN_DISCUSSION",
-        "CONVERTED",
-        "COLD",
-        "UNSUBSCRIBED",
-      ])
-      .optional(),
-    website: z.string().nullable().optional(),
-    source: z.string().nullable().optional(),
-    notes: z.string().nullable().optional(),
-    prospectType: z.enum(["COMMERCIAL", "FINANCIAL"]).optional(),
-    financialCategory: z.string().nullable().optional(),
+    status: z.enum(["NEW", "CONTACTED", "IN_DISCUSSION", "CONVERTED", "COLD", "UNSUBSCRIBED"]).optional(),
+    website: nullableText(300),
+    source: nullableText(60),
+    notes: nullableText(5000),
   })
   .strict();
 
-export async function PATCH(
-  req: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
-) {
-  try {
-    const { id } = await params;
-    const body = await req.json();
-    const parsed = UpdateProspectSchema.safeParse(body);
-    if (!parsed.success) {
-      return NextResponse.json(
-        { error: parsed.error.issues[0]?.message ?? "Donnees invalides" },
-        { status: 400 }
-      );
-    }
-    const data = parsed.data;
-    if (Object.keys(data).length === 0) {
-      return NextResponse.json(
-        { error: "Aucun champ a mettre a jour" },
-        { status: 400 }
-      );
-    }
+type Params = { params: Promise<{ id: string }> };
 
+export async function PATCH(req: NextRequest, { params }: Params) {
+  const auth = await requireUser(WRITE_ROLES);
+  if (!auth.ok) return auth.response;
+
+  const { id } = await params;
+  const parsed = await parseJsonBody(req, UpdateProspectSchema);
+  if (!parsed.ok) return parsed.response;
+  const data = { ...parsed.data, ...(parsed.data.country ? { country: normalizeCountryToIso2(parsed.data.country) } : {}) };
+  if (Object.keys(data).length === 0) {
+    return NextResponse.json({ error: "Aucun champ à mettre à jour" }, { status: 400 });
+  }
+
+  try {
     if (data.email) {
       const taken = await prisma.prospect.findFirst({
-        where: { email: data.email, NOT: { id } },
+        where: { email: { equals: data.email, mode: "insensitive" }, NOT: { id } },
+        select: { id: true },
       });
-      if (taken) {
-        return NextResponse.json(
-          { error: "Un prospect avec cet email existe deja" },
-          { status: 409 }
-        );
-      }
+      if (taken) return NextResponse.json({ error: "Un prospect avec cet email existe déjà" }, { status: 409 });
     }
 
-    const prospect = await prisma.prospect.update({
-      where: { id },
-      data,
-    });
+    const prospect = await prisma.prospect.update({ where: { id }, data });
+    // Une désinscription saisie à la main vaut pour toutes les campagnes.
+    if (data.status === "UNSUBSCRIBED") await suppressEmail(prospect.email, `manual (${auth.user.email})`);
     return NextResponse.json(prospect);
   } catch (err) {
-    const code =
-      err && typeof err === "object" && "code" in err
-        ? (err as { code: string }).code
-        : "";
-    if (code === "P2025") {
-      return NextResponse.json(
-        { error: "Prospect introuvable" },
-        { status: 404 }
-      );
-    }
-    return NextResponse.json({ error: "Erreur interne" }, { status: 500 });
+    if (prismaErrorCode(err) === "P2025") return NextResponse.json({ error: "Prospect introuvable" }, { status: 404 });
+    return serverError("prospects:update", err);
   }
 }
 
-export async function DELETE(
-  _req: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
-) {
+export async function DELETE(_req: NextRequest, { params }: Params) {
+  const auth = await requireUser(["ADMIN", "COMMERCIAL"]);
+  if (!auth.ok) return auth.response;
+
+  const { id } = await params;
   try {
-    const { id } = await params;
     await prisma.prospect.delete({ where: { id } });
     return NextResponse.json({ ok: true });
   } catch (err) {
-    const code =
-      err && typeof err === "object" && "code" in err
-        ? (err as { code: string }).code
-        : "";
-    if (code === "P2025") {
-      return NextResponse.json(
-        { error: "Prospect introuvable" },
-        { status: 404 }
-      );
-    }
-    return NextResponse.json({ error: "Erreur interne" }, { status: 500 });
+    if (prismaErrorCode(err) === "P2025") return NextResponse.json({ error: "Prospect introuvable" }, { status: 404 });
+    return serverError("prospects:delete", err);
   }
 }

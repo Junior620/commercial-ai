@@ -1,63 +1,61 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { requireUser, WRITE_ROLES } from "@/lib/auth";
+import { serverError } from "@/lib/api";
 
 /**
- * Marque un email comme REPLIED (reponse recue hors webhook Resend).
- * Incremente replyCount sur la campagne une seule fois.
+ * Marque un email comme ayant reçu une réponse (saisie manuelle).
+ * Idempotent : le compteur de réponses n'est incrémenté qu'une fois,
+ * les relances en attente sont annulées et le prospect passe « En discussion ».
  */
-export async function POST(
-  _req: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
-) {
+export async function POST(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const auth = await requireUser(WRITE_ROLES);
+  if (!auth.ok) return auth.response;
+
+  const { id } = await params;
   try {
-    const { id } = await params;
     const email = await prisma.email.findUnique({
       where: { id },
-      include: { campaign: true },
+      select: { campaignId: true, prospectId: true, status: true },
     });
-    if (!email) {
-      return NextResponse.json({ error: "Email introuvable" }, { status: 404 });
+    if (!email) return NextResponse.json({ error: "Email introuvable" }, { status: 404 });
+    if (email.status === "PENDING" || email.status === "SENDING") {
+      return NextResponse.json({ error: "Cet email n'a pas encore été envoyé" }, { status: 400 });
     }
 
-    if (email.status === "REPLIED") {
-      return NextResponse.json({ ok: true, already: true });
-    }
-
-    if (email.status === "PENDING") {
-      return NextResponse.json(
-        { error: "Impossible de marquer comme repondu un email non envoye" },
-        { status: 400 }
-      );
-    }
-
-    await prisma.$transaction(async (tx) => {
-      await tx.email.update({
-        where: { id },
+    const changed = await prisma.$transaction(async (tx) => {
+      const { count } = await tx.email.updateMany({
+        where: { id, status: { not: "REPLIED" } },
         data: { status: "REPLIED", repliedAt: new Date() },
       });
-      await tx.campaign.update({
-        where: { id: email.campaignId },
-        data: { replyCount: { increment: 1 } },
+      if (count === 0) return false;
+
+      await tx.campaign.update({ where: { id: email.campaignId }, data: { replyCount: { increment: 1 } } });
+      // Le prospect a répondu : on annule les relances encore en attente.
+      await tx.email.updateMany({
+        where: { campaignId: email.campaignId, prospectId: email.prospectId, status: "PENDING" },
+        data: { status: "FAILED" },
       });
-      const existingResponse = await tx.response.findFirst({
-        where: { emailId: id },
+      await tx.prospect.updateMany({
+        where: { id: email.prospectId, status: { in: ["NEW", "CONTACTED"] } },
+        data: { status: "IN_DISCUSSION" },
       });
-      if (!existingResponse) {
+      const existing = await tx.response.findFirst({ where: { emailId: id }, select: { id: true } });
+      if (!existing) {
         await tx.response.create({
           data: {
             emailId: id,
             prospectId: email.prospectId,
-            content:
-              "Reponse recue — marquage manuel depuis la fiche campagne.",
+            content: `Réponse reçue (saisie manuelle par ${auth.user.email}).`,
             classification: "UNKNOWN",
           },
         });
       }
+      return true;
     });
 
-    return NextResponse.json({ ok: true });
-  } catch (e) {
-    console.error("[mark-replied]", e);
-    return NextResponse.json({ error: "Erreur serveur" }, { status: 500 });
+    return NextResponse.json({ ok: true, already: !changed });
+  } catch (err) {
+    return serverError("emails:mark-replied", err);
   }
 }

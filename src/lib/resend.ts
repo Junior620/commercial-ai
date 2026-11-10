@@ -1,55 +1,90 @@
 import { Resend } from "resend";
+import { getAppUrl, oneClickUnsubscribeUrl, unsubscribeUrl } from "@/lib/unsubscribe";
 
-function getResendClient() {
-  const apiKey = process.env.RESEND_API_KEY;
-  if (!apiKey) {
-    return null;
-  }
-  return new Resend(apiKey);
+// Couleurs de marque SCPB (olive / soleil) pour les emails.
+const BRAND_PRIMARY = "#4E5A1F";
+const BRAND_ACCENT = "#F7AD21";
+const TEXT_COLOR = "#1C1410";
+const MUTED_COLOR = "#6E5646";
+
+let _resend: Resend | null = null;
+function getResendClient(): Resend | null {
+  if (_resend) return _resend;
+  const apiKey = process.env.RESEND_API_KEY?.trim();
+  if (!apiKey) return null;
+  _resend = new Resend(apiKey);
+  return _resend;
 }
 
-interface SendEmailParams {
+export class EmailSendError extends Error {
+  constructor(
+    message: string,
+    /** true si un nouvel essai a des chances de réussir (429, 5xx, réseau). */
+    public readonly retryable: boolean
+  ) {
+    super(message);
+  }
+}
+
+export interface SendEmailParams {
   to: string;
   subject: string;
   html: string;
-  from?: string;
+  text: string;
+  /** Clé d'idempotence Resend (24 h) : l'id interne de l'email. */
+  idempotencyKey: string;
   replyTo?: string;
+  headers?: Record<string, string>;
   tags?: { name: string; value: string }[];
 }
 
-export async function sendEmail(params: SendEmailParams) {
-  const resend = getResendClient();
-  if (!resend) {
-    console.warn("RESEND_API_KEY not configured, email not sent");
-    return { id: `mock-${Date.now()}` };
-  }
+export interface SendEmailResult {
+  id: string;
+  simulated: boolean;
+}
 
-  const fromEmail =
-    params.from || process.env.RESEND_FROM_EMAIL || "noreply@yourdomain.com";
-
+function fromAddress(): string {
+  const fromEmail = process.env.RESEND_FROM_EMAIL?.trim() || "noreply@example.com";
   const senderName = process.env.SENDER_NAME?.trim();
   const senderCompany = process.env.SENDER_COMPANY?.trim();
-  const displayName = senderName && senderCompany
-    ? `${senderName} - ${senderCompany}`
-    : senderName || senderCompany || "";
+  const displayName =
+    senderName && senderCompany ? `${senderName} - ${senderCompany}` : senderName || senderCompany || "";
+  return displayName ? `${displayName.replace(/[<>"]/g, "")} <${fromEmail}>` : fromEmail;
+}
 
-  const from = displayName ? `${displayName} <${fromEmail}>` : fromEmail;
-
-  const { data, error } = await resend.emails.send({
-    from,
-    to: params.to,
-    subject: params.subject,
-    html: params.html,
-    replyTo: params.replyTo || fromEmail,
-    tags: params.tags,
-  });
-
-  if (error) {
-    throw new Error(`Resend error: ${error.message}`);
+export async function sendEmail(params: SendEmailParams): Promise<SendEmailResult> {
+  const resend = getResendClient();
+  if (!resend) {
+    if (process.env.NODE_ENV === "production") {
+      throw new EmailSendError("RESEND_API_KEY non configurée : envoi impossible", false);
+    }
+    console.warn(`[resend] RESEND_API_KEY absente : envoi simulé vers ${params.to}`);
+    return { id: `simulated-${params.idempotencyKey}`, simulated: true };
   }
 
-  return data;
+  const { data, error } = await resend.emails.send(
+    {
+      from: fromAddress(),
+      to: params.to,
+      subject: params.subject,
+      html: params.html,
+      text: params.text,
+      replyTo: params.replyTo || process.env.RESEND_REPLY_TO?.trim() || process.env.RESEND_FROM_EMAIL?.trim(),
+      headers: params.headers,
+      tags: params.tags,
+    },
+    { idempotencyKey: params.idempotencyKey }
+  );
+
+  if (error || !data) {
+    const status = error?.statusCode ?? 0;
+    const retryable = status === 429 || status >= 500 || status === 0;
+    throw new EmailSendError(`Resend : ${error?.message || "réponse vide"}`, retryable);
+  }
+  return { id: data.id, simulated: false };
 }
+
+// ─── Contenu ─────────────────────────────────────────────────────
 
 function escapeHtml(text: string): string {
   return text
@@ -59,144 +94,166 @@ function escapeHtml(text: string): string {
     .replace(/"/g, "&quot;");
 }
 
-function buildSignatureHtml(): string {
-  const name = process.env.SENDER_NAME?.trim() || "";
-  const position = process.env.SENDER_POSITION?.trim() || "";
-  const company = process.env.SENDER_COMPANY?.trim() || "";
-  const phone = process.env.SENDER_PHONE?.trim() || "";
-  const website = process.env.SENDER_WEBSITE?.trim() || "";
-  const email = process.env.RESEND_FROM_EMAIL?.trim() || "";
-  const appUrl = process.env.NEXT_PUBLIC_APP_URL?.trim().replace(/\/+$/, "") || "";
-  const logoUrl =
-    process.env.SENDER_LOGO_URL?.trim() ||
-    (appUrl ? `${appUrl}/logo.png` : "");
+type FooterCopy = { why: string; unsubscribe: string };
 
-  if (!name && !company) return "";
+const FOOTER_COPY: Record<string, FooterCopy> = {
+  fr: {
+    why: "Vous recevez ce message car vos coordonnées professionnelles sont publiquement accessibles et en lien avec la filière cacao.",
+    unsubscribe: "Ne plus recevoir nos messages",
+  },
+  en: {
+    why: "You are receiving this message because your business contact details are publicly available and relevant to the cocoa industry.",
+    unsubscribe: "Unsubscribe",
+  },
+  es: {
+    why: "Recibe este mensaje porque sus datos de contacto profesionales son públicos y están relacionados con el sector del cacao.",
+    unsubscribe: "Darse de baja",
+  },
+  pt: {
+    why: "Recebe esta mensagem porque os seus contactos profissionais são públicos e relacionados com o setor do cacau.",
+    unsubscribe: "Cancelar subscrição",
+  },
+  de: {
+    why: "Sie erhalten diese Nachricht, weil Ihre geschäftlichen Kontaktdaten öffentlich zugänglich sind und mit der Kakaobranche in Verbindung stehen.",
+    unsubscribe: "Abmelden",
+  },
+};
+
+function footerCopy(lang: string): FooterCopy {
+  return FOOTER_COPY[lang] || FOOTER_COPY.en;
+}
+
+function senderInfo() {
+  const appUrl = getAppUrl();
+  return {
+    name: process.env.SENDER_NAME?.trim() || "",
+    position: process.env.SENDER_POSITION?.trim() || "",
+    company: process.env.SENDER_COMPANY?.trim() || "",
+    phone: process.env.SENDER_PHONE?.trim() || "",
+    website: process.env.SENDER_WEBSITE?.trim() || "",
+    email: process.env.RESEND_FROM_EMAIL?.trim() || "",
+    logoUrl: process.env.SENDER_LOGO_URL?.trim() || `${appUrl}/email-logo.png`,
+  };
+}
+
+function buildSignatureHtml(): string {
+  const s = senderInfo();
+  if (!s.name && !s.company) return "";
 
   const lines: string[] = [];
+  if (s.name) lines.push(`<strong style="color:${TEXT_COLOR};font-size:15px;">${escapeHtml(s.name)}</strong>`);
+  if (s.position) lines.push(`<span style="color:${MUTED_COLOR};font-size:13px;">${escapeHtml(s.position)}</span>`);
+  if (s.company) lines.push(`<span style="color:${BRAND_PRIMARY};font-weight:600;font-size:14px;">${escapeHtml(s.company)}</span>`);
 
-  if (name) {
-    lines.push(
-      `<span style="font-weight:600;color:#1a1a1a;font-size:15px;">${escapeHtml(name)}</span>`
-    );
-  }
-  if (position) {
-    lines.push(
-      `<span style="color:#555;font-size:13px;">${escapeHtml(position)}</span>`
-    );
-  }
-  if (company) {
-    lines.push(
-      `<span style="font-weight:600;color:#2563eb;font-size:14px;">${escapeHtml(company)}</span>`
-    );
-  }
-
-  const contactParts: string[] = [];
-  if (phone) {
-    contactParts.push(
-      `<span style="color:#555;">&#9742; ${escapeHtml(phone)}</span>`
-    );
-  }
-  if (email) {
-    contactParts.push(
-      `<a href="mailto:${escapeHtml(email)}" style="color:#2563eb;text-decoration:none;">&#9993; ${escapeHtml(email)}</a>`
-    );
-  }
-  if (website) {
-    const cleanUrl = website.replace(/^https?:\/\//, "");
-    contactParts.push(
-      `<a href="${escapeHtml(website)}" style="color:#2563eb;text-decoration:none;">&#127760; ${escapeHtml(cleanUrl)}</a>`
+  const contacts: string[] = [];
+  if (s.phone) contacts.push(escapeHtml(s.phone));
+  if (s.email) contacts.push(`<a href="mailto:${escapeHtml(s.email)}" style="color:${BRAND_PRIMARY};text-decoration:none;">${escapeHtml(s.email)}</a>`);
+  if (s.website) {
+    contacts.push(
+      `<a href="${escapeHtml(s.website)}" style="color:${BRAND_PRIMARY};text-decoration:none;">${escapeHtml(s.website.replace(/^https?:\/\//, ""))}</a>`
     );
   }
 
   return `
-    <table cellpadding="0" cellspacing="0" border="0" style="margin-top:28px;border-top:2px solid #2563eb;padding-top:16px;">
+    <table role="presentation" cellpadding="0" cellspacing="0" border="0" style="margin-top:28px;border-top:2px solid ${BRAND_ACCENT};padding-top:16px;">
       <tr>
-        ${
-          logoUrl
-            ? `<td style="vertical-align:top;padding-right:14px;">
-          <img
-            src="${escapeHtml(logoUrl)}"
-            alt="${escapeHtml(company || "Company logo")}"
-            width="52"
-            height="52"
-            style="display:block;width:52px;height:52px;object-fit:contain;border-radius:8px;background:#fff;"
-          />
-        </td>`
-            : ""
-        }
-        <td style="vertical-align:top;padding-right:16px;">
-          <div style="width:4px;height:60px;background:#2563eb;border-radius:2px;"></div>
+        <td style="vertical-align:top;padding-right:14px;">
+          <img src="${escapeHtml(s.logoUrl)}" alt="${escapeHtml(s.company || "Logo")}" width="56" height="37" style="display:block;width:56px;height:auto;" />
         </td>
-        <td style="vertical-align:top;font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;line-height:1.5;">
+        <td style="vertical-align:top;font-family:Helvetica,Arial,sans-serif;line-height:1.5;">
           ${lines.join("<br>")}
-          ${contactParts.length > 0 ? `<div style="margin-top:6px;font-size:12px;line-height:1.8;">${contactParts.join("&nbsp;&nbsp;|&nbsp;&nbsp;")}</div>` : ""}
+          ${contacts.length ? `<div style="margin-top:6px;font-size:12px;color:${MUTED_COLOR};">${contacts.join("&nbsp;&middot;&nbsp;")}</div>` : ""}
         </td>
       </tr>
     </table>`;
 }
 
-export function emailBodyToHtml(body: string): string {
+export interface EmailContentOptions {
+  /** Destinataire : sert au lien de désinscription. */
+  to: string;
+  /** Langue du prospect (fr, en, es, pt, de). */
+  language: string;
+  /** Adresse postale de l'expéditeur (obligation légale). */
+  companyAddress?: string | null;
+}
+
+export function buildEmailHtml(body: string, opts: EmailContentOptions): string {
+  const copy = footerCopy(opts.language);
   const paragraphs = body
     .split(/\n\s*\n|\n/)
     .filter((p) => p.trim().length > 0)
-    .map((p) => {
-      const trimmed = p.trim();
-      return `<p style="margin:0 0 14px 0;line-height:1.65;">${escapeHtml(trimmed)}</p>`;
-    })
+    .map((p) => `<p style="margin:0 0 14px 0;line-height:1.65;">${escapeHtml(p.trim())}</p>`)
     .join("");
-
-  const signature = buildSignatureHtml();
+  const company = process.env.SENDER_COMPANY?.trim() || "";
+  const address = opts.companyAddress?.trim() || process.env.COMPANY_ADDRESS?.trim() || "";
 
   return `<!DOCTYPE html>
-<html lang="en">
+<html lang="${escapeHtml(opts.language || "en")}">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta http-equiv="X-UA-Compatible" content="IE=edge">
-  <title>Email</title>
-  <!--[if mso]>
-  <noscript><xml><o:OfficeDocumentSettings><o:PixelsPerInch>96</o:PixelsPerInch></o:OfficeDocumentSettings></xml></noscript>
-  <![endif]-->
+  <title>${escapeHtml(company || "Message")}</title>
 </head>
-<body style="margin:0;padding:0;background-color:#f4f4f7;font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;-webkit-text-size-adjust:100%;-ms-text-size-adjust:100%;">
-
-  <!-- Outer wrapper -->
-  <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="background-color:#f4f4f7;">
+<body style="margin:0;padding:0;background-color:#F8F3EA;font-family:Helvetica,Arial,sans-serif;">
+  <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="background-color:#F8F3EA;">
     <tr>
       <td align="center" style="padding:32px 16px;">
-
-        <!-- Inner card -->
-        <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="600" style="max-width:600px;width:100%;background-color:#ffffff;border-radius:12px;overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,0.06);">
-
-          <!-- Accent bar -->
+        <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="600" style="max-width:600px;width:100%;background-color:#FFFDF8;border-radius:10px;overflow:hidden;border:1px solid #E4D9C6;">
+          <tr><td style="height:4px;background:${BRAND_PRIMARY};font-size:0;line-height:0;">&nbsp;</td></tr>
           <tr>
-            <td style="height:4px;background:linear-gradient(90deg,#2563eb,#1e40af);font-size:0;line-height:0;">&nbsp;</td>
-          </tr>
-
-          <!-- Body -->
-          <tr>
-            <td style="padding:36px 40px 24px 40px;font-size:15px;color:#1a1a1a;line-height:1.65;">
+            <td style="padding:36px 40px 24px 40px;font-size:15px;color:${TEXT_COLOR};line-height:1.65;">
               ${paragraphs}
-              ${signature}
+              ${buildSignatureHtml()}
             </td>
           </tr>
-
-          <!-- Footer -->
           <tr>
-            <td style="padding:16px 40px 24px 40px;border-top:1px solid #eee;">
-              <p style="margin:0;font-size:11px;color:#999;line-height:1.5;text-align:center;">
-                This email was sent by ${escapeHtml(process.env.SENDER_COMPANY?.trim() || "our team")}. If you believe you received this message in error, please disregard it.
+            <td style="padding:16px 40px 24px 40px;border-top:1px solid #E4D9C6;">
+              <p style="margin:0 0 6px 0;font-size:11px;color:${MUTED_COLOR};line-height:1.5;text-align:center;">${escapeHtml(copy.why)}</p>
+              ${address ? `<p style="margin:0 0 6px 0;font-size:11px;color:${MUTED_COLOR};line-height:1.5;text-align:center;">${escapeHtml([company, address].filter(Boolean).join(" · "))}</p>` : ""}
+              <p style="margin:0;font-size:11px;line-height:1.5;text-align:center;">
+                <a href="${escapeHtml(unsubscribeUrl(opts.to))}" style="color:${MUTED_COLOR};text-decoration:underline;">${escapeHtml(copy.unsubscribe)}</a>
               </p>
             </td>
           </tr>
-
         </table>
-
       </td>
     </tr>
   </table>
-
 </body>
 </html>`;
+}
+
+export function buildEmailText(body: string, opts: EmailContentOptions): string {
+  const s = senderInfo();
+  const copy = footerCopy(opts.language);
+  const address = opts.companyAddress?.trim() || process.env.COMPANY_ADDRESS?.trim() || "";
+  const signature = [s.name, s.position, s.company, [s.phone, s.email, s.website].filter(Boolean).join(" · ")]
+    .filter(Boolean)
+    .join("\n");
+  return [
+    body.trim(),
+    signature ? `--\n${signature}` : "",
+    "",
+    copy.why,
+    address ? [s.company, address].filter(Boolean).join(" · ") : "",
+    `${copy.unsubscribe} : ${unsubscribeUrl(opts.to)}`,
+  ]
+    .filter((line, i, arr) => line !== "" || arr[i - 1] !== "")
+    .join("\n");
+}
+
+/** En-têtes exigés par Gmail / Yahoo pour l'envoi en volume (RFC 2369 + RFC 8058). */
+export function buildUnsubscribeHeaders(to: string): Record<string, string> {
+  const mailto = process.env.RESEND_FROM_EMAIL?.trim();
+  const links = [`<${oneClickUnsubscribeUrl(to)}>`];
+  if (mailto) links.push(`<mailto:${mailto}?subject=unsubscribe>`);
+  return {
+    "List-Unsubscribe": links.join(", "),
+    "List-Unsubscribe-Post": "List-Unsubscribe=One-Click",
+  };
+}
+
+/** Aperçu HTML (UI) sans lien de désinscription personnalisé. */
+export function emailBodyToHtml(body: string, language = "fr"): string {
+  return buildEmailHtml(body, { to: "apercu@example.com", language });
 }

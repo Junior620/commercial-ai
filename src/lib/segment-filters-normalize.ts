@@ -1,3 +1,7 @@
+import type { Prisma } from "@/generated/prisma/client";
+import type { Priority, ProspectStatus } from "@/generated/prisma/enums";
+import { normalizeCountryToIso2 } from "@/lib/prospect-language";
+
 /**
  * Unifie les filtres segment (singulier / pluriel) pour l'enregistrement
  * et la recherche de prospects (API).
@@ -61,42 +65,47 @@ export function normalizeSegmentFilters(
   return f;
 }
 
-export function buildProspectWhereFromFilters(
-  filters: Record<string, unknown>
-): Record<string, unknown> {
-  const where: Record<string, unknown> = {};
+const VALID_STATUSES = new Set(["NEW", "CONTACTED", "IN_DISCUSSION", "CONVERTED", "COLD", "UNSUBSCRIBED"]);
+const VALID_PRIORITIES = new Set(["HIGH", "MEDIUM", "LOW"]);
 
-  const countries = filters.countries as string[] | undefined;
-  if (countries?.length) where.country = { in: countries };
+/** true si le segment définit au moins un critère de ciblage. */
+export function hasTargetingCriteria(filters: Record<string, unknown>): boolean {
+  return Object.keys(buildProspectWhereFromFilters(filters)).some((k) => k !== "prospectType");
+}
 
-  const sectors = filters.sectors as string[] | undefined;
-  if (sectors?.length) where.sector = { in: sectors };
+/**
+ * Traduit les filtres d'un segment en clause Prisma.
+ * Les valeurs d'énumération inconnues sont ignorées (au lieu de provoquer une erreur 500)
+ * et les pays sont comparés sous leur forme saisie et en code ISO2.
+ */
+export function buildProspectWhereFromFilters(filters: Record<string, unknown>): Prisma.ProspectWhereInput {
+  const where: Prisma.ProspectWhereInput = {};
+  const list = (key: string) => (filters[key] as string[] | undefined)?.filter(Boolean) ?? [];
 
-  const clientTypes = filters.clientTypes as string[] | undefined;
-  if (clientTypes?.length) where.clientType = { in: clientTypes };
+  const countries = list("countries");
+  if (countries.length) {
+    where.country = { in: [...new Set([...countries, ...countries.map(normalizeCountryToIso2)])] };
+  }
+  const sectors = list("sectors");
+  if (sectors.length) where.sector = { in: sectors };
+  const clientTypes = list("clientTypes");
+  if (clientTypes.length) where.clientType = { in: clientTypes };
+  const products = list("products");
+  if (products.length) where.product = { in: products };
+  const languages = list("languages");
+  if (languages.length) where.language = { in: languages };
 
-  const products = filters.products as string[] | undefined;
-  if (products?.length) where.product = { in: products };
-
-  const priorities = filters.priorities as string[] | undefined;
-  if (priorities?.length) where.priority = { in: priorities };
-
-  const languages = filters.languages as string[] | undefined;
-  if (languages?.length) where.language = { in: languages };
-
-  const statuses = filters.statuses as string[] | undefined;
-  if (statuses?.length) where.status = { in: statuses };
-
-  const prospectTypes = filters.prospectTypes as string[] | undefined;
-  if (prospectTypes?.length) where.prospectType = { in: prospectTypes };
+  const priorities = list("priorities").filter((p) => VALID_PRIORITIES.has(p));
+  if (priorities.length) where.priority = { in: priorities as Priority[] };
+  const statuses = list("statuses").filter((s) => VALID_STATUSES.has(s));
+  if (statuses.length) where.status = { in: statuses as ProspectStatus[] };
 
   if (filters.minScore != null) {
-    const n =
-      typeof filters.minScore === "number"
-        ? filters.minScore
-        : parseInt(String(filters.minScore), 10);
+    const n = typeof filters.minScore === "number" ? filters.minScore : parseInt(String(filters.minScore), 10);
     if (!Number.isNaN(n)) where.score = { gte: n };
   }
 
+  // Le module financier a été retiré : un segment ne cible que des prospects commerciaux.
+  where.prospectType = "COMMERCIAL";
   return where;
 }

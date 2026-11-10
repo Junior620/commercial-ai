@@ -1,24 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-
-function csvEscape(val: string): string {
-  const s = val ?? "";
-  if (/[",\n\r]/.test(s)) return `"${s.replace(/"/g, '""')}"`;
-  return s;
-}
-
-function toCsv(headers: string[], rows: string[][]): string {
-  const lines = [
-    headers.map(csvEscape).join(","),
-    ...rows.map((r) => r.map(csvEscape).join(",")),
-  ];
-  return lines.join("\r\n");
-}
+import { requireUser } from "@/lib/auth";
+import { toCsv } from "@/lib/csv";
 
 /**
  * GET /api/export?type=prospects|bounced|campaign_emails&campaignId=...
  */
 export async function GET(req: NextRequest) {
+  const auth = await requireUser();
+  if (!auth.ok) return auth.response;
   try {
     const type = req.nextUrl.searchParams.get("type") || "prospects";
     const campaignId = req.nextUrl.searchParams.get("campaignId");
@@ -111,6 +101,7 @@ export async function GET(req: NextRequest) {
 
     /* prospects (defaut) */
     const prospects = await prisma.prospect.findMany({
+      where: { prospectType: "COMMERCIAL" },
       orderBy: { createdAt: "desc" },
       take: 10000,
     });

@@ -40,6 +40,8 @@ enum CampaignStatus {
 
 enum EmailStatus {
   PENDING
+  /// Réservé par un worker d'envoi (évite les doubles envois)
+  SENDING
   SENT
   DELIVERED
   OPENED
@@ -100,6 +102,8 @@ model User {
   name      String?
   role      UserRole @default(COMMERCIAL)
   avatarUrl String?
+  /// Membre désactivé : ne peut plus se connecter
+  active    Boolean  @default(true)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -143,6 +147,7 @@ model Prospect {
   @@index([score])
   @@index([sector])
   @@index([prospectType])
+  @@index([createdAt])
   @@map("prospects")
 }
 
@@ -167,6 +172,7 @@ model ProspectSegment {
   segment    Segment  @relation(fields: [segmentId], references: [id], onDelete: Cascade)
 
   @@id([prospectId, segmentId])
+  @@index([segmentId])
   @@map("prospect_segments")
 }
 
@@ -226,9 +232,12 @@ model Email {
 
   responses    Response[]
 
+  @@unique([campaignId, prospectId, type])
   @@index([campaignId])
   @@index([prospectId])
   @@index([status])
+  @@index([status, sentAt])
+  @@index([resendId])
   @@index([scheduledFor])
   @@map("emails")
 }
@@ -246,6 +255,8 @@ model Response {
   createdAt      DateTime               @default(now())
 
   @@index([classification])
+  @@index([prospectId])
+  @@index([emailId])
   @@map("responses")
 }
 
@@ -279,6 +290,7 @@ model ScrapingJob {
   createdAt    DateTime         @default(now())
 
   @@index([status])
+  @@index([kind, createdAt])
   @@map("scraping_jobs")
 }
 
@@ -313,6 +325,27 @@ model AppSettings {
   weeklyReplyTarget   Int    @default(5)
   /// Seuil d alerte delivrabilite : rebonds / tentatives sur 30j (%)
   alertBouncePctThreshold Int @default(5)
+  /// Adresse postale affichée en pied d'email (obligation légale prospection B2B)
+  companyAddress      String?
 
   @@map("app_settings")
+}
+
+/// Adresses à ne plus jamais contacter (désinscription, plainte, rebond définitif)
+model Suppression {
+  email     String   @id
+  reason    String
+  createdAt DateTime @default(now())
+
+  @@map("suppressions")
+}
+
+/// Événements webhook déjà traités (idempotence svix-id)
+model WebhookEvent {
+  id        String   @id
+  type      String
+  createdAt DateTime @default(now())
+
+  @@index([createdAt])
+  @@map("webhook_events")
 }

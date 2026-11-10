@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { abortApifyRun, getApifyRunStatuses } from "@/lib/apify";
+import { requireUser, WRITE_ROLES } from "@/lib/auth";
 
 type ProgressRun = { runId: string; label: string };
 
@@ -16,6 +17,8 @@ export async function GET(
   _req: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const auth = await requireUser();
+  if (!auth.ok) return auth.response;
   const { id } = await params;
   const job = await prisma.scrapingJob.findUnique({ where: { id } });
   if (!job) {
@@ -55,6 +58,8 @@ export async function PATCH(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const auth = await requireUser(WRITE_ROLES);
+  if (!auth.ok) return auth.response;
   const { id } = await params;
   let body: { action?: string } = {};
   try {
@@ -63,7 +68,7 @@ export async function PATCH(
     return NextResponse.json({ error: "Corps JSON invalide" }, { status: 400 });
   }
   if (body.action !== "cancel") {
-    return NextResponse.json({ error: "Action non supportee" }, { status: 400 });
+    return NextResponse.json({ error: "Action non supportée" }, { status: 400 });
   }
 
   const job = await prisma.scrapingJob.findUnique({ where: { id } });
@@ -72,7 +77,7 @@ export async function PATCH(
   }
   if (job.status !== "RUNNING") {
     return NextResponse.json(
-      { error: "Seul un job en cours (RUNNING) peut etre annule" },
+      { error: "Seul un scraping en cours peut être annulé" },
       { status: 400 }
     );
   }
@@ -84,10 +89,10 @@ export async function PATCH(
   }
 
   const cancelledProgress: StoredProgress = {
-    phase: "Annule",
+    phase: "Annulé",
     percent: typeof progress?.percent === "number" ? progress.percent : 0,
     detail:
-      "Arret demande par l utilisateur. Les runs Apify en cours sont interrompus si possible.",
+      `Arrêt demandé par ${auth.user.email}. Les recherches Apify en cours sont interrompues.`,
     runs: progress?.runs,
     updatedAt: new Date().toISOString(),
   };

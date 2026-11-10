@@ -1,205 +1,105 @@
 import { NextRequest, NextResponse } from "next/server";
 import { Resend } from "resend";
 import { prisma } from "@/lib/prisma";
+import { computeEmailEventEffect, normalizeEventType } from "@/lib/email-events";
+import { suppressEmail } from "@/lib/sending";
 
-function normalizeEventType(type: string | undefined): string {
-  if (!type) return "";
-  return type.toLowerCase().replace(/^email\./, "");
-}
+type WebhookPayload = {
+  type?: string;
+  data?: {
+    email_id?: string;
+    tags?: unknown;
+    bounce?: { type?: string };
+  };
+};
 
-function prismaIdFromTags(tags: unknown): string | undefined {
-  if (tags == null) return undefined;
-  if (typeof tags === "object" && !Array.isArray(tags)) {
-    const v = (tags as Record<string, string>)["app_email_id"];
-    if (typeof v === "string" && v.length > 0) return v;
+function appEmailIdFromTags(tags: unknown): string | undefined {
+  if (tags && typeof tags === "object" && !Array.isArray(tags)) {
+    const v = (tags as Record<string, unknown>)["app_email_id"];
+    return typeof v === "string" && v ? v : undefined;
   }
   if (Array.isArray(tags)) {
-    const row = tags.find(
-      (x: { name?: string; value?: string }) => x?.name === "app_email_id"
-    );
-    if (row?.value && typeof row.value === "string") return row.value;
+    const row = tags.find((x: { name?: string }) => x?.name === "app_email_id") as { value?: string } | undefined;
+    return typeof row?.value === "string" ? row.value : undefined;
   }
   return undefined;
 }
 
-function resolveAppEmailId(data: {
-  email_id?: string;
-  tags?: unknown;
-}): { resendId?: string; prismaId?: string } {
-  const resendId =
-    typeof data.email_id === "string" ? data.email_id : undefined;
-  const prismaId = prismaIdFromTags(data.tags);
-  return { resendId, prismaId };
-}
-
 export async function POST(req: NextRequest) {
-  try {
-    const rawBody = await req.text();
-    const webhookSecret = process.env.RESEND_WEBHOOK_SECRET?.trim();
+  const rawBody = await req.text();
+  const secret = process.env.RESEND_WEBHOOK_SECRET?.trim();
+  const svixId = req.headers.get("svix-id");
 
-    let body: unknown;
-    if (webhookSecret) {
-      const svixId = req.headers.get("svix-id");
-      const svixTimestamp = req.headers.get("svix-timestamp");
-      const svixSignature = req.headers.get("svix-signature");
-      if (!svixId || !svixTimestamp || !svixSignature) {
-        return NextResponse.json(
-          { error: "Missing webhook signature headers" },
-          { status: 400 }
-        );
-      }
+  let payload: WebhookPayload;
+  if (secret) {
+    const svixTimestamp = req.headers.get("svix-timestamp");
+    const svixSignature = req.headers.get("svix-signature");
+    if (!svixId || !svixTimestamp || !svixSignature) {
+      return NextResponse.json({ error: "Signature manquante" }, { status: 401 });
+    }
+    try {
       const resend = new Resend(process.env.RESEND_API_KEY || "re_placeholder");
-      body = resend.webhooks.verify({
+      payload = resend.webhooks.verify({
         payload: rawBody,
-        headers: {
-          id: svixId,
-          timestamp: svixTimestamp,
-          signature: svixSignature,
-        },
-        webhookSecret,
-      });
-    } else {
-      body = JSON.parse(rawBody);
-      if (process.env.NODE_ENV === "development") {
-        console.warn(
-          "[webhook resend] RESEND_WEBHOOK_SECRET absent: verification signature desactivee"
-        );
-      }
+        headers: { id: svixId, timestamp: svixTimestamp, signature: svixSignature },
+        webhookSecret: secret,
+      }) as WebhookPayload;
+    } catch {
+      return NextResponse.json({ error: "Signature invalide" }, { status: 401 });
     }
-
-    const { type, data } = body as {
-      type?: string;
-      data?: {
-        email_id?: string;
-        tags?: unknown;
-      };
-    };
-
-    if (!data || typeof data !== "object") {
-      return NextResponse.json({ ok: true });
+  } else if (process.env.NODE_ENV === "production") {
+    console.error("[webhook resend] RESEND_WEBHOOK_SECRET absent : événement refusé");
+    return NextResponse.json({ error: "Webhook non configuré" }, { status: 503 });
+  } else {
+    console.warn("[webhook resend] RESEND_WEBHOOK_SECRET absent : signature non vérifiée (dev)");
+    try {
+      payload = JSON.parse(rawBody) as WebhookPayload;
+    } catch {
+      return NextResponse.json({ error: "JSON invalide" }, { status: 400 });
     }
-
-    const { resendId, prismaId } = resolveAppEmailId(data);
-    if (!resendId && !prismaId) {
-      return NextResponse.json({ ok: true });
-    }
-
-    const email = await prisma.email.findFirst({
-      where: {
-        OR: [
-          ...(resendId ? [{ resendId }] : []),
-          ...(prismaId ? [{ id: prismaId }] : []),
-        ],
-      },
-      include: { campaign: true },
-    });
-
-    if (!email) {
-      if (process.env.NODE_ENV === "development") {
-        console.warn(
-          "[webhook resend] Email introuvable (resendId / tag app_email_id)",
-          { type, resendId, prismaId }
-        );
-      }
-      return NextResponse.json({ ok: true });
-    }
-
-    const evt = normalizeEventType(type);
-
-    switch (evt) {
-      case "sent":
-      case "scheduled":
-      case "queued":
-        if (email.status === "PENDING") {
-          await prisma.email.update({
-            where: { id: email.id },
-            data: { status: "SENT", sentAt: email.sentAt ?? new Date() },
-          });
-        }
-        break;
-
-      case "delivered":
-        if (email.status === "SENT" || email.status === "PENDING") {
-          await prisma.email.update({
-            where: { id: email.id },
-            data: { status: "DELIVERED", deliveredAt: new Date() },
-          });
-          await prisma.campaign.update({
-            where: { id: email.campaignId },
-            data: { deliveredCount: { increment: 1 } },
-          });
-        }
-        break;
-
-      case "opened":
-        if (email.status !== "OPENED" && email.status !== "CLICKED" && email.status !== "REPLIED") {
-          await prisma.email.update({
-            where: { id: email.id },
-            data: { status: "OPENED", openedAt: new Date() },
-          });
-          await prisma.campaign.update({
-            where: { id: email.campaignId },
-            data: { openCount: { increment: 1 } },
-          });
-        }
-        break;
-
-      case "clicked":
-        if (email.status !== "CLICKED" && email.status !== "REPLIED") {
-          await prisma.email.update({
-            where: { id: email.id },
-            data: { status: "CLICKED", clickedAt: new Date() },
-          });
-          await prisma.campaign.update({
-            where: { id: email.campaignId },
-            data: { clickCount: { increment: 1 } },
-          });
-        }
-        break;
-
-      case "bounced":
-        if (email.status !== "BOUNCED") {
-          await prisma.email.update({
-            where: { id: email.id },
-            data: { status: "BOUNCED" },
-          });
-          await prisma.campaign.update({
-            where: { id: email.campaignId },
-            data: { bounceCount: { increment: 1 } },
-          });
-        }
-        break;
-
-      // Statuts Resend non modélisés dans notre enum Prisma.
-      // On les classe en FAILED pour éviter de laisser un email en SENT/PENDING.
-      case "failed":
-      case "canceled":
-      case "suppressed":
-      case "complained":
-        if (email.status !== "FAILED") {
-          await prisma.email.update({
-            where: { id: email.id },
-            data: { status: "FAILED" },
-          });
-        }
-        break;
-
-      // Informationnel chez Resend: on garde SENT tant qu'il n'y a pas delivered/bounced/failed.
-      case "delivery_delayed":
-        if (email.status === "PENDING") {
-          await prisma.email.update({
-            where: { id: email.id },
-            data: { status: "SENT", sentAt: email.sentAt ?? new Date() },
-          });
-        }
-        break;
-    }
-
-    return NextResponse.json({ ok: true });
-  } catch (error) {
-    if (process.env.NODE_ENV === "development") {
-      console.error("[webhook resend] verification/processing error:", error);
-    }
-    return NextResponse.json({ error: "Invalid webhook" }, { status: 400 });
   }
+
+  // Idempotence : Resend peut livrer plusieurs fois le même événement.
+  if (svixId && (await prisma.webhookEvent.findUnique({ where: { id: svixId } }))) {
+    return NextResponse.json({ ok: true, duplicate: true });
+  }
+
+  const data = payload.data;
+  const resendId = typeof data?.email_id === "string" ? data.email_id : undefined;
+  const appId = appEmailIdFromTags(data?.tags);
+  if (!resendId && !appId) return NextResponse.json({ ok: true });
+
+  const email = await prisma.email.findFirst({
+    where: { OR: [...(appId ? [{ id: appId }] : []), ...(resendId ? [{ resendId }] : [])] },
+    include: { prospect: { select: { email: true } } },
+  });
+  if (!email) return NextResponse.json({ ok: true });
+
+  const effect = computeEmailEventEffect(email, payload.type || "", { bounceType: data?.bounce?.type });
+
+  if (Object.keys(effect.update).length > 0 || effect.increments.length > 0) {
+    await prisma.$transaction([
+      prisma.email.update({ where: { id: email.id }, data: effect.update }),
+      ...(effect.increments.length
+        ? [
+            prisma.campaign.update({
+              where: { id: email.campaignId },
+              data: Object.fromEntries(effect.increments.map((c) => [c, { increment: 1 }])),
+            }),
+          ]
+        : []),
+    ]);
+  }
+
+  if (effect.suppress) {
+    await suppressEmail(email.prospect.email, effect.suppress.reason, effect.suppress.prospectStatus);
+  }
+
+  if (svixId) {
+    await prisma.webhookEvent
+      .create({ data: { id: svixId, type: normalizeEventType(payload.type) } })
+      .catch(() => undefined);
+  }
+
+  return NextResponse.json({ ok: true });
 }

@@ -1,29 +1,35 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 
+/** Routes accessibles sans session (pages d'auth, webhooks machine-à-machine, désinscription). */
+const PUBLIC_EXACT = new Set(["/login", "/auth/callback", "/auth/reset"]);
+const PUBLIC_PREFIXES = ["/api/inngest", "/api/webhooks/resend", "/api/unsubscribe", "/unsubscribe"];
+
+function isPublicPath(pathname: string): boolean {
+  if (PUBLIC_EXACT.has(pathname)) return true;
+  return PUBLIC_PREFIXES.some(
+    (prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`)
+  );
+}
+
+function unauthorized(request: NextRequest) {
+  if (request.nextUrl.pathname.startsWith("/api/")) {
+    return NextResponse.json({ error: "Non authentifié" }, { status: 401 });
+  }
+  const url = request.nextUrl.clone();
+  url.pathname = "/login";
+  url.search = "";
+  return NextResponse.redirect(url);
+}
+
 export async function updateSession(request: NextRequest) {
-  const pathname = request.nextUrl.pathname;
-
-  const isPublicPath =
-    pathname.startsWith("/login") ||
-    pathname.startsWith("/auth") ||
-    pathname.startsWith("/api/inngest") ||
-    pathname.startsWith("/api/webhooks");
-
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL?.trim();
-  const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY?.trim();
-
-  // Les routes publiques n'ont pas besoin de verifier la session.
-  // Evite des appels reseau Supabase inutiles (et bruyants) sur /login.
-  if (isPublicPath) {
+  if (isPublicPath(request.nextUrl.pathname)) {
     return NextResponse.next({ request });
   }
 
-  if (!supabaseUrl || !supabaseKey) {
-    const url = request.nextUrl.clone();
-    url.pathname = "/login";
-    return NextResponse.redirect(url);
-  }
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL?.trim();
+  const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY?.trim();
+  if (!supabaseUrl || !supabaseKey) return unauthorized(request);
 
   let supabaseResponse = NextResponse.next({ request });
 
@@ -33,9 +39,7 @@ export async function updateSession(request: NextRequest) {
         return request.cookies.getAll();
       },
       setAll(cookiesToSet) {
-        cookiesToSet.forEach(({ name, value }) =>
-          request.cookies.set(name, value)
-        );
+        cookiesToSet.forEach(({ name, value }) => request.cookies.set(name, value));
         supabaseResponse = NextResponse.next({ request });
         cookiesToSet.forEach(({ name, value, options }) =>
           supabaseResponse.cookies.set(name, value, options)
@@ -44,20 +48,16 @@ export async function updateSession(request: NextRequest) {
     },
   });
 
-  let user = null;
+  let hasUser = false;
   try {
     const { data } = await supabase.auth.getUser();
-    user = data.user;
+    hasUser = !!data.user;
   } catch {
-    // Réseau injoignable, URL Supabase incorrecte, etc. (souvent en dev)
-    user = null;
+    hasUser = false;
   }
 
-  if (!user) {
-    const url = request.nextUrl.clone();
-    url.pathname = "/login";
-    return NextResponse.redirect(url);
-  }
-
+  if (!hasUser) return unauthorized(request);
+  // Vérification optimiste uniquement : l'autorisation (membre actif, rôle)
+  // est faite par requireUser() dans chaque route et dans le layout du dashboard.
   return supabaseResponse;
 }

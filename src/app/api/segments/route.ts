@@ -1,95 +1,78 @@
 import { NextRequest, NextResponse } from "next/server";
-import { Prisma } from "@/generated/prisma/client";
+import { z } from "zod";
 import { prisma } from "@/lib/prisma";
+import type { Prisma } from "@/generated/prisma/client";
+import { requireUser, WRITE_ROLES } from "@/lib/auth";
+import { parseJsonBody, serverError } from "@/lib/api";
 import {
   buildProspectWhereFromFilters,
+  hasTargetingCriteria,
   normalizeSegmentFilters,
 } from "@/lib/segment-filters-normalize";
 
-export async function GET(req: NextRequest) {
-  const url = new URL(req.url);
-  const includeLiveCount = url.searchParams.get("live") === "1";
+const SegmentSchema = z.object({
+  name: z.string().trim().min(1, "Le nom est requis").max(120),
+  description: z.string().trim().max(1000).optional().nullable(),
+  filters: z.record(z.string(), z.unknown()).optional(),
+});
 
+function filtersOf(segment: { filters: unknown }) {
+  return normalizeSegmentFilters(
+    segment.filters && typeof segment.filters === "object" ? (segment.filters as Record<string, unknown>) : {}
+  );
+}
+
+export async function GET(req: NextRequest) {
+  const auth = await requireUser();
+  if (!auth.ok) return auth.response;
+
+  const includeLiveCount = req.nextUrl.searchParams.get("live") === "1";
   const segments = await prisma.segment.findMany({
     include: { _count: { select: { prospectLinks: true } } },
     orderBy: { createdAt: "desc" },
   });
+  if (!includeLiveCount) return NextResponse.json(segments);
 
-  if (!includeLiveCount) {
-    return NextResponse.json(segments);
+  // Séquentiel : évite de saturer le petit pool de connexions Postgres.
+  const withCounts = [];
+  for (const segment of segments) {
+    const filters = filtersOf(segment);
+    const liveProspectsCount = hasTargetingCriteria(filters)
+      ? await prisma.prospect.count({ where: buildProspectWhereFromFilters(filters) })
+      : 0;
+    withCounts.push({ ...segment, liveProspectsCount });
   }
-
-  const segmentsWithLiveCount = await Promise.all(
-    segments.map(async (segment) => {
-      const rawFilters =
-        segment.filters && typeof segment.filters === "object"
-          ? (segment.filters as Record<string, unknown>)
-          : {};
-      const normalized = normalizeSegmentFilters(rawFilters);
-      const where = buildProspectWhereFromFilters(normalized);
-
-      // Si aucun critère n'est défini, on considère le segment comme non ciblé.
-      const liveProspectsCount =
-        Object.keys(where).length > 0 ? await prisma.prospect.count({ where }) : 0;
-
-      return {
-        ...segment,
-        liveProspectsCount,
-      };
-    })
-  );
-
-  return NextResponse.json(segmentsWithLiveCount);
+  return NextResponse.json(withCounts);
 }
 
 export async function POST(req: NextRequest) {
+  const auth = await requireUser(WRITE_ROLES);
+  if (!auth.ok) return auth.response;
+
+  const parsed = await parseJsonBody(req, SegmentSchema);
+  if (!parsed.ok) return parsed.response;
+  const { name, description, filters } = parsed.data;
+  const normalized = normalizeSegmentFilters(filters ?? {});
+  if (!hasTargetingCriteria(normalized)) {
+    return NextResponse.json({ error: "Définissez au moins un critère de ciblage" }, { status: 400 });
+  }
+
   try {
-    const body = await req.json();
-    const { name, description, filters } = body;
-
-    if (!name) {
-      return NextResponse.json(
-        { error: "Le nom est requis" },
-        { status: 400 }
-      );
-    }
-
-    const normalized = normalizeSegmentFilters(
-      (filters || {}) as Record<string, unknown>
-    );
-
     const segment = await prisma.segment.create({
-      data: {
-        name,
-        description,
-        filters: JSON.parse(JSON.stringify(normalized)) as Prisma.InputJsonValue,
-      },
+      data: { name, description: description || null, filters: normalized as Prisma.InputJsonValue },
     });
-
-    const where = buildProspectWhereFromFilters(normalized);
-
-    if (Object.keys(where).length > 0) {
-      const matchingProspects = await prisma.prospect.findMany({
-        where,
-        select: { id: true },
+    const matching = await prisma.prospect.findMany({
+      where: buildProspectWhereFromFilters(normalized),
+      select: { id: true },
+    });
+    if (matching.length) {
+      await prisma.prospectSegment.createMany({
+        data: matching.map((p) => ({ prospectId: p.id, segmentId: segment.id })),
+        skipDuplicates: true,
       });
-
-      if (matchingProspects.length > 0) {
-        await prisma.prospectSegment.createMany({
-          data: matchingProspects.map((p) => ({
-            prospectId: p.id,
-            segmentId: segment.id,
-          })),
-          skipDuplicates: true,
-        });
-      }
     }
-
     return NextResponse.json(segment, { status: 201 });
-  } catch {
-    return NextResponse.json(
-      { error: "Erreur de creation" },
-      { status: 500 }
-    );
+  } catch (err) {
+    return serverError("segments:create", err, "Erreur de création du segment");
   }
 }

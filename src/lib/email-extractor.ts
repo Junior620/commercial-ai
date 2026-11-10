@@ -75,7 +75,6 @@ export function extractEmails(html: string): string[] {
     .replace(/&#x40;/g, "@")
     .replace(/\[at\]/gi, "@")
     .replace(/\(at\)/gi, "@")
-    .replace(/\s+at\s+/gi, "@")
     .replace(/\[dot\]/gi, ".")
     .replace(/\(dot\)/gi, ".");
 
@@ -101,6 +100,26 @@ export function extractEmails(html: string): string[] {
 
     return true;
   });
+}
+
+const SECOND_LEVEL_LABELS = new Set(["co", "com", "net", "org", "gov", "gouv", "edu", "ac", "or", "ne", "go"]);
+
+/** Domaine enregistrable approximatif (ex. « shop.acme.co.uk » → « acme.co.uk »). */
+export function baseDomain(host: string): string {
+  const parts = host.toLowerCase().replace(/^www\./, "").split(".").filter(Boolean);
+  if (parts.length <= 2) return parts.join(".");
+  const sld = parts[parts.length - 2];
+  // co.uk, com.br, co.ci, gouv.fr…
+  const twoLevel = SECOND_LEVEL_LABELS.has(sld) && parts[parts.length - 1].length === 2;
+  return parts.slice(twoLevel ? -3 : -2).join(".");
+}
+
+/** true si l'email appartient au domaine du site (même domaine enregistrable). */
+export function emailMatchesDomain(email: string, siteDomain: string | null | undefined): boolean {
+  if (!siteDomain) return false;
+  const emailDomain = email.split("@")[1]?.toLowerCase();
+  if (!emailDomain) return false;
+  return baseDomain(emailDomain) === baseDomain(siteDomain);
 }
 
 export function scoreEmail(email: string, siteDomain?: string): number {
@@ -209,31 +228,78 @@ const CONTACT_PATHS = [
 ];
 
 const FETCH_HEADERS = {
-  "User-Agent":
-    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+  "User-Agent": "Mozilla/5.0 (compatible; SCPBProspectBot/1.0)",
   Accept: "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
   "Accept-Language": "en-US,en;q=0.9,fr;q=0.8",
 };
+
+const MAX_PAGE_BYTES = 500_000;
+const MAX_REDIRECTS = 3;
+
+/** Refuse les hôtes internes (protection SSRF : métadonnées cloud, réseau privé). */
+export function isPrivateHost(hostname: string): boolean {
+  const host = hostname.toLowerCase().replace(/^\[|\]$/g, "");
+  if (host === "localhost" || host.endsWith(".localhost") || host.endsWith(".local") || host.endsWith(".internal")) {
+    return true;
+  }
+  if (/^\d{1,3}(\.\d{1,3}){3}$/.test(host)) {
+    const [a, b] = host.split(".").map(Number);
+    return (
+      a === 0 || a === 10 || a === 127 || (a === 169 && b === 254) || (a === 172 && b >= 16 && b <= 31) ||
+      (a === 192 && b === 168) || (a === 100 && b >= 64 && b <= 127) || a >= 224
+    );
+  }
+  if (host.includes(":")) {
+    return host === "::1" || host.startsWith("fc") || host.startsWith("fd") || host.startsWith("fe80") || host === "::";
+  }
+  return false;
+}
+
+async function readLimited(response: Response, maxBytes: number): Promise<string> {
+  if (!response.body) return "";
+  const reader = response.body.getReader();
+  const chunks: Uint8Array[] = [];
+  let received = 0;
+  while (received < maxBytes) {
+    const { done, value } = await reader.read();
+    if (done || !value) break;
+    chunks.push(value);
+    received += value.byteLength;
+  }
+  await reader.cancel().catch(() => undefined);
+  return new TextDecoder("utf-8", { fatal: false }).decode(Buffer.concat(chunks).subarray(0, maxBytes));
+}
 
 async function fetchPage(url: string, timeoutMs = 12000): Promise<string> {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeoutMs);
   try {
-    const response = await fetch(url, {
-      signal: controller.signal,
-      headers: FETCH_HEADERS,
-      redirect: "follow",
-    });
-    clearTimeout(timer);
-    if (!response.ok) return "";
-    const ct = response.headers.get("content-type") || "";
-    if (!ct.includes("text/html") && !ct.includes("text/plain") && !ct.includes("application/xhtml"))
-      return "";
-    const text = await response.text();
-    return text.slice(0, 500_000);
-  } catch {
-    clearTimeout(timer);
+    let current = url;
+    for (let hop = 0; hop <= MAX_REDIRECTS; hop++) {
+      const parsed = new URL(current);
+      if (!["http:", "https:"].includes(parsed.protocol) || isPrivateHost(parsed.hostname)) return "";
+
+      const response = await fetch(current, {
+        signal: controller.signal,
+        headers: FETCH_HEADERS,
+        redirect: "manual",
+      });
+      if (response.status >= 300 && response.status < 400) {
+        const location = response.headers.get("location");
+        if (!location) return "";
+        current = new URL(location, current).href;
+        continue;
+      }
+      if (!response.ok) return "";
+      const ct = response.headers.get("content-type") || "";
+      if (!ct.includes("text/html") && !ct.includes("text/plain") && !ct.includes("application/xhtml")) return "";
+      return await readLimited(response, MAX_PAGE_BYTES);
+    }
     return "";
+  } catch {
+    return "";
+  } finally {
+    clearTimeout(timer);
   }
 }
 
