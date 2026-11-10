@@ -15,11 +15,11 @@ import {
 
 const STATUS_LABELS: Record<string, string> = {
   NEW: "Nouveau",
-  CONTACTED: "Contacte",
+  CONTACTED: "Contacté",
   IN_DISCUSSION: "En discussion",
   CONVERTED: "Converti",
   COLD: "Froid",
-  UNSUBSCRIBED: "Desabonne",
+  UNSUBSCRIBED: "Désabonné",
 };
 
 const PIE_COLORS = [
@@ -45,7 +45,7 @@ export function DashboardCharts({ type, data }: ChartProps) {
   if (!data || data.length === 0) {
     return (
       <div className="flex h-[300px] items-center justify-center text-muted-foreground">
-        Aucune donnee disponible
+        Aucune donnée disponible
       </div>
     );
   }

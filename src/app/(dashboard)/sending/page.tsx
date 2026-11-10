@@ -1,21 +1,18 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { Button } from "@/components/ui/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
-import { Progress } from "@/components/ui/progress";
-import { Send, Loader2, MailOpen, MailCheck, MailX, CircleAlert } from "lucide-react";
+import { useCallback, useEffect, useState } from "react";
+import { CircleAlert, Clock, Loader2, MailCheck, MailOpen, MailX, Send, ShieldBan } from "lucide-react";
 import { toast } from "sonner";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Progress } from "@/components/ui/progress";
+import { Skeleton } from "@/components/ui/skeleton";
 import { PageTitle } from "@/components/layout/page-title";
+import { cn } from "@/lib/utils";
 
 interface SendingStats {
   pendingEmails: number;
+  pendingReady: number;
   sentToday: number;
   deliveredToday: number;
   openedToday: number;
@@ -24,188 +21,151 @@ interface SendingStats {
   openRate: number;
   bounceRate: number;
   dailyLimit: number;
+  remainingToday: number;
   activeCampaigns: number;
+  suppressed: number;
   updatedAt: string;
+}
+
+function Stat({
+  label,
+  value,
+  hint,
+  icon: Icon,
+  tone = "text-muted-foreground",
+}: {
+  label: string;
+  value: number | string;
+  hint?: string;
+  icon: typeof Send;
+  tone?: string;
+}) {
+  return (
+    <Card size="sm">
+      <CardContent className="flex items-start justify-between gap-3">
+        <div>
+          <p className="text-sm text-muted-foreground">{label}</p>
+          <p data-slot="kpi-value" className="mt-1 text-2xl font-semibold">
+            {value}
+          </p>
+          {hint ? <p className="mt-0.5 text-xs text-muted-foreground">{hint}</p> : null}
+        </div>
+        <Icon className={cn("h-5 w-5 shrink-0", tone)} aria-hidden />
+      </CardContent>
+    </Card>
+  );
 }
 
 export default function SendingPage() {
   const [stats, setStats] = useState<SendingStats | null>(null);
+  const [error, setError] = useState(false);
   const [isSending, setIsSending] = useState(false);
+
+  const fetchStats = useCallback(async () => {
+    try {
+      const res = await fetch("/api/sending/stats");
+      if (!res.ok) throw new Error();
+      setStats(await res.json());
+      setError(false);
+    } catch {
+      setError(true);
+    }
+  }, []);
 
   useEffect(() => {
     fetchStats();
-    const interval = setInterval(fetchStats, 8000);
+    const interval = setInterval(fetchStats, 10000);
     return () => clearInterval(interval);
-  }, []);
-
-  const fetchStats = async () => {
-    try {
-      const res = await fetch("/api/sending/stats");
-      if (res.ok) setStats(await res.json());
-    } catch {
-      // ignore
-    }
-  };
+  }, [fetchStats]);
 
   const handleSendBatch = async () => {
     setIsSending(true);
     try {
       const res = await fetch("/api/sending/batch", { method: "POST" });
-      if (!res.ok) throw new Error("Erreur");
-      const result = await res.json();
-      toast.success(`${result.sent} emails envoyes`);
+      const result = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(result.error || "Envoi impossible");
+      if (result.queued) toast.success("Lot lancé : les emails partent un par un, avec l'espacement configuré.");
+      else toast.info(result.message || "Rien à envoyer pour le moment.");
       fetchStats();
-    } catch {
-      toast.error("Erreur d'envoi");
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Erreur d'envoi");
     } finally {
       setIsSending(false);
     }
   };
 
+  const quotaPct = stats && stats.dailyLimit > 0 ? Math.min(100, (stats.sentToday / stats.dailyLimit) * 100) : 0;
+
   return (
     <div className="space-y-6">
       <PageTitle
-        title="Envoi d'emails"
-        description="Contrôle de l'envoi progressif, quotas et cadence"
+        title="Envoi"
+        description="Cadence d'envoi, quota quotidien et santé de la délivrabilité."
         icon={Send}
+        actions={
+          <Button onClick={handleSendBatch} disabled={isSending || !stats || stats.remainingToday <= 0 || stats.pendingReady === 0}>
+            {isSending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
+            Envoyer un lot maintenant
+          </Button>
+        }
       />
 
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm text-muted-foreground">
-              En attente
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="text-2xl font-bold">
-              {stats?.pendingEmails ?? 0}
-            </p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm text-muted-foreground">
-              Envoyes aujourd&apos;hui
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="text-2xl font-bold">{stats?.sentToday ?? 0}</p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm text-muted-foreground">
-              Limite quotidienne
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="text-2xl font-bold">{stats?.dailyLimit ?? 50}</p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm text-muted-foreground">
-              Campagnes actives
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="text-2xl font-bold">
-              {stats?.activeCampaigns ?? 0}
-            </p>
-          </CardContent>
-        </Card>
-      </div>
+      {error ? (
+        <p role="alert" className="rounded-lg border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive">
+          Statistiques indisponibles pour le moment.
+        </p>
+      ) : null}
 
-      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm text-muted-foreground">
-              Livres aujourd&apos;hui
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="flex items-center justify-between">
-            <p className="text-2xl font-bold">{stats?.deliveredToday ?? 0}</p>
-            <MailCheck className="h-5 w-5 text-emerald-600" />
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm text-muted-foreground">
-              Ouverts aujourd&apos;hui
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="flex items-center justify-between">
-            <div>
-              <p className="text-2xl font-bold">{stats?.openedToday ?? 0}</p>
-              <p className="text-xs text-muted-foreground">
-                Taux d&apos;ouverture: {stats?.openRate ?? 0}%
+      {!stats ? (
+        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4" aria-busy="true">
+          {Array.from({ length: 8 }).map((_, i) => (
+            <Skeleton key={i} className="h-24 rounded-xl" />
+          ))}
+        </div>
+      ) : (
+        <>
+          <Card>
+            <CardHeader>
+              <CardTitle>Quota du jour</CardTitle>
+              <CardDescription>
+                {stats.sentToday} / {stats.dailyLimit} emails envoyés aujourd&apos;hui · {stats.remainingToday} restant(s)
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              <Progress value={quotaPct} className="h-2.5" aria-label="Quota quotidien utilisé" />
+              <p className="flex items-start gap-2 text-sm text-muted-foreground">
+                <Clock className="mt-0.5 h-4 w-4 shrink-0" />
+                L&apos;envoi est automatique toutes les 15 minutes, du lundi au vendredi de 8 h à 19 h (heure de Douala),
+                pour les campagnes actives. Le bouton ci-dessus déclenche simplement un lot immédiat.
               </p>
-            </div>
-            <MailOpen className="h-5 w-5 text-indigo-600" />
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm text-muted-foreground">
-              Rebonds aujourd&apos;hui
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="flex items-center justify-between">
-            <div>
-              <p className="text-2xl font-bold">{stats?.bouncedToday ?? 0}</p>
-              <p className="text-xs text-muted-foreground">
-                Taux de rebond: {stats?.bounceRate ?? 0}%
-              </p>
-            </div>
-            <MailX className="h-5 w-5 text-red-600" />
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm text-muted-foreground">
-              Failed aujourd&apos;hui
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="flex items-center justify-between">
-            <p className="text-2xl font-bold">{stats?.failedToday ?? 0}</p>
-            <CircleAlert className="h-5 w-5 text-amber-600" />
-          </CardContent>
-        </Card>
-      </div>
+            </CardContent>
+          </Card>
 
-      {stats && (
-        <Card>
-          <CardHeader>
-            <CardTitle>Quota journalier</CardTitle>
-            <CardDescription>
-              {stats.sentToday} / {stats.dailyLimit} emails envoyes
-              aujourd&apos;hui
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <Progress
-              value={(stats.sentToday / stats.dailyLimit) * 100}
-              className="h-3"
+          <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+            <Stat label="Prêts à partir" value={stats.pendingReady} hint={`${stats.pendingEmails} en attente au total`} icon={Clock} />
+            <Stat label="Délivrés aujourd'hui" value={stats.deliveredToday} icon={MailCheck} tone="text-success" />
+            <Stat label="Ouverts aujourd'hui" value={stats.openedToday} hint={`Taux d'ouverture : ${stats.openRate} %`} icon={MailOpen} tone="text-primary" />
+            <Stat label="Campagnes actives" value={stats.activeCampaigns} icon={Send} />
+            <Stat
+              label="Rebonds aujourd'hui"
+              value={stats.bouncedToday}
+              hint={`Taux de rebond : ${stats.bounceRate} %`}
+              icon={MailX}
+              tone={stats.bounceRate >= 5 ? "text-destructive" : "text-muted-foreground"}
             />
-            <div className="mt-4 flex gap-4">
-              <Button
-                onClick={handleSendBatch}
-                disabled={isSending || stats.sentToday >= stats.dailyLimit}
-              >
-                {isSending ? (
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                ) : (
-                  <Send className="mr-2 h-4 w-4" />
-                )}
-                {isSending ? "Envoi en cours..." : "Envoyer un lot"}
-              </Button>
-            </div>
-            <p className="mt-3 text-xs text-muted-foreground">
-              Derniere mise a jour: {new Date(stats.updatedAt).toLocaleTimeString("fr-FR")}
-            </p>
-          </CardContent>
-        </Card>
+            <Stat label="Échecs / annulés aujourd'hui" value={stats.failedToday} icon={CircleAlert} tone="text-warning" />
+            <Stat
+              label="Adresses exclues"
+              value={stats.suppressed}
+              hint="Désinscriptions, plaintes, rebonds définitifs"
+              icon={ShieldBan}
+            />
+          </div>
+
+          <p className="text-xs text-muted-foreground">
+            Dernière mise à jour : {new Date(stats.updatedAt).toLocaleTimeString("fr-FR")}
+          </p>
+        </>
       )}
     </div>
   );

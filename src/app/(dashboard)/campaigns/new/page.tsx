@@ -70,12 +70,12 @@ export default function NewCampaignPage() {
           segmentId: formData.segmentId || undefined,
         }),
       });
-      if (!res.ok) throw new Error("Erreur de creation");
+      if (!res.ok) throw new Error("Erreur de création");
       const campaign = await res.json();
-      toast.success("Campagne creee");
+      toast.success("Campagne créée");
       router.push(`/campaigns/${campaign.id}`);
     } catch {
-      toast.error("Erreur lors de la creation");
+      toast.error("Erreur lors de la création");
     } finally {
       setLoading(false);
     }
@@ -91,7 +91,7 @@ export default function NewCampaignPage() {
 
       <Card>
         <CardHeader>
-          <CardTitle>Parametres de la campagne</CardTitle>
+          <CardTitle>Paramètres de la campagne</CardTitle>
         </CardHeader>
         <CardContent className="space-y-6">
           <div className="space-y-2">
@@ -140,7 +140,7 @@ export default function NewCampaignPage() {
                 }
               >
                 <SelectTrigger>
-                  <SelectValue placeholder="Selectionner" />
+                  <SelectValue placeholder="Sélectionner" />
                 </SelectTrigger>
                 <SelectContent>
                   {CAMPAIGN_PRODUCT_OPTIONS.map((p) => (
@@ -165,7 +165,7 @@ export default function NewCampaignPage() {
                 <SelectContent>
                   <SelectItem value="auto">Auto (langue du prospect)</SelectItem>
                   <SelectItem value="en">Anglais</SelectItem>
-                  <SelectItem value="fr">Francais</SelectItem>
+                  <SelectItem value="fr">Français</SelectItem>
                   <SelectItem value="es">Espagnol</SelectItem>
                   <SelectItem value="pt">Portugais</SelectItem>
                   <SelectItem value="de">Allemand</SelectItem>
@@ -210,7 +210,7 @@ export default function NewCampaignPage() {
               />
             </div>
             <div className="space-y-2">
-              <Label>Delai relance (jours)</Label>
+              <Label>Délai relance (jours)</Label>
               <Input
                 type="number"
                 value={formData.followUpDelayDays}
@@ -255,7 +255,7 @@ export default function NewCampaignPage() {
             disabled={loading}
             className="w-full"
           >
-            {loading ? "Creation..." : "Creer la campagne"}
+            {loading ? "Création..." : "Créer la campagne"}
           </Button>
         </CardContent>
       </Card>

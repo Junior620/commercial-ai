@@ -40,14 +40,14 @@ interface ResponseItem {
 }
 
 const CLASS_COLORS: Record<string, string> = {
-  POSITIVE: "bg-green-100 text-green-800",
-  INFO_REQUEST: "bg-blue-100 text-blue-800",
-  PRICE_REQUEST: "bg-purple-100 text-purple-800",
-  MEETING_REQUEST: "bg-indigo-100 text-indigo-800",
-  NEGATIVE: "bg-red-100 text-red-800",
-  NO_INTEREST: "bg-gray-100 text-gray-800",
-  UNSUBSCRIBE: "bg-orange-100 text-orange-800",
-  UNKNOWN: "bg-gray-100 text-gray-800",
+  POSITIVE: "bg-success/10 text-success",
+  INFO_REQUEST: "bg-info/10 text-info",
+  PRICE_REQUEST: "bg-primary/10 text-primary",
+  MEETING_REQUEST: "bg-primary/10 text-primary",
+  NEGATIVE: "bg-destructive/10 text-destructive",
+  NO_INTEREST: "bg-muted text-foreground",
+  UNSUBSCRIBE: "bg-warning/10 text-warning",
+  UNKNOWN: "bg-muted text-foreground",
 };
 
 const CLASS_LABELS: Record<string, string> = {
@@ -56,7 +56,7 @@ const CLASS_LABELS: Record<string, string> = {
   PRICE_REQUEST: "Demande prix",
   MEETING_REQUEST: "Demande RDV",
   NEGATIVE: "Negatif",
-  NO_INTEREST: "Pas interesse",
+  NO_INTEREST: "Pas intéressé",
   UNSUBSCRIBE: "Desabonnement",
   UNKNOWN: "Inconnu",
 };
@@ -107,14 +107,14 @@ export default function ResponsesPage() {
 
       <Card>
         <CardHeader>
-          <CardTitle>Toutes les reponses</CardTitle>
+          <CardTitle>Toutes les réponses</CardTitle>
           <CardDescription>{responses.length} reponses recues</CardDescription>
         </CardHeader>
         <CardContent>
           {responses.length === 0 ? (
             <div className="py-8 text-center text-muted-foreground">
               <MessageSquare className="mx-auto h-8 w-8 mb-2 opacity-50" />
-              <p>Aucune reponse recue pour le moment</p>
+              <p>Aucune réponse reçue pour le moment</p>
             </div>
           ) : (
             <div className="space-y-3">
@@ -178,7 +178,7 @@ export default function ResponsesPage() {
                             <div className="space-y-4">
                               <div>
                                 <p className="text-sm font-medium mb-1">
-                                  Contenu de la reponse
+                                  Contenu de la réponse
                                 </p>
                                 <p className="text-sm bg-muted p-3 rounded">
                                   {resp.content}
@@ -189,7 +189,7 @@ export default function ResponsesPage() {
                                   <p className="text-sm font-medium mb-1">
                                     Reponse suggeree par l&apos;IA
                                   </p>
-                                  <p className="text-sm bg-blue-50 p-3 rounded">
+                                  <p className="text-sm bg-info/10 p-3 rounded">
                                     {resp.suggestedReply}
                                   </p>
                                 </div>
@@ -207,7 +207,7 @@ export default function ResponsesPage() {
                 page={safePage}
                 totalPages={totalPages}
                 totalItems={responses.length}
-                itemLabel="reponses"
+                itemLabel="réponses"
                 onPageChange={setPage}
               />
             </div>

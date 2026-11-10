@@ -1,60 +1,57 @@
 "use client";
 
-import { useState, useEffect, use } from "react";
+import { use, useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Button, buttonVariants } from "@/components/ui/button";
-import { cn } from "@/lib/utils";
 import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
-import {
-  Play,
-  Pause,
-  Bot,
-  Send,
-  RefreshCw,
-  BarChart3,
-  Pencil,
-  Trash2,
+  CheckCircle2,
+  Download,
   Eye,
+  Loader2,
+  Mail,
   MessageSquareReply,
+  MoreHorizontal,
+  Pause,
+  Pencil,
+  Play,
+  Send,
+  Sparkles,
+  Trash2,
 } from "lucide-react";
 import { toast } from "sonner";
-import { PageTitle } from "@/components/layout/page-title";
+import { Button, buttonVariants } from "@/components/ui/button";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Sheet, SheetContent, SheetDescription, SheetFooter, SheetHeader, SheetTitle } from "@/components/ui/sheet";
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import {
-  Sheet,
-  SheetContent,
-  SheetHeader,
-  SheetTitle,
-  SheetDescription,
-  SheetFooter,
-} from "@/components/ui/sheet";
-import { Separator } from "@/components/ui/separator";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogFooter,
-} from "@/components/ui/dialog";
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { Skeleton } from "@/components/ui/skeleton";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import { PageTitle } from "@/components/layout/page-title";
 import { ListPagination } from "@/components/shared/list-pagination";
+import { StatusBadge } from "@/components/shared/status-badge";
+import { useConfirm } from "@/components/shared/confirm-dialog";
+import { EMAIL_TYPE_LABELS, LANGUAGE_LABELS, TONE_LABELS } from "@/lib/labels";
+import { PRODUCT_LABELS } from "@/lib/product-catalog";
+import { cn } from "@/lib/utils";
+
+type CampaignEmail = {
+  id: string;
+  subject: string;
+  body: string;
+  status: string;
+  type: string;
+  sentAt: string | null;
+  prospect: { company: string; email: string; contact: string | null };
+};
 
 interface CampaignDetail {
   id: string;
@@ -72,127 +69,150 @@ interface CampaignDetail {
   replyCount: number;
   bounceCount: number;
   failedCount: number;
+  pendingCount: number;
   segment: { name: string; id: string } | null;
-  emails: Array<{
-    id: string;
-    subject: string;
-    body: string;
-    status: string;
-    type: string;
-    sentAt: string | null;
-    prospect: { company: string; email: string; contact: string | null };
-  }>;
+  emails: CampaignEmail[];
 }
 
-export default function CampaignDetailPage({
-  params,
-}: {
-  params: Promise<{ id: string }>;
-}) {
+const EMAILS_PER_PAGE = 20;
+
+async function readError(res: Response, fallback: string): Promise<string> {
+  const data = await res.json().catch(() => ({}));
+  return typeof data.error === "string" ? data.error : fallback;
+}
+
+function Kpi({ label, value, hint }: { label: string; value: number | string; hint?: string }) {
+  return (
+    <Card size="sm">
+      <CardContent>
+        <p data-slot="kpi-value" className="text-2xl font-semibold">
+          {value}
+        </p>
+        <p className="text-sm text-muted-foreground">{label}</p>
+        {hint ? <p className="mt-1 text-xs text-muted-foreground">{hint}</p> : null}
+      </CardContent>
+    </Card>
+  );
+}
+
+function rate(part: number, total: number) {
+  return total > 0 ? `${Math.round((part / total) * 100)} %` : "—";
+}
+
+export default function CampaignDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
   const router = useRouter();
+  const confirm = useConfirm();
   const [campaign, setCampaign] = useState<CampaignDetail | null>(null);
-  const [generating, setGenerating] = useState(false);
-  const [sending, setSending] = useState(false);
-  const [viewEmail, setViewEmail] = useState<CampaignDetail["emails"][0] | null>(
-    null
-  );
-  const [editEmail, setEditEmail] = useState<CampaignDetail["emails"][0] | null>(
-    null
-  );
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const [busy, setBusy] = useState<"generate" | "send" | "status" | null>(null);
+  const [generatingQueued, setGeneratingQueued] = useState(false);
+  const [viewEmail, setViewEmail] = useState<CampaignEmail | null>(null);
+  const [editEmail, setEditEmail] = useState<CampaignEmail | null>(null);
   const [editSubject, setEditSubject] = useState("");
   const [editBody, setEditBody] = useState("");
   const [savingEmail, setSavingEmail] = useState(false);
   const [markingRepliedId, setMarkingRepliedId] = useState<string | null>(null);
   const [emailPage, setEmailPage] = useState(1);
-  const EMAILS_PER_PAGE = 20;
 
-  useEffect(() => {
-    fetchCampaign();
-  }, [id]);
-
-  useEffect(() => {
-    const interval = setInterval(fetchCampaign, 8000);
-    return () => clearInterval(interval);
-  }, [id]);
-
-  const fetchCampaign = async () => {
+  const fetchCampaign = useCallback(async () => {
     try {
       const res = await fetch(`/api/campaigns/${id}`);
-      if (res.ok) setCampaign(await res.json());
-    } catch {
-      // ignore
-    }
-  };
-
-  const handleGenerateEmails = async () => {
-    setGenerating(true);
-    try {
-      const res = await fetch(`/api/campaigns/${id}/generate`, {
-        method: "POST",
-      });
-      if (!res.ok) throw new Error("Erreur generation");
-      const result = await res.json();
-      toast.success(`${result.generated} emails generes par l'IA`);
-      fetchCampaign();
+      if (!res.ok) throw new Error(await readError(res, "Campagne introuvable"));
+      setCampaign(await res.json());
+      setLoadError(null);
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Erreur");
-    } finally {
-      setGenerating(false);
+      setLoadError(err instanceof Error ? err.message : "Erreur de chargement");
     }
-  };
+  }, [id]);
 
-  const handleSendBatch = async () => {
-    setSending(true);
-    try {
-      const res = await fetch(`/api/campaigns/${id}/send`, {
-        method: "POST",
-      });
-      if (!res.ok) throw new Error("Erreur envoi");
-      const result = await res.json();
-      toast.success(`${result.sent} emails envoyes`);
-      fetchCampaign();
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Erreur");
-    } finally {
-      setSending(false);
-    }
-  };
-
-  const toggleStatus = async () => {
-    if (!campaign) return;
-    const newStatus = campaign.status === "ACTIVE" ? "PAUSED" : "ACTIVE";
-    await fetch(`/api/campaigns/${id}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ status: newStatus }),
-    });
+  useEffect(() => {
     fetchCampaign();
+    const interval = setInterval(fetchCampaign, generatingQueued ? 4000 : 10000);
+    return () => clearInterval(interval);
+  }, [fetchCampaign, generatingQueued]);
+
+  const handleGenerate = async () => {
+    setBusy("generate");
+    try {
+      const res = await fetch(`/api/campaigns/${id}/generate`, { method: "POST" });
+      if (!res.ok) throw new Error(await readError(res, "La génération n'a pas pu démarrer"));
+      const result = await res.json();
+      if (result.queued > 0) {
+        setGeneratingQueued(true);
+        setTimeout(() => setGeneratingQueued(false), 5 * 60 * 1000);
+        toast.success(`Rédaction lancée pour ${result.queued} prospect(s). Les emails apparaissent au fur et à mesure.`);
+      } else {
+        toast.info(result.message || "Aucun nouveau prospect à cibler.");
+      }
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Erreur");
+    } finally {
+      setBusy(null);
+    }
+  };
+
+  const handleSendNow = async () => {
+    setBusy("send");
+    try {
+      const res = await fetch(`/api/campaigns/${id}/send`, { method: "POST" });
+      if (!res.ok) throw new Error(await readError(res, "Envoi impossible"));
+      const result = await res.json();
+      if (result.queued) {
+        toast.success(`Lot d'envoi lancé : ${result.quota.remaining} envoi(s) possible(s) aujourd'hui, avec espacement.`);
+      } else {
+        toast.info(result.message || "Rien à envoyer pour le moment.");
+      }
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Erreur");
+    } finally {
+      setBusy(null);
+    }
+  };
+
+  const setStatus = async (status: "ACTIVE" | "PAUSED" | "COMPLETED") => {
+    if (!campaign) return;
+    if (status === "ACTIVE" && campaign.status !== "PAUSED") {
+      const ok = await confirm({
+        title: "Approuver et activer la campagne ?",
+        description: `${campaign.pendingCount} email(s) relu(s) partiront automatiquement en heures ouvrées, dans la limite du quota quotidien. Les relances suivront le calendrier prévu.`,
+        confirmLabel: "Approuver et activer",
+      });
+      if (!ok) return;
+    }
+    setBusy("status");
+    try {
+      const res = await fetch(`/api/campaigns/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status }),
+      });
+      if (!res.ok) throw new Error(await readError(res, "Mise à jour impossible"));
+      toast.success(status === "ACTIVE" ? "Campagne active" : status === "PAUSED" ? "Campagne en pause" : "Campagne terminée");
+      fetchCampaign();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Erreur");
+    } finally {
+      setBusy(null);
+    }
   };
 
   const handleDeleteCampaign = async () => {
     if (!campaign) return;
-    if (
-      !confirm(
-        `Supprimer la campagne « ${campaign.name} » ? Tous les emails associes seront supprimes.`
-      )
-    ) {
-      return;
-    }
-    try {
-      const res = await fetch(`/api/campaigns/${id}`, { method: "DELETE" });
-      if (!res.ok) {
-        const err = await res.json().catch(() => ({}));
-        throw new Error(err.error || "Erreur");
-      }
-      toast.success("Campagne supprimee");
-      router.push("/campaigns");
-    } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Erreur");
-    }
+    const ok = await confirm({
+      title: `Supprimer « ${campaign.name} » ?`,
+      description: "Tous les emails de la campagne et leur historique seront supprimés. Cette action est définitive.",
+      confirmLabel: "Supprimer",
+      destructive: true,
+    });
+    if (!ok) return;
+    const res = await fetch(`/api/campaigns/${id}`, { method: "DELETE" });
+    if (!res.ok) return toast.error(await readError(res, "Suppression impossible"));
+    toast.success("Campagne supprimée");
+    router.push("/campaigns");
   };
 
-  const openEditEmail = (email: CampaignDetail["emails"][0]) => {
+  const openEditEmail = (email: CampaignEmail) => {
     setEditEmail(email);
     setEditSubject(email.subject);
     setEditBody(email.body);
@@ -207,11 +227,8 @@ export default function CampaignDetailPage({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ subject: editSubject, body: editBody }),
       });
-      const data = await res.json().catch(() => ({}));
-      if (!res.ok) {
-        throw new Error(typeof data.error === "string" ? data.error : "Erreur");
-      }
-      toast.success("Email mis a jour");
+      if (!res.ok) throw new Error(await readError(res, "Enregistrement impossible"));
+      toast.success("Email mis à jour");
       setEditEmail(null);
       fetchCampaign();
     } catch (e) {
@@ -221,25 +238,12 @@ export default function CampaignDetailPage({
     }
   };
 
-  const handleMarkReplied = async (email: CampaignDetail["emails"][0]) => {
-    if (email.status === "REPLIED") {
-      toast.info("Deja marque comme repondu");
-      return;
-    }
-    if (email.status === "PENDING" || email.status === "BOUNCED") {
-      toast.error("Marquage reserve aux emails envoyes (non rebond)");
-      return;
-    }
+  const handleMarkReplied = async (email: CampaignEmail) => {
     setMarkingRepliedId(email.id);
     try {
-      const res = await fetch(`/api/emails/${email.id}/mark-replied`, {
-        method: "POST",
-      });
-      const data = await res.json().catch(() => ({}));
-      if (!res.ok) {
-        throw new Error(typeof data.error === "string" ? data.error : "Erreur");
-      }
-      toast.success("Marque comme repondu — compteur campagne mis a jour");
+      const res = await fetch(`/api/emails/${email.id}/mark-replied`, { method: "POST" });
+      if (!res.ok) throw new Error(await readError(res, "Marquage impossible"));
+      toast.success("Réponse enregistrée : relances arrêtées, prospect « En discussion ».");
       fetchCampaign();
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Erreur");
@@ -248,255 +252,266 @@ export default function CampaignDetailPage({
     }
   };
 
-  const handleDeleteEmail = async (email: CampaignDetail["emails"][0]) => {
-    const warn =
-      email.status !== "PENDING"
-        ? `Cet email est deja ${email.status}. Supprimer quand meme ?`
-        : `Supprimer l email pour « ${email.prospect.company} » ?`;
-    if (!confirm(warn)) return;
-    try {
-      const res = await fetch(`/api/emails/${email.id}`, { method: "DELETE" });
-      if (!res.ok) {
-        const err = await res.json().catch(() => ({}));
-        throw new Error(err.error || "Erreur");
-      }
-      toast.success("Email supprime");
-      setViewEmail(null);
-      if (editEmail?.id === email.id) setEditEmail(null);
-      fetchCampaign();
-    } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Erreur");
-    }
+  const handleDeleteEmail = async (email: CampaignEmail) => {
+    const ok = await confirm({
+      title: "Supprimer cet email ?",
+      description: `L'email destiné à ${email.prospect.company} ne sera pas envoyé.`,
+      confirmLabel: "Supprimer",
+      destructive: true,
+    });
+    if (!ok) return;
+    const res = await fetch(`/api/emails/${email.id}`, { method: "DELETE" });
+    if (!res.ok) return toast.error(await readError(res, "Suppression impossible"));
+    toast.success("Email supprimé");
+    setViewEmail(null);
+    fetchCampaign();
   };
 
   if (!campaign) {
-    return (
-      <div className="flex items-center justify-center py-12">
-        <RefreshCw className="h-6 w-6 animate-spin text-muted-foreground" />
+    return loadError ? (
+      <div role="alert" className="py-16 text-center">
+        <p className="font-medium">{loadError}</p>
+        <Link href="/campaigns" className={buttonVariants({ variant: "outline", className: "mt-4" })}>
+          Retour aux campagnes
+        </Link>
+      </div>
+    ) : (
+      <div className="space-y-6" aria-busy="true">
+        <Skeleton className="h-10 w-72" />
+        <div className="grid gap-4 sm:grid-cols-3 xl:grid-cols-6">
+          {Array.from({ length: 6 }).map((_, i) => (
+            <Skeleton key={i} className="h-24 rounded-xl" />
+          ))}
+        </div>
+        <Skeleton className="h-96 rounded-xl" />
       </div>
     );
   }
 
-  const STATUS_COLORS: Record<string, string> = {
-    PENDING: "bg-gray-100 text-gray-800",
-    SENT: "bg-blue-100 text-blue-800",
-    DELIVERED: "bg-green-100 text-green-800",
-    OPENED: "bg-purple-100 text-purple-800",
-    CLICKED: "bg-indigo-100 text-indigo-800",
-    BOUNCED: "bg-red-100 text-red-800",
-    REPLIED: "bg-emerald-100 text-emerald-800",
-    FAILED: "bg-red-100 text-red-800",
-  };
-  const totalEmailPages = Math.max(
-    1,
-    Math.ceil(campaign.emails.length / EMAILS_PER_PAGE)
-  );
+  const totalEmailPages = Math.max(1, Math.ceil(campaign.emails.length / EMAILS_PER_PAGE));
   const safeEmailPage = Math.min(emailPage, totalEmailPages);
-  const paginatedEmails = campaign.emails.slice(
-    (safeEmailPage - 1) * EMAILS_PER_PAGE,
-    safeEmailPage * EMAILS_PER_PAGE
-  );
+  const paginatedEmails = campaign.emails.slice((safeEmailPage - 1) * EMAILS_PER_PAGE, safeEmailPage * EMAILS_PER_PAGE);
+  const isActive = campaign.status === "ACTIVE";
+  const canApprove = campaign.status !== "ACTIVE" && campaign.status !== "COMPLETED" && campaign.pendingCount > 0;
+  const productLabel = campaign.product ? PRODUCT_LABELS[campaign.product] ?? campaign.product : "Tous produits";
+
+  const steps = [
+    { label: "Rédiger", done: campaign.emails.length > 0, hint: "Génération par l'assistant" },
+    { label: "Relire", done: campaign.pendingCount === 0 && campaign.emails.length > 0, hint: `${campaign.pendingCount} à relire` },
+    { label: "Activer", done: isActive || campaign.sentCount > 0, hint: "Approbation du lot" },
+    { label: "Envoi", done: campaign.sentCount > 0, hint: `${campaign.sentCount} envoyé(s)` },
+  ];
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <PageTitle
-          title={campaign.name}
-          description={`${campaign.segment?.name || "Sans segment"} — ${campaign.language.toUpperCase()} — ${campaign.tone}`}
-          icon={BarChart3}
-        />
-        <div className="flex flex-wrap gap-2">
-          <a
-            href={`/api/export?type=campaign_emails&campaignId=${id}`}
-            className={cn(
-              buttonVariants({ variant: "outline" }),
-              "inline-flex items-center"
-            )}
-          >
-            Export CSV
-          </a>
-          <Link
-            href={`/campaigns/${id}/edit`}
-            className={cn(
-              buttonVariants({ variant: "outline" }),
-              "inline-flex items-center"
-            )}
-          >
-            <Pencil className="mr-2 h-4 w-4" />
-            Modifier
-          </Link>
-          <Button
-            variant="outline"
-            onClick={handleGenerateEmails}
-            disabled={generating}
-          >
-            <Bot className="mr-2 h-4 w-4" />
-            {generating ? "Generation..." : "Generer emails IA"}
-          </Button>
-          <Button
-            variant="outline"
-            onClick={handleSendBatch}
-            disabled={sending}
-          >
-            <Send className="mr-2 h-4 w-4" />
-            {sending ? "Envoi..." : "Envoyer le lot"}
-          </Button>
-          <Button variant="outline" onClick={toggleStatus}>
-            {campaign.status === "ACTIVE" ? (
-              <Pause className="mr-2 h-4 w-4" />
+      <PageTitle
+        title={campaign.name}
+        description={`${campaign.segment?.name || "Tous les prospects"} · ${productLabel} · ${
+          LANGUAGE_LABELS[campaign.language] ?? campaign.language.toUpperCase()
+        } · ton ${(TONE_LABELS[campaign.tone] ?? campaign.tone).toLowerCase()}`}
+        icon={Mail}
+        actions={
+          <>
+            <StatusBadge kind="campaign" value={campaign.status} className="mr-1" />
+            <Button variant="outline" onClick={handleGenerate} disabled={busy !== null}>
+              {busy === "generate" ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
+              Rédiger les emails
+            </Button>
+            {isActive ? (
+              <>
+                <Button variant="outline" onClick={handleSendNow} disabled={busy !== null}>
+                  {busy === "send" ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
+                  Envoyer maintenant
+                </Button>
+                <Button variant="outline" onClick={() => setStatus("PAUSED")} disabled={busy !== null}>
+                  <Pause className="h-4 w-4" />
+                  Mettre en pause
+                </Button>
+              </>
             ) : (
-              <Play className="mr-2 h-4 w-4" />
+              <Button
+                onClick={() => setStatus("ACTIVE")}
+                disabled={busy !== null || (!canApprove && campaign.status !== "PAUSED")}
+                title={!canApprove && campaign.status !== "PAUSED" ? "Rédigez et relisez des emails d'abord" : undefined}
+              >
+                <Play className="h-4 w-4" />
+                {campaign.status === "PAUSED" ? "Reprendre" : "Approuver et activer"}
+              </Button>
             )}
-            {campaign.status === "ACTIVE" ? "Pause" : "Activer"}
-          </Button>
-          <Button
-            variant="outline"
-            className="text-destructive hover:text-destructive"
-            onClick={handleDeleteCampaign}
-          >
-            <Trash2 className="mr-2 h-4 w-4" />
-            Supprimer
-          </Button>
-        </div>
-      </div>
+            <DropdownMenu>
+              <DropdownMenuTrigger render={<Button variant="ghost" size="icon" aria-label="Plus d'actions" />}>
+                <MoreHorizontal className="h-4 w-4" />
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuItem onClick={() => router.push(`/campaigns/${id}/edit`)}>
+                  <Pencil className="h-4 w-4" />
+                  Modifier les paramètres
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => (window.location.href = `/api/export?type=campaign_emails&campaignId=${id}`)}>
+                  <Download className="h-4 w-4" />
+                  Exporter en CSV
+                </DropdownMenuItem>
+                {campaign.status !== "COMPLETED" ? (
+                  <DropdownMenuItem onClick={() => setStatus("COMPLETED")}>
+                    <CheckCircle2 className="h-4 w-4" />
+                    Marquer comme terminée
+                  </DropdownMenuItem>
+                ) : null}
+                <DropdownMenuSeparator />
+                <DropdownMenuItem variant="destructive" onClick={handleDeleteCampaign}>
+                  <Trash2 className="h-4 w-4" />
+                  Supprimer la campagne
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </>
+        }
+      />
 
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-6">
-        {[
-          { label: "Envoyes", value: campaign.sentCount },
-          { label: "Livres", value: campaign.deliveredCount ?? 0 },
-          { label: "Ouverts", value: campaign.openCount },
-          { label: "Reponses", value: campaign.replyCount },
-          { label: "Rebonds", value: campaign.bounceCount },
-          { label: "Failed", value: campaign.failedCount ?? 0 },
-        ].map((kpi) => (
-          <Card key={kpi.label}>
-            <CardContent className="pt-6">
-              <p className="text-2xl font-bold">{kpi.value}</p>
-              <p className="text-sm text-muted-foreground">{kpi.label}</p>
-            </CardContent>
-          </Card>
+      <ol className="grid gap-2 sm:grid-cols-4" aria-label="Étapes de la campagne">
+        {steps.map((step, i) => (
+          <li
+            key={step.label}
+            className={cn(
+              "flex items-center gap-3 rounded-lg border bg-card px-4 py-3",
+              step.done && "border-primary/30 bg-primary/5"
+            )}
+          >
+            <span
+              className={cn(
+                "flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-xs font-semibold",
+                step.done ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"
+              )}
+            >
+              {step.done ? <CheckCircle2 className="h-4 w-4" /> : i + 1}
+            </span>
+            <span className="min-w-0">
+              <span className="block text-sm font-medium">{step.label}</span>
+              <span className="block truncate text-xs text-muted-foreground">{step.hint}</span>
+            </span>
+          </li>
         ))}
+      </ol>
+
+      {generatingQueued ? (
+        <p role="status" className="flex items-center gap-2 rounded-lg border border-sun/40 bg-sun/15 px-4 py-3 text-sm">
+          <Loader2 className="h-4 w-4 animate-spin" />
+          Rédaction en cours en arrière-plan : la liste se met à jour automatiquement.
+        </p>
+      ) : null}
+
+      <div className="grid gap-4 sm:grid-cols-3 xl:grid-cols-6">
+        <Kpi label="À relire" value={campaign.pendingCount} />
+        <Kpi label="Envoyés" value={campaign.sentCount} />
+        <Kpi label="Délivrés" value={campaign.deliveredCount ?? 0} hint={rate(campaign.deliveredCount, campaign.sentCount)} />
+        <Kpi label="Ouverts" value={campaign.openCount} hint={rate(campaign.openCount, campaign.deliveredCount)} />
+        <Kpi label="Réponses" value={campaign.replyCount} hint={rate(campaign.replyCount, campaign.sentCount)} />
+        <Kpi label="Rebonds / échecs" value={campaign.bounceCount + (campaign.failedCount ?? 0)} />
       </div>
 
       <Card>
         <CardHeader>
           <CardTitle>Emails de la campagne</CardTitle>
-          <CardDescription>{campaign.emails.length} emails</CardDescription>
+          <CardDescription>
+            {campaign.emails.length} email(s) · relances : {campaign.maxFollowUps} maximum, tous les {campaign.followUpDelayDays} jours
+          </CardDescription>
         </CardHeader>
         <CardContent>
           {campaign.emails.length === 0 ? (
-            <div className="py-8 text-center text-muted-foreground">
-              Aucun email genere. Cliquez sur &quot;Generer emails IA&quot; pour commencer.
+            <div className="flex flex-col items-center py-12 text-center">
+              <Sparkles className="mb-3 h-8 w-8 text-primary" />
+              <p className="font-medium">Aucun email pour l&apos;instant</p>
+              <p className="mt-1 max-w-md text-sm text-muted-foreground">
+                L&apos;assistant rédige un email personnalisé pour chaque prospect du segment, dans sa langue. Vous
+                pourrez tout relire et corriger avant d&apos;activer la campagne.
+              </p>
+              <Button className="mt-5" onClick={handleGenerate} disabled={busy !== null}>
+                <Sparkles className="h-4 w-4" />
+                Rédiger les emails
+              </Button>
             </div>
           ) : (
             <div className="space-y-3">
               <div className="overflow-x-auto rounded-md border">
-                <Table className="min-w-[980px]">
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Prospect</TableHead>
-                    <TableHead>Objet</TableHead>
-                    <TableHead>Type</TableHead>
-                    <TableHead>Statut</TableHead>
-                    <TableHead>Envoye le</TableHead>
-                    <TableHead className="w-[120px] text-right">Actions</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {paginatedEmails.map((email) => (
-                    <TableRow
-                      key={email.id}
-                      className="odd:bg-muted/20 hover:bg-muted/50 transition-colors"
-                    >
-                      <TableCell>
-                        <div>
-                          <p className="font-medium">
-                            {email.prospect.company}
-                          </p>
-                          <p className="text-xs text-muted-foreground">
-                            {email.prospect.email}
-                          </p>
-                        </div>
-                      </TableCell>
-                      <TableCell className="max-w-xs truncate">
-                        {email.subject}
-                      </TableCell>
-                      <TableCell>
-                        <Badge variant="outline">{email.type}</Badge>
-                      </TableCell>
-                      <TableCell>
-                        <Badge
-                          variant="secondary"
-                          className={STATUS_COLORS[email.status] || ""}
-                        >
-                          {email.status}
-                        </Badge>
-                      </TableCell>
-                      <TableCell className="text-sm">
-                        {email.sentAt
-                          ? new Date(email.sentAt).toLocaleString("fr-FR")
-                          : "-"}
-                      </TableCell>
-                      <TableCell className="text-right">
-                        <div className="flex justify-end gap-1">
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            size="icon-sm"
-                            className="h-8 w-8 text-emerald-700 dark:text-emerald-400"
-                            disabled={
-                              markingRepliedId === email.id ||
-                              email.status === "REPLIED" ||
-                              email.status === "PENDING" ||
-                              email.status === "BOUNCED"
-                            }
-                            title="Marquer reponse recue (boite mail)"
-                            aria-label="Marquer comme repondu"
-                            onClick={() => handleMarkReplied(email)}
-                          >
-                            <MessageSquareReply className="h-4 w-4" />
-                          </Button>
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            size="icon-sm"
-                            className="h-8 w-8"
-                            aria-label="Voir le contenu"
-                            onClick={() => setViewEmail(email)}
-                          >
-                            <Eye className="h-4 w-4" />
-                          </Button>
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            size="icon-sm"
-                            className="h-8 w-8"
-                            disabled={email.status !== "PENDING"}
-                            title={
-                              email.status !== "PENDING"
-                                ? "Modification reservee aux emails non envoyes"
-                                : "Modifier"
-                            }
-                            aria-label="Modifier"
-                            onClick={() => openEditEmail(email)}
-                          >
-                            <Pencil className="h-4 w-4" />
-                          </Button>
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            size="icon-sm"
-                            className="h-8 w-8 text-destructive hover:text-destructive"
-                            aria-label="Supprimer"
-                            onClick={() => handleDeleteEmail(email)}
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
-                        </div>
-                      </TableCell>
+                <Table className="min-w-[900px]">
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Prospect</TableHead>
+                      <TableHead>Objet</TableHead>
+                      <TableHead>Étape</TableHead>
+                      <TableHead>Statut</TableHead>
+                      <TableHead>Envoyé le</TableHead>
+                      <TableHead className="w-[150px] text-right">Actions</TableHead>
                     </TableRow>
-                  ))}
-                </TableBody>
+                  </TableHeader>
+                  <TableBody>
+                    {paginatedEmails.map((email) => {
+                      const sent = !["PENDING", "SENDING", "FAILED"].includes(email.status);
+                      return (
+                        <TableRow key={email.id}>
+                          <TableCell>
+                            <p className="font-medium">{email.prospect.company}</p>
+                            <p className="text-xs text-muted-foreground">{email.prospect.email}</p>
+                          </TableCell>
+                          <TableCell className="max-w-xs">
+                            <button
+                              type="button"
+                              className="block max-w-full truncate rounded text-left hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                              onClick={() => setViewEmail(email)}
+                            >
+                              {email.subject}
+                            </button>
+                          </TableCell>
+                          <TableCell className="text-sm text-muted-foreground">
+                            {EMAIL_TYPE_LABELS[email.type] ?? email.type}
+                          </TableCell>
+                          <TableCell>
+                            <StatusBadge kind="email" value={email.status} />
+                          </TableCell>
+                          <TableCell className="text-sm">
+                            {email.sentAt ? new Date(email.sentAt).toLocaleString("fr-FR", { dateStyle: "short", timeStyle: "short" }) : "—"}
+                          </TableCell>
+                          <TableCell className="text-right">
+                            <div className="flex justify-end gap-0.5">
+                              <Button variant="ghost" size="icon-sm" aria-label="Lire l'email" title="Lire" onClick={() => setViewEmail(email)}>
+                                <Eye className="h-4 w-4" />
+                              </Button>
+                              {email.status === "PENDING" ? (
+                                <Button variant="ghost" size="icon-sm" aria-label="Modifier l'email" title="Modifier" onClick={() => openEditEmail(email)}>
+                                  <Pencil className="h-4 w-4" />
+                                </Button>
+                              ) : null}
+                              {sent && email.status !== "REPLIED" && email.status !== "BOUNCED" ? (
+                                <Button
+                                  variant="ghost"
+                                  size="icon-sm"
+                                  className="text-success"
+                                  disabled={markingRepliedId === email.id}
+                                  aria-label="Le prospect a répondu"
+                                  title="Le prospect a répondu"
+                                  onClick={() => handleMarkReplied(email)}
+                                >
+                                  <MessageSquareReply className="h-4 w-4" />
+                                </Button>
+                              ) : null}
+                              {!sent ? (
+                                <Button
+                                  variant="ghost"
+                                  size="icon-sm"
+                                  className="text-destructive hover:text-destructive"
+                                  aria-label="Supprimer l'email"
+                                  title="Supprimer"
+                                  onClick={() => handleDeleteEmail(email)}
+                                >
+                                  <Trash2 className="h-4 w-4" />
+                                </Button>
+                              ) : null}
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })}
+                  </TableBody>
                 </Table>
               </div>
               <ListPagination
@@ -511,124 +526,81 @@ export default function CampaignDetailPage({
         </CardContent>
       </Card>
 
-      <Sheet
-        open={viewEmail !== null}
-        onOpenChange={(open) => {
-          if (!open) setViewEmail(null);
-        }}
-      >
-        <SheetContent className="flex max-h-[100vh] flex-col gap-0 overflow-hidden sm:max-w-lg">
-          {viewEmail && (
+      <Sheet open={viewEmail !== null} onOpenChange={(open) => !open && setViewEmail(null)}>
+        <SheetContent className="flex max-h-dvh flex-col gap-0 overflow-hidden sm:max-w-lg">
+          {viewEmail ? (
             <>
               <SheetHeader className="shrink-0 text-left">
-                <SheetTitle className="pr-8 leading-snug">
-                  {viewEmail.subject}
-                </SheetTitle>
+                <SheetTitle className="pr-8 leading-snug">{viewEmail.subject}</SheetTitle>
                 <SheetDescription>
-                  {viewEmail.prospect.company} — {viewEmail.prospect.email}
+                  {viewEmail.prospect.contact ? `${viewEmail.prospect.contact} · ` : ""}
+                  {viewEmail.prospect.company} · {viewEmail.prospect.email}
                 </SheetDescription>
               </SheetHeader>
-              <Separator />
-              <div className="min-h-0 flex-1 overflow-y-auto px-4 pb-2">
-                <p className="mb-2 text-xs font-medium text-muted-foreground">
-                  Corps du message
-                </p>
-                <div className="rounded-md border bg-muted/30 p-3 text-sm whitespace-pre-wrap">
-                  {viewEmail.body}
+              <div className="min-h-0 flex-1 overflow-y-auto border-y px-4 py-4">
+                <div className="mb-3 flex items-center gap-2">
+                  <StatusBadge kind="email" value={viewEmail.status} />
+                  <span className="text-xs text-muted-foreground">{EMAIL_TYPE_LABELS[viewEmail.type] ?? viewEmail.type}</span>
                 </div>
+                <div className="whitespace-pre-wrap rounded-md border bg-muted/40 p-4 text-sm leading-relaxed">{viewEmail.body}</div>
+                <p className="mt-3 text-xs text-muted-foreground">
+                  La signature, le pied de page légal et le lien de désinscription sont ajoutés automatiquement à l&apos;envoi.
+                </p>
               </div>
-              <Separator />
               <SheetFooter className="flex-row flex-wrap gap-2 sm:justify-between">
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={() => setViewEmail(null)}
-                >
+                <Button variant="outline" onClick={() => setViewEmail(null)}>
                   Fermer
                 </Button>
-                <div className="flex flex-wrap gap-2">
-                  {viewEmail.status === "PENDING" && (
-                    <Button
-                      type="button"
-                      variant="secondary"
-                      onClick={() => {
-                        const e = viewEmail;
-                        setViewEmail(null);
-                        openEditEmail(e);
-                      }}
-                    >
-                      <Pencil className="mr-2 h-4 w-4" />
-                      Modifier
-                    </Button>
-                  )}
+                {viewEmail.status === "PENDING" ? (
                   <Button
-                    type="button"
-                    variant="outline"
-                    className="border-destructive/40 text-destructive hover:bg-destructive/10"
                     onClick={() => {
                       const e = viewEmail;
                       setViewEmail(null);
-                      handleDeleteEmail(e);
+                      openEditEmail(e);
                     }}
                   >
-                    <Trash2 className="mr-2 h-4 w-4" />
-                    Supprimer
+                    <Pencil className="h-4 w-4" />
+                    Modifier
                   </Button>
-                </div>
+                ) : null}
               </SheetFooter>
             </>
-          )}
+          ) : null}
         </SheetContent>
       </Sheet>
 
-      <Dialog
-        open={editEmail !== null}
-        onOpenChange={(open) => {
-          if (!open) setEditEmail(null);
-        }}
-      >
-        <DialogContent className="max-h-[90vh] max-w-lg overflow-y-auto">
+      <Dialog open={editEmail !== null} onOpenChange={(open) => !open && setEditEmail(null)}>
+        <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-2xl">
           <DialogHeader>
-            <DialogTitle>Modifier l email</DialogTitle>
+            <DialogTitle>Modifier l&apos;email</DialogTitle>
           </DialogHeader>
-          {editEmail && (
+          {editEmail ? (
             <div className="grid gap-4 py-2">
               <p className="text-sm text-muted-foreground">
-                Vers : {editEmail.prospect.company} ({editEmail.prospect.email})
+                Destinataire : {editEmail.prospect.company} ({editEmail.prospect.email})
               </p>
-              <div className="space-y-2">
+              <div className="space-y-1.5">
                 <Label htmlFor="email-subject">Objet</Label>
-                <Input
-                  id="email-subject"
-                  value={editSubject}
-                  onChange={(e) => setEditSubject(e.target.value)}
-                />
+                <Input id="email-subject" value={editSubject} maxLength={200} onChange={(e) => setEditSubject(e.target.value)} />
               </div>
-              <div className="space-y-2">
-                <Label htmlFor="email-body">Corps</Label>
+              <div className="space-y-1.5">
+                <Label htmlFor="email-body">Message</Label>
                 <Textarea
                   id="email-body"
                   value={editBody}
                   onChange={(e) => setEditBody(e.target.value)}
-                  className="min-h-[200px] font-mono text-sm"
+                  className="min-h-[260px] text-sm leading-relaxed"
                 />
               </div>
             </div>
-          )}
-          <DialogFooter className="gap-2 sm:gap-0">
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => setEditEmail(null)}
-            >
+          ) : null}
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setEditEmail(null)}>
               Annuler
             </Button>
-            <Button
-              type="button"
-              onClick={handleSaveEmail}
-              disabled={savingEmail || !editSubject.trim() || !editBody.trim()}
-            >
-              {savingEmail ? "Enregistrement..." : "Enregistrer"}
+            <Button onClick={handleSaveEmail} disabled={savingEmail || !editSubject.trim() || !editBody.trim()}>
+              {savingEmail ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+              Enregistrer
             </Button>
           </DialogFooter>
         </DialogContent>

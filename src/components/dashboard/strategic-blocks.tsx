@@ -46,7 +46,7 @@ function TargetRow({
         <div
           className={cn(
             "h-full rounded-full transition-all",
-            pct >= 100 ? "bg-emerald-500" : "bg-primary"
+            pct >= 100 ? "bg-success" : "bg-primary"
           )}
           style={{ width: `${Math.max(pct, 2)}%` }}
         />
@@ -63,14 +63,14 @@ export function StrategicDashboardSections({
   return (
     <>
       {extras.alerts.length > 0 && (
-        <Card className="border-amber-200/80 dark:border-amber-900/50">
+        <Card className="border-warning/30 dark:border-warning/30">
           <CardHeader className="pb-2">
             <CardTitle className="flex items-center gap-2 text-base">
-              <Bell className="h-4 w-4 text-amber-600" />
+              <Bell className="h-4 w-4 text-warning" />
               Alertes
             </CardTitle>
             <CardDescription>
-              Evenements a traiter en priorite
+              Evenements a traiter en priorité
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-2">
@@ -80,8 +80,8 @@ export function StrategicDashboardSections({
                 className={cn(
                   "rounded-md border px-3 py-2 text-sm",
                   a.level === "danger"
-                    ? "border-red-200 bg-red-50 text-red-900 dark:border-red-900/40 dark:bg-red-950/30 dark:text-red-100"
-                    : "border-amber-200 bg-amber-50 text-amber-950 dark:border-amber-900/40 dark:bg-amber-950/30 dark:text-amber-100"
+                    ? "border-destructive/30 bg-destructive/10 text-destructive dark:border-destructive/30 dark:bg-destructive/15 dark:text-destructive"
+                    : "border-warning/30 bg-warning/10 text-warning dark:border-warning/30 dark:bg-warning/15 dark:text-warning"
                 )}
               >
                 {a.message}
@@ -97,7 +97,7 @@ export function StrategicDashboardSections({
             <div>
               <CardTitle className="text-base">Objectifs (7 jours)</CardTitle>
               <CardDescription>
-                Cadence vs cibles definies dans Parametres
+                Cadence vs cibles definies dans Paramètres
               </CardDescription>
             </div>
             <Link
@@ -119,7 +119,7 @@ export function StrategicDashboardSections({
               target={extras.targets.weeklyProspects}
             />
             <TargetRow
-              label="Reponses marquees"
+              label="Réponses marquees"
               current={extras.progress.weeklyRepliesMarked}
               target={extras.targets.weeklyReplies}
             />
@@ -183,7 +183,7 @@ export function StrategicDashboardSections({
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2 text-base">
-              <ListTodo className="h-4 w-4" />A traiter en priorite
+              <ListTodo className="h-4 w-4" />A traiter en priorité
             </CardTitle>
             <CardDescription>
               Nouveaux scores eleves sans envoi, et contactes sans nouvelles
@@ -270,7 +270,7 @@ export function StrategicDashboardSections({
             <ul className="space-y-2 text-sm">
               {extras.segments.length === 0 ? (
                 <li className="text-muted-foreground">
-                  Aucun segment — en creer sur la page Segments
+                  Aucun segment — en créer sur la page Segments
                 </li>
               ) : (
                 extras.segments.map((s) => (
@@ -293,7 +293,7 @@ export function StrategicDashboardSections({
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2 text-base">
-            <ShieldCheck className="h-4 w-4 text-sky-600" />
+            <ShieldCheck className="h-4 w-4 text-info" />
             Checklist domaine (delivrabilite)
           </CardTitle>
           <CardDescription>
@@ -341,7 +341,7 @@ export function StrategicDashboardSections({
           <CardHeader>
             <CardTitle className="flex items-center gap-2 text-base">
               <ShieldCheck className="h-4 w-4" />
-              Hygiene & rebonds recents
+              Hygiene & rebonds récents
             </CardTitle>
             <CardDescription>
               Taux rebond 30j :{" "}

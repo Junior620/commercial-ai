@@ -23,8 +23,8 @@ const STEPS = [
     icon: Radar,
     title: "1. Detection",
     description:
-      "L IA cible Google Maps, valide les sites web et extrait automatiquement emails et contacts.",
-    color: "from-sky-500 to-cyan-500",
+      "L'IA cible Google Maps, valide les sites web et extrait automatiquement emails et contacts.",
+    color: "from-info to-info",
     tag: "Scraping + enrichissement",
   },
   {
@@ -32,7 +32,7 @@ const STEPS = [
     title: "2. Scoring",
     description:
       "Chaque prospect recoit un score entre 0 et 100 base sur secteur, taille, signaux web et pertinence.",
-    color: "from-violet-500 to-fuchsia-500",
+    color: "from-primary to-primary",
     tag: "Qualification IA",
   },
   {
@@ -40,23 +40,23 @@ const STEPS = [
     title: "3. Redaction",
     description:
       "Claude rédige un email personnalisé dans la langue du prospect, avec le ton commercial choisi.",
-    color: "from-indigo-500 to-violet-500",
-    tag: "Generation GPT/Claude",
+    color: "from-primary to-primary",
+    tag: "Génération GPT/Claude",
   },
   {
     icon: Send,
     title: "4. Envoi intelligent",
     description:
-      "Les envois sont repartis dans le temps, relancés automatiquement selon la reponse obtenue.",
-    color: "from-emerald-500 to-teal-500",
+      "Les envois sont repartis dans le temps, relancés automatiquement selon la réponse obtenue.",
+    color: "from-success to-success",
     tag: "Orchestration",
   },
   {
     icon: Inbox,
     title: "5. Analyse & reprise",
     description:
-      "Les reponses sont classees (interesse, OOO, refus…) et l IA suggere la suite logique.",
-    color: "from-amber-500 to-orange-500",
+      "Les réponses sont classees (intéressé, OOO, refus…) et l'IA suggere la suite logique.",
+    color: "from-warning to-warning",
     tag: "Classification",
   },
 ] as const;
@@ -70,18 +70,18 @@ export function HowAIWorks({ className, compact }: HowAIWorksProps) {
   return (
     <Card
       className={cn(
-        "border-violet-200/70 bg-gradient-to-br from-violet-50/60 via-background to-indigo-50/60 dark:border-violet-900/40 dark:from-violet-950/30 dark:via-background dark:to-indigo-950/30",
+        "border-primary/30 bg-gradient-to-br from-primary/60 via-background to-primary/60 dark:border-primary/30 dark:from-primary/30 dark:via-background dark:to-primary/30",
         className
       )}
     >
       <CardHeader className="flex flex-col gap-2.5 space-y-0 sm:flex-row sm:items-start sm:justify-between">
         <div>
           <CardTitle className="flex items-center gap-2 text-sm sm:text-base">
-            <Workflow className="h-4 w-4 text-violet-500" />
+            <Workflow className="h-4 w-4 text-primary" />
             Comment l&apos;IA travaille ici
           </CardTitle>
           <CardDescription className="text-xs sm:text-sm">
-            Un pipeline intelligent de la detection du prospect jusqu au suivi de la reponse
+            Un pipeline intelligent de la detection du prospect jusqu au suivi de la réponse
           </CardDescription>
         </div>
         <AIBadge label="Pipeline IA" size="xs" variant="solid" animated />
@@ -100,7 +100,7 @@ export function HowAIWorks({ className, compact }: HowAIWorksProps) {
             return (
               <li
                 key={step.title}
-                className="group relative overflow-hidden rounded-xl border border-border/60 bg-background/80 p-2.5 shadow-sm backdrop-blur transition-colors hover:border-violet-300/80 dark:hover:border-violet-700/60 sm:p-3"
+                className="group relative overflow-hidden rounded-xl border border-border/60 bg-background/80 p-2.5 shadow-sm backdrop-blur transition-colors hover:border-primary/30 dark:hover:border-primary/50 sm:p-3"
               >
                 <div
                   className={cn(
@@ -116,12 +116,12 @@ export function HowAIWorks({ className, compact }: HowAIWorksProps) {
                 <p className="mt-1 text-[11px] leading-relaxed text-foreground/75 sm:text-xs">
                   {step.description}
                 </p>
-                <span className="mt-2 inline-flex max-w-full items-center rounded-full border border-violet-200/60 bg-violet-50 px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide text-violet-700 dark:border-violet-900/50 dark:bg-violet-950/40 dark:text-violet-200">
+                <span className="mt-2 inline-flex max-w-full items-center rounded-full border border-primary/30 bg-primary/10 px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide text-primary dark:border-primary/30 dark:bg-primary/15 dark:text-primary">
                   {step.tag}
                 </span>
                 <span
                   aria-hidden
-                  className="pointer-events-none absolute -right-6 -top-6 h-20 w-20 rounded-full bg-violet-400/0 blur-2xl transition-all group-hover:bg-violet-400/20"
+                  className="pointer-events-none absolute -right-6 -top-6 h-20 w-20 rounded-full bg-primary/0 blur-2xl transition-all group-hover:bg-primary/20"
                 />
               </li>
             );

@@ -29,7 +29,7 @@ const SAMPLES: Sample[] = [
     company: "Paris, FR",
     subject: "Un cacao d'origine pour vos collections 2026",
     body:
-      "Bonjour Camille,\n\nJ'ai vu que vous travaillez de beaux chocolats monocépages chez Pâtisserie Lumière. Nous produisons un beurre de cacao et une poudre premium d'origine Côte d'Ivoire, tracables de la plantation à la livraison.\n\nSeriez-vous ouvert à un échantillon gratuit pour vos prochaines créations ?",
+      "Bonjour Camille,\n\nJ'ai vu que vous travaillez de beaux chocolats monocépages chez Pâtisserie Lumière. Nous produisons un beurre de cacao et une poudre premium, traçables de la plantation à la livraison.\n\nSeriez-vous ouvert à un échantillon gratuit pour vos prochaines créations ?",
   },
   {
     language: "en",
@@ -37,7 +37,7 @@ const SAMPLES: Sample[] = [
     company: "Copenhagen, DK",
     subject: "Single-origin green coffee for your 2026 line",
     body:
-      "Hi David,\n\nI noticed Nordic Roastery focuses on specialty light roasts. We ship traceable single-origin green coffee from Côte d'Ivoire — clean cup, bright acidity, strong farmer partnerships.\n\nHappy to send a free 200g sample for your next cupping session.",
+      "Hi David,\n\nI noticed Nordic Roastery focuses on specialty light roasts. We ship traceable single-origin green coffee: clean cup, bright acidity, strong farmer partnerships.\n\nHappy to send a free 200g sample for your next cupping session.",
   },
   {
     language: "es",
@@ -45,7 +45,7 @@ const SAMPLES: Sample[] = [
     company: "Barcelona, ES",
     subject: "Manteca de cacao trazable para sus chocolates premium",
     body:
-      "Hola Ana,\n\nSus bombones de origen único llaman la atención. Producimos manteca de cacao y polvo 100% trazables desde Costa de Marfil, con certificación orgánica.\n\n¿Le interesaría una muestra gratuita para su próxima colección ?",
+      "Hola Ana,\n\nSus bombones de origen único llaman la atención. Producimos manteca de cacao y polvo 100% trazables, de la plantación a la entrega.\n\n¿Le interesaría una muestra gratuita para su próxima colección ?",
   },
 ];
 
@@ -117,7 +117,7 @@ export function AITypingDemo({ className }: { className?: string }) {
     };
   }, [phase, subject, body, sample]);
 
-  // Boucle : quand un exemple est termine, on attend puis on passe au suivant
+  // Boucle : quand un exemple est terminé, on attend puis on passe au suivant
   useEffect(() => {
     if (phase !== "done") return;
     if (pauseTimerRef.current) clearTimeout(pauseTimerRef.current);
@@ -143,19 +143,19 @@ export function AITypingDemo({ className }: { className?: string }) {
     >
       {/* header: envelope + ai pill */}
       <div className="mb-2.5 flex flex-wrap items-start justify-between gap-1.5 sm:mb-3 sm:gap-2">
-        <div className="flex min-w-0 flex-1 items-center gap-1.5 text-[11px] text-neutral-300 sm:gap-2 sm:text-xs">
+        <div className="flex min-w-0 flex-1 items-center gap-1.5 text-[11px] text-muted-foreground sm:gap-2 sm:text-xs">
           <div className="flex h-6 w-6 items-center justify-center rounded-lg border border-white/10 bg-white/[0.06] sm:h-7 sm:w-7">
             <Mail className="h-3.5 w-3.5" />
           </div>
           <div className="min-w-0 leading-tight">
             <p className="font-medium text-white max-[360px]:text-[10px]">Brouillon · IA</p>
-            <p className="text-[9px] text-neutral-300 sm:text-[10px]">
+            <p className="text-[9px] text-muted-foreground sm:text-[10px]">
               <span className="block truncate">Pour {sample.to} · {sample.company}</span>
             </p>
           </div>
         </div>
         <div
-          className="inline-flex items-center gap-1 rounded-full border border-violet-400/40 bg-violet-500/20 px-1.5 py-0.5 text-[9px] font-medium text-violet-100 sm:px-2 sm:text-[10px]"
+          className="inline-flex items-center gap-1 rounded-full border border-primary/50 bg-primary/20 px-1.5 py-0.5 text-[9px] font-medium text-primary sm:px-2 sm:text-[10px]"
           role="status"
           aria-live="polite"
         >
@@ -175,7 +175,7 @@ export function AITypingDemo({ className }: { className?: string }) {
 
       {/* subject */}
       <div className="mb-1.5 sm:mb-2">
-        <p className="text-[9px] uppercase tracking-wide text-neutral-300 sm:text-[10px]">
+        <p className="text-[9px] uppercase tracking-wide text-muted-foreground sm:text-[10px]">
           Objet
         </p>
         <p className="text-xs font-semibold text-white sm:text-sm">
@@ -186,17 +186,17 @@ export function AITypingDemo({ className }: { className?: string }) {
 
       {/* body */}
       <div className="space-y-1 rounded-lg border border-white/15 bg-black/35 p-2.5 sm:p-3">
-        <p className="text-[9px] uppercase tracking-wide text-neutral-300 sm:text-[10px]">
+        <p className="text-[9px] uppercase tracking-wide text-muted-foreground sm:text-[10px]">
           Message
         </p>
         <pre
-          className="max-h-40 min-h-[6.75rem] overflow-hidden whitespace-pre-wrap break-words font-sans text-[11px] leading-relaxed text-neutral-100 sm:max-h-44 sm:min-h-[8.5rem] sm:text-xs"
+          className="max-h-40 min-h-[6.75rem] overflow-hidden whitespace-pre-wrap break-words font-sans text-[11px] leading-relaxed text-muted-foreground sm:max-h-44 sm:min-h-[8.5rem] sm:text-xs"
           aria-live="polite"
         >
 {body}
           {phase === "body" && <BlinkingCursor />}
           {phase === "done" && (
-            <span className="ml-1 inline-flex items-center gap-1 rounded-full bg-emerald-500/15 px-2 py-0.5 text-[10px] font-medium text-emerald-300">
+            <span className="ml-1 inline-flex items-center gap-1 rounded-full bg-success/15 px-2 py-0.5 text-[10px] font-medium text-success">
               <Check className="h-3 w-3" /> généré par IA
             </span>
           )}
@@ -204,9 +204,9 @@ export function AITypingDemo({ className }: { className?: string }) {
       </div>
 
       {/* footer: model row */}
-      <div className="mt-2.5 flex flex-wrap items-center justify-between gap-1.5 text-[9px] text-neutral-300 sm:mt-3 sm:gap-2 sm:text-[10px]">
+      <div className="mt-2.5 flex flex-wrap items-center justify-between gap-1.5 text-[9px] text-muted-foreground sm:mt-3 sm:gap-2 sm:text-[10px]">
         <div className="inline-flex min-w-0 items-center gap-1">
-          <Bot className="h-3 w-3 text-violet-300" />
+          <Bot className="h-3 w-3 text-primary" />
           <span className="truncate">Claude 3.5 · ton commercial</span>
         </div>
         <div className="inline-flex items-center gap-2 uppercase tracking-wide">
@@ -218,7 +218,7 @@ export function AITypingDemo({ className }: { className?: string }) {
                 className={cn(
                   "h-1 rounded-full transition-all",
                   i === index
-                    ? "w-4 bg-violet-400"
+                    ? "w-4 bg-primary"
                     : "w-1.5 bg-white/20"
                 )}
               />
@@ -228,7 +228,7 @@ export function AITypingDemo({ className }: { className?: string }) {
             <span
               className={cn(
                 "inline-block h-1.5 w-1.5 rounded-full",
-                isTyping ? "animate-pulse bg-amber-400" : "bg-emerald-400"
+                isTyping ? "animate-pulse bg-warning" : "bg-success"
               )}
             />
             {sample.language.toUpperCase()}
@@ -243,7 +243,7 @@ function BlinkingCursor() {
   return (
     <span
       aria-hidden
-      className="ml-0.5 inline-block h-4 w-[1.5px] translate-y-0.5 animate-pulse bg-violet-300 align-middle"
+      className="ml-0.5 inline-block h-4 w-[1.5px] translate-y-0.5 animate-pulse bg-primary/20 align-middle"
     />
   );
 }

@@ -37,9 +37,9 @@ import { AITimeline, loadAITimelineData } from "@/components/dashboard/ai-timeli
 const SCRAPE_LABELS: Record<string, string> = {
   PENDING: "En attente",
   RUNNING: "En cours",
-  COMPLETED: "Termine",
-  FAILED: "Echec",
-  CANCELLED: "Annule",
+  COMPLETED: "Terminé",
+  FAILED: "Échec",
+  CANCELLED: "Annulé",
 };
 
 function getFallbackStats() {
@@ -77,7 +77,7 @@ function getFallbackStats() {
     emailTrendLabel: "—",
     funnelSteps: [
       { label: "Tentatives (hors brouillon)", value: 0 },
-      { label: "Livres", value: 0 },
+      { label: "Livrés", value: 0 },
       { label: "Ouverts (tracking)", value: 0 },
       { label: "Clics trackes", value: 0 },
     ],
@@ -254,7 +254,7 @@ async function getStats() {
     emailTrendLabel,
     funnelSteps: [
       { label: "Tentatives (hors brouillon)", value: attempted },
-      { label: "Livres", value: deliveredEmails },
+      { label: "Livrés", value: deliveredEmails },
       { label: "Ouverts (tracking)", value: openedEmails },
       { label: "Clics trackes", value: clickedEmails },
     ],
@@ -283,65 +283,65 @@ export default async function DashboardPage() {
           label: "Prospects",
           value: stats.totalProspects,
           icon: Users,
-          color: "text-blue-600",
+          color: "text-info",
           hint: `${stats.warmNewLeads} nouveaux scores ≥ 50`,
         },
         {
           label: "Emails partis (7 j.)",
           value: stats.emailsLast7Days,
           icon: Send,
-          color: "text-green-600",
+          color: "text-success",
           hint:
             stats.emailTrendLabel === "—"
               ? "vs semaine precedente"
               : `vs sem. prec. : ${stats.emailTrendLabel}`,
         },
         {
-          label: "Delivrabilite",
+          label: "Délivrabilité",
           value: `${stats.deliverabilityPct}%`,
           icon: Mail,
-          color: "text-orange-600",
+          color: "text-warning",
           hint: `Rebonds ${stats.bounceRatePct}% · Echecs ${stats.failRatePct}%`,
         },
         {
           label: "Engagement",
           value: `${stats.openRate}% ouvert`,
           icon: TrendingUp,
-          color: "text-purple-600",
-          hint: `${stats.clickRateOfDelivered}% clics / livres · ${stats.responsesCount} reponses en base`,
+          color: "text-primary",
+          hint: `${stats.clickRateOfDelivered}% clics / livrés · ${stats.responsesCount} réponses en base`,
         },
         {
           label: "Campagnes actives",
           value: stats.activeCampaigns,
           icon: Target,
-          color: "text-red-600",
-          hint: `${stats.highPriorityProspects} prospects priorite haute`,
+          color: "text-destructive",
+          hint: `${stats.highPriorityProspects} prospects priorité haute`,
         },
         {
           label: "Prospects chauds",
           value: stats.hotProspects,
           icon: Globe,
-          color: "text-amber-600",
+          color: "text-warning",
           hint: "Score ≥ 60",
         },
       ];
 
   const pipeline = [
-        { label: "Nouveaux", value: stats.prospectsNew, color: "bg-slate-500" },
+        { label: "Nouveaux", value: stats.prospectsNew, color: "bg-muted-foreground/30" },
         {
           label: "Contactes",
           value: stats.prospectsContacted,
-          color: "bg-blue-500",
+          color: "bg-info",
         },
         {
           label: "En discussion",
           value: stats.prospectsInDiscussion,
-          color: "bg-amber-500",
+          color: "bg-warning",
         },
         {
           label: "Convertis",
           value: stats.prospectsConverted,
-          color: "bg-emerald-500",
+          color: "bg-success",
         },
       ];
 
@@ -351,13 +351,13 @@ export default async function DashboardPage() {
     <div className="space-y-8">
       <PageTitle
         title="Dashboard"
-        description="Pilotage pipeline, delivrabilite et campagnes — vue strategique"
+        description="Pilotage pipeline, délivrabilité et campagnes — vue stratégique"
         icon={TrendingUp}
       />
 
       <AIBanner
         title="Assistant IA actif"
-        description="Scoring des prospects, priorisation des leads chauds et generation des emails sont pilotes en continu par l IA."
+        description="Scoring des prospects, priorisation des leads chauds et génération des emails sont pilotes en continu par l'IA."
         stats={[
           {
             icon: "sparkles",
@@ -412,7 +412,7 @@ export default async function DashboardPage() {
           className={cn(buttonVariants({ variant: "outline", size: "sm" }))}
         >
           <Inbox className="mr-2 h-4 w-4" />
-          Reponses
+          Réponses
         </Link>
       </div>
 
@@ -446,7 +446,7 @@ export default async function DashboardPage() {
               <Card>
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2 text-base">
-                    <Zap className="h-4 w-4 text-amber-500" />
+                    <Zap className="h-4 w-4 text-warning" />
                     Tunnel d&apos;engagement
                   </CardTitle>
                   <CardDescription>
@@ -467,7 +467,7 @@ export default async function DashboardPage() {
                   <div className="flex items-start justify-between gap-2">
                     <div>
                       <CardTitle className="flex items-center gap-2 text-base">
-                        <Sparkles className="h-4 w-4 text-violet-500" />
+                        <Sparkles className="h-4 w-4 text-primary" />
                         Pipeline commercial
                       </CardTitle>
                       <CardDescription>
@@ -500,7 +500,7 @@ export default async function DashboardPage() {
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2 text-base">
-                  <MousePointerClick className="h-4 w-4 text-sky-500" />
+                  <MousePointerClick className="h-4 w-4 text-info" />
                   Sante des envois
                 </CardTitle>
                 <CardDescription>
@@ -509,31 +509,31 @@ export default async function DashboardPage() {
               </CardHeader>
               <CardContent className="grid gap-3 text-sm sm:grid-cols-2">
                 <div className="flex items-start justify-between gap-4 rounded-lg border bg-muted/30 p-3">
-                  <span className="text-muted-foreground">Delivrabilite</span>
+                  <span className="text-muted-foreground">Délivrabilité</span>
                   <span className="text-right font-semibold tabular-nums">
                     {stats.deliverabilityPct}%
                   </span>
                 </div>
                 <div className="flex items-start justify-between gap-4 rounded-lg border bg-muted/30 p-3">
                   <span className="text-muted-foreground">Taux de rebond</span>
-                  <span className="text-right font-semibold tabular-nums text-amber-700 dark:text-amber-400">
+                  <span className="text-right font-semibold tabular-nums text-warning dark:text-warning">
                     {stats.bounceRatePct}%
                   </span>
                 </div>
                 <div className="flex items-start justify-between gap-4 rounded-lg border bg-muted/30 p-3">
                   <span className="text-muted-foreground">Echecs d&apos;envoi</span>
-                  <span className="text-right font-semibold tabular-nums text-red-600 dark:text-red-400">
+                  <span className="text-right font-semibold tabular-nums text-destructive dark:text-destructive">
                     {stats.failRatePct}%
                   </span>
                 </div>
                 <div className="flex items-start justify-between gap-4 rounded-lg border bg-muted/30 p-3">
-                  <span className="text-muted-foreground">Clics / livres</span>
+                  <span className="text-muted-foreground">Clics / livrés</span>
                   <span className="text-right font-semibold tabular-nums">
                     {stats.clickRateOfDelivered}%
                   </span>
                 </div>
                 {Number(stats.bounceRatePct) > 3 ? (
-                  <div className="flex gap-2 rounded-md border border-amber-200 bg-amber-50 p-2 text-xs text-amber-900 dark:border-amber-900/50 dark:bg-amber-950/40 dark:text-amber-100 sm:col-span-2">
+                  <div className="flex gap-2 rounded-md border border-warning/30 bg-warning/10 p-2 text-xs text-warning dark:border-warning/30 dark:bg-warning/15 dark:text-warning sm:col-span-2">
                     <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
                     Rebonds eleves : verifier listes, double opt-in et warm-up du domaine.
                   </div>
@@ -564,11 +564,11 @@ export default async function DashboardPage() {
               <thead>
                 <tr className="border-b text-muted-foreground">
                   <th className="pb-2 pr-4 font-medium">Campagne</th>
-                  <th className="pb-2 pr-4 font-medium tabular-nums">Envoyes</th>
-                  <th className="pb-2 pr-4 font-medium tabular-nums">Livres</th>
+                  <th className="pb-2 pr-4 font-medium tabular-nums">Envoyés</th>
+                  <th className="pb-2 pr-4 font-medium tabular-nums">Livrés</th>
                   <th className="pb-2 pr-4 font-medium tabular-nums">Ouverts</th>
                   <th className="pb-2 pr-4 font-medium tabular-nums">Clics</th>
-                  <th className="pb-2 pr-4 font-medium tabular-nums">Reponses</th>
+                  <th className="pb-2 pr-4 font-medium tabular-nums">Réponses</th>
                   <th className="pb-2 font-medium tabular-nums">Rebonds</th>
                 </tr>
               </thead>
@@ -593,7 +593,7 @@ export default async function DashboardPage() {
                     <td className="py-2.5 pr-4 tabular-nums">{c.openCount}</td>
                     <td className="py-2.5 pr-4 tabular-nums">{c.clickCount}</td>
                     <td className="py-2.5 pr-4 tabular-nums">{c.replyCount}</td>
-                    <td className="py-2.5 tabular-nums text-amber-700 dark:text-amber-400">
+                    <td className="py-2.5 tabular-nums text-warning dark:text-warning">
                       {c.bounceCount}
                     </td>
                   </tr>
@@ -634,11 +634,11 @@ export default async function DashboardPage() {
               <p className="text-xs text-muted-foreground">
                 {stats.lastScrape.createdAt.toLocaleString("fr-FR")}
                 {stats.lastScrape.completedAt
-                  ? ` · termine ${stats.lastScrape.completedAt.toLocaleString("fr-FR")}`
+                  ? ` · terminé ${stats.lastScrape.completedAt.toLocaleString("fr-FR")}`
                   : ""}
               </p>
               {stats.lastScrape.errorMessage ? (
-                <p className="text-xs text-red-600 dark:text-red-400">
+                <p className="text-xs text-destructive dark:text-destructive">
                   {stats.lastScrape.errorMessage.slice(0, 160)}
                   {stats.lastScrape.errorMessage.length > 160 ? "…" : ""}
                 </p>

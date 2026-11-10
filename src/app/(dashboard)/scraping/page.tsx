@@ -39,7 +39,6 @@ import {
 import { Search, Play, Loader2, Activity, StopCircle } from "lucide-react";
 import { toast } from "sonner";
 import { PageTitle } from "@/components/layout/page-title";
-import { AIBadge } from "@/components/ui/ai-badge";
 import { Separator } from "@/components/ui/separator";
 import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
@@ -131,9 +130,9 @@ function labelApifyStatus(status: string): string {
   const map: Record<string, string> = {
     RUNNING: "En cours",
     READY: "En file",
-    SUCCEEDED: "Termine",
-    FAILED: "Echec",
-    ABORTED: "Annule",
+    SUCCEEDED: "Terminé",
+    FAILED: "Échec",
+    ABORTED: "Annulé",
     "TIMED-OUT": "Timeout",
     NO_TOKEN: "Cle Apify absente",
     ERROR: "Erreur API",
@@ -152,8 +151,8 @@ export default function ScrapingPage() {
   const [selectedCountries, setSelectedCountries] = useState<string[]>([]);
   const [selectedProduct, setSelectedProduct] = useState("all");
   const [customKeywords, setCustomKeywords] = useState("");
-  const [maxResults, setMaxResults] = useState("100");
-  const [maxKeywords, setMaxKeywords] = useState("200");
+  const [maxResults, setMaxResults] = useState("60");
+  const [maxKeywords, setMaxKeywords] = useState("25");
   const [isRunning, setIsRunning] = useState(false);
   const [jobs, setJobs] = useState<ScrapingJob[]>([]);
   const [historyPage, setHistoryPage] = useState(1);
@@ -259,7 +258,7 @@ export default function ScrapingPage() {
         );
       }
     } catch {
-      toast.error("Erreur reseau");
+      toast.error("Erreur réseau");
     } finally {
       setCancellingId(null);
     }
@@ -291,7 +290,7 @@ export default function ScrapingPage() {
         );
       }
       const job = payload;
-      toast.success(`Scraping lance ! Job ID: ${job.id}`);
+      toast.success("Recherche lancée. Suivez sa progression dans l'historique.");
       setHistoryPage(1);
       await fetchJobs(1);
     } catch (err) {
@@ -317,20 +316,11 @@ export default function ScrapingPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-start justify-between gap-3">
-        <PageTitle
-          title="Scraping"
-          description="Recherche automatique de prospects via Google Maps et enrichissement email"
-          icon={Search}
-        />
-        <AIBadge
-          label="Enrichissement IA"
-          size="sm"
-          variant="soft"
-          className="mt-1"
-          title="Emails, sites et donnees enrichis par IA"
-        />
-      </div>
+      <PageTitle
+        title="Recherche de prospects"
+        description="Collecte d'entreprises sur Google Maps, puis recherche de leurs emails publics sur leurs sites."
+        icon={Search}
+      />
 
       <div className="grid gap-6 lg:grid-cols-2 lg:items-start">
         <Card className="lg:sticky lg:top-4 lg:z-10 shadow-sm">
@@ -447,31 +437,34 @@ export default function ScrapingPage() {
             </div>
 
             <div className="space-y-2">
-              <Label className="text-sm font-semibold">
-                Max. résultats par mot-clé
+              <Label htmlFor="max-results" className="text-sm font-semibold">
+                Résultats maximum par mot-clé et par pays
               </Label>
               <Input
+                id="max-results"
                 type="number"
                 value={maxResults}
                 onChange={(e) => setMaxResults(e.target.value)}
-                min="10"
-                max="500"
+                min="5"
+                max="200"
                 className="max-w-[12rem]"
               />
+              <p className="text-xs text-muted-foreground">200 maximum. Le coût Apify augmente avec ce volume.</p>
             </div>
 
             <div className="space-y-2">
-              <Label className="text-sm font-semibold">Max. mots-clés utilisés</Label>
+              <Label htmlFor="max-keywords" className="text-sm font-semibold">Nombre de mots-clés utilisés</Label>
               <Input
+                id="max-keywords"
                 type="number"
                 value={maxKeywords}
                 onChange={(e) => setMaxKeywords(e.target.value)}
-                min="10"
-                max="500"
+                min="1"
+                max="50"
                 className="max-w-[12rem]"
               />
               <p className="text-xs text-muted-foreground">
-                Limite le volume de mots-clés chargés (prédéfinis + personnalisés).
+                50 maximum (prédéfinis + personnalisés). Un seul scraping peut tourner à la fois.
               </p>
             </div>
 
@@ -554,7 +547,7 @@ export default function ScrapingPage() {
                         {job.status === "FAILED" &&
                           keywordCount === 0 &&
                           !job.errorMessage && (
-                            <p className="mt-1 text-xs text-amber-800 dark:text-amber-200">
+                            <p className="mt-1 text-xs text-warning dark:text-warning">
                               Lancement sans mots-clés — vérifiez la config ou
                               les catégories.
                             </p>
@@ -681,7 +674,7 @@ export default function ScrapingPage() {
               Progression du scraping
             </DialogTitle>
             <DialogDescription>
-              Mise a jour automatique toutes les 3 secondes tant qu un job est
+              Mise à jour automatique toutes les 3 secondes tant qu un job est
               actif.
             </DialogDescription>
           </DialogHeader>
@@ -719,7 +712,7 @@ export default function ScrapingPage() {
               {liveDetail.job.status === "CANCELLED" && (
                 <p className="rounded-md border border-muted bg-muted/40 p-3 text-sm text-muted-foreground">
                   {liveDetail.job.progress?.detail ??
-                    "Ce scraping a ete arrete sur demande."}
+                    "Ce scraping a été arrêté sur demande."}
                 </p>
               )}
               {liveDetail.job.status === "FAILED" &&

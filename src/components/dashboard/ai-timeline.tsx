@@ -36,34 +36,34 @@ type TimelineEvent = {
 
 const COLOR_STYLES: Record<TimelineColor, { dot: string; ring: string; icon: string }> = {
   violet: {
-    dot: "bg-violet-500",
-    ring: "ring-violet-400/30",
-    icon: "text-violet-600 dark:text-violet-300",
+    dot: "bg-primary",
+    ring: "ring-primary/40",
+    icon: "text-primary dark:text-primary",
   },
   emerald: {
-    dot: "bg-emerald-500",
-    ring: "ring-emerald-400/30",
-    icon: "text-emerald-600 dark:text-emerald-300",
+    dot: "bg-success",
+    ring: "ring-success/40",
+    icon: "text-success dark:text-success",
   },
   amber: {
-    dot: "bg-amber-500",
-    ring: "ring-amber-400/30",
-    icon: "text-amber-600 dark:text-amber-300",
+    dot: "bg-warning",
+    ring: "ring-warning/40",
+    icon: "text-warning dark:text-warning",
   },
   sky: {
-    dot: "bg-sky-500",
-    ring: "ring-sky-400/30",
-    icon: "text-sky-600 dark:text-sky-300",
+    dot: "bg-info",
+    ring: "ring-info/40",
+    icon: "text-info dark:text-info",
   },
   rose: {
-    dot: "bg-rose-500",
-    ring: "ring-rose-400/30",
-    icon: "text-rose-600 dark:text-rose-300",
+    dot: "bg-destructive",
+    ring: "ring-destructive/40",
+    icon: "text-destructive dark:text-destructive",
   },
   indigo: {
-    dot: "bg-indigo-500",
-    ring: "ring-indigo-400/30",
-    icon: "text-indigo-600 dark:text-indigo-300",
+    dot: "bg-primary",
+    ring: "ring-primary/40",
+    icon: "text-primary dark:text-primary",
   },
 };
 
@@ -192,7 +192,7 @@ export function AITimeline({ data }: { data: AITimelineData | null }) {
   if (data.lastScrape) {
     events.push({
       id: `scrape-${data.lastScrape.id}`,
-      title: `Scraping IA ${data.lastScrape.status === "COMPLETED" ? "termine" : "en cours"}`,
+      title: `Scraping IA ${data.lastScrape.status === "COMPLETED" ? "terminé" : "en cours"}`,
       description: `${data.lastScrape.resultsCount} prospect(s) detectes et enrichis automatiquement`,
       icon: Radar,
       color: "sky",
@@ -204,7 +204,7 @@ export function AITimeline({ data }: { data: AITimelineData | null }) {
   if (data.prospectsScoredDay > 0) {
     events.push({
       id: "scored",
-      title: `L IA a score ${data.prospectsScoredDay} prospect(s)`,
+      title: `L'IA a score ${data.prospectsScoredDay} prospect(s)`,
       description: "Scoring automatique base sur secteur, pays, site web et signaux",
       icon: Brain,
       color: "violet",
@@ -230,9 +230,9 @@ export function AITimeline({ data }: { data: AITimelineData | null }) {
   if (data.emailsGeneratedDay > 0) {
     events.push({
       id: "drafted",
-      title: `L IA a redige ${data.emailsGeneratedDay} email(s)`,
+      title: `L'IA a redige ${data.emailsGeneratedDay} email(s)`,
       description:
-        "Objets et corps personnalises selon le secteur, le pays et la langue du prospect",
+        "Objets et corps personnalisés selon le secteur, le pays et la langue du prospect",
       icon: PenLine,
       color: "indigo",
       badge: "Rédaction",
@@ -243,7 +243,7 @@ export function AITimeline({ data }: { data: AITimelineData | null }) {
     events.push({
       id: "opened",
       title: `${data.emailsOpenedWeek} ouverture(s) trackee(s) cette semaine`,
-      description: "L IA ajuste le timing et les relances en fonction des signaux",
+      description: "L'IA ajuste le timing et les relances en fonction des signaux",
       icon: TrendingUp,
       color: "emerald",
       badge: "Engagement",
@@ -253,12 +253,12 @@ export function AITimeline({ data }: { data: AITimelineData | null }) {
   if (data.emailsRepliedDay > 0 && data.lastReply) {
     events.push({
       id: "replied",
-      title: `${data.emailsRepliedDay} reponse(s) entrante(s) aujourd hui`,
-      description: "Classification automatique des reponses (interesse, refus, OOO...)",
+      title: `${data.emailsRepliedDay} réponse(s) entrante(s) aujourd hui`,
+      description: "Classification automatique des réponses (intéressé, refus, OOO...)",
       icon: Mail,
       color: "amber",
       at: data.lastReply.createdAt,
-      badge: "Reponses",
+      badge: "Réponses",
     });
   }
 
@@ -266,7 +266,7 @@ export function AITimeline({ data }: { data: AITimelineData | null }) {
     events.push({
       id: `campaign-${data.lastCampaign.id}`,
       title: `Campagne suivie : ${data.lastCampaign.name}`,
-      description: `Statut ${data.lastCampaign.status.toLowerCase()} — l IA relance et adapte le rythme d envoi`,
+      description: `Statut ${data.lastCampaign.status.toLowerCase()} — l'IA relance et adapte le rythme d'envoi`,
       icon: Target,
       color: "indigo",
       at: data.lastCampaign.updatedAt,
@@ -278,18 +278,18 @@ export function AITimeline({ data }: { data: AITimelineData | null }) {
       id: "idle",
       title: "IA prete",
       description:
-        "Lancez un scraping ou une campagne pour voir l IA travailler en temps reel.",
+        "Lancez un scraping ou une campagne pour voir l'IA travailler en temps reel.",
       icon: Sparkles,
       color: "violet",
     });
   }
 
   return (
-    <Card className="border-violet-200/70 bg-gradient-to-br from-violet-50/60 via-background to-indigo-50/60 dark:border-violet-900/40 dark:from-violet-950/30 dark:via-background dark:to-indigo-950/30">
+    <Card className="border-primary/30 bg-gradient-to-br from-primary/60 via-background to-primary/60 dark:border-primary/30 dark:from-primary/30 dark:via-background dark:to-primary/30">
       <CardHeader className="flex flex-col gap-2.5 space-y-0 sm:flex-row sm:items-start sm:justify-between">
         <div>
           <CardTitle className="flex items-center gap-2 text-sm sm:text-base">
-            <Activity className="h-4 w-4 text-violet-500" />
+            <Activity className="h-4 w-4 text-primary" />
             Activité de l&apos;IA
           </CardTitle>
           <CardDescription className="text-xs sm:text-sm">

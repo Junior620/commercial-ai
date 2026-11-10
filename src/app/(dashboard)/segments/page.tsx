@@ -22,6 +22,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Download, Layers, Loader2, MoreVertical, Plus, Users } from "lucide-react";
 import { toast } from "sonner";
+import { useConfirm } from "@/components/shared/confirm-dialog";
 import { PageTitle } from "@/components/layout/page-title";
 import { ListPagination } from "@/components/shared/list-pagination";
 import { formatSegmentFilterChips } from "@/lib/segment-display";
@@ -120,6 +121,7 @@ const PREDEFINED_SEGMENTS = [
 ];
 
 export default function SegmentsPage() {
+  const confirm = useConfirm();
   const [segments, setSegments] = useState<Segment[]>([]);
   const [loadingSegments, setLoadingSegments] = useState(true);
   const [page, setPage] = useState(1);
@@ -215,7 +217,7 @@ export default function SegmentsPage() {
       setAddOpen(false);
       fetchSegments();
     } catch {
-      toast.error("Erreur de creation");
+      toast.error("Erreur de création");
     }
   };
 
@@ -246,13 +248,7 @@ export default function SegmentsPage() {
   };
 
   const handleDelete = async (segment: Segment) => {
-    if (
-      !confirm(
-        `Supprimer le segment « ${segment.name} » ? Les campagnes liées ne seront plus associées à ce segment.`
-      )
-    ) {
-      return;
-    }
+    if (!(await confirm({ title: `Supprimer le segment « ${segment.name} » ? Les campagnes liées ne seront plus associées à ce segment.`, confirmLabel: "Supprimer", destructive: true }))) return;
     try {
       const res = await fetch(`/api/segments/${segment.id}`, { method: "DELETE" });
       if (!res.ok) throw new Error("Erreur");
@@ -300,9 +296,9 @@ export default function SegmentsPage() {
       "Langue",
       "Score",
       "Statut",
-      "Priorite",
+      "Priorité",
       "Source",
-      "Date creation",
+      "Date création",
     ];
 
     const rows = prospects.map((p) => [
@@ -568,7 +564,7 @@ export default function SegmentsPage() {
                       className={cn(
                         "tabular-nums",
                         count === 0 &&
-                          "border-amber-200/80 bg-amber-50 text-amber-950 dark:border-amber-900 dark:bg-amber-950/40 dark:text-amber-100"
+                          "border-warning/30 bg-warning/10 text-warning dark:border-warning/30 dark:bg-warning/15 dark:text-warning"
                       )}
                     >
                       <Users className="mr-1 h-3 w-3" />

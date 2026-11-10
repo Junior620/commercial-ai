@@ -1,65 +1,41 @@
-"use client";
-
 import { Sparkles } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 /**
- * Badge reutilisable qui signale qu un element est genere ou optimise par l IA.
- * Deux variantes :
- *  - solid (par defaut) : pastille degradee violet/indigo avec micro-animation
- *  - soft : version plus discrete avec fond translucide
+ * Marqueur discret d'un contenu produit par l'assistant (email rédigé, score calculé).
+ * Volontairement sobre : l'IA est un outil, pas un argument de vente de l'interface.
  */
 type AIBadgeSize = "xs" | "sm" | "md";
-type AIBadgeVariant = "solid" | "soft";
 
 interface AIBadgeProps {
   label?: string;
   size?: AIBadgeSize;
-  variant?: AIBadgeVariant;
+  /** Conservé pour compatibilité ; les deux variantes ont désormais le même rendu. */
+  variant?: "solid" | "soft";
+  /** Conservé pour compatibilité ; aucune animation n'est jouée. */
   animated?: boolean;
   className?: string;
   title?: string;
 }
 
-const SIZE_CLASSES: Record<
-  AIBadgeSize,
-  { root: string; icon: string }
-> = {
-  xs: { root: "h-5 px-1.5 gap-1 text-[10px]", icon: "h-3 w-3" },
-  sm: { root: "h-6 px-2 gap-1 text-[11px]", icon: "h-3.5 w-3.5" },
-  md: { root: "h-7 px-2.5 gap-1.5 text-xs", icon: "h-4 w-4" },
+const SIZE_CLASSES: Record<AIBadgeSize, { root: string; icon: string }> = {
+  xs: { root: "h-5 gap-1 px-1.5 text-[11px]", icon: "h-3 w-3" },
+  sm: { root: "h-6 gap-1 px-2 text-xs", icon: "h-3.5 w-3.5" },
+  md: { root: "h-7 gap-1.5 px-2.5 text-xs", icon: "h-4 w-4" },
 };
 
-const VARIANT_CLASSES: Record<AIBadgeVariant, string> = {
-  solid:
-    "border-violet-400/40 bg-gradient-to-r from-violet-500 via-indigo-500 to-fuchsia-500 text-white shadow-sm",
-  soft:
-    "border-violet-200/70 bg-violet-50 text-violet-700 dark:border-violet-900/60 dark:bg-violet-950/40 dark:text-violet-200",
-};
-
-export function AIBadge({
-  label = "IA",
-  size = "sm",
-  variant = "soft",
-  animated = true,
-  className,
-  title,
-}: AIBadgeProps) {
+export function AIBadge({ label = "Assistant", size = "sm", className, title }: AIBadgeProps) {
   const sz = SIZE_CLASSES[size];
   return (
     <span
-      title={title ?? "Propulse par IA"}
+      title={title ?? "Contenu proposé par l'assistant de rédaction"}
       className={cn(
-        "inline-flex shrink-0 items-center rounded-full border font-semibold uppercase tracking-wide",
-        VARIANT_CLASSES[variant],
+        "inline-flex shrink-0 items-center rounded-full border border-sun/40 bg-sun/15 font-medium text-sun-foreground dark:text-sun",
         sz.root,
         className
       )}
     >
-      <Sparkles
-        className={cn(sz.icon, animated && "animate-pulse")}
-        aria-hidden
-      />
+      <Sparkles className={sz.icon} aria-hidden />
       <span className="whitespace-nowrap">{label}</span>
     </span>
   );

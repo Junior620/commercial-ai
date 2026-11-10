@@ -67,6 +67,8 @@ import {
   Users,
 } from "lucide-react";
 import { toast } from "sonner";
+import { useConfirm } from "@/components/shared/confirm-dialog";
+import { PROSPECT_STATUS_LABELS } from "@/lib/labels";
 import { PageTitle } from "@/components/layout/page-title";
 import { AIBadge } from "@/components/ui/ai-badge";
 import { ListPagination } from "@/components/shared/list-pagination";
@@ -94,18 +96,18 @@ interface Prospect {
 }
 
 const STATUS_COLORS: Record<string, string> = {
-  NEW: "bg-blue-100 text-blue-800",
-  CONTACTED: "bg-yellow-100 text-yellow-800",
-  IN_DISCUSSION: "bg-purple-100 text-purple-800",
-  CONVERTED: "bg-green-100 text-green-800",
-  COLD: "bg-gray-100 text-gray-800",
-  UNSUBSCRIBED: "bg-red-100 text-red-800",
+  NEW: "bg-info/10 text-info",
+  CONTACTED: "bg-warning/10 text-warning",
+  IN_DISCUSSION: "bg-primary/10 text-primary",
+  CONVERTED: "bg-success/10 text-success",
+  COLD: "bg-muted text-foreground",
+  UNSUBSCRIBED: "bg-destructive/10 text-destructive",
 };
 
 const PRIORITY_COLORS: Record<string, string> = {
-  HIGH: "bg-red-100 text-red-800",
-  MEDIUM: "bg-yellow-100 text-yellow-800",
-  LOW: "bg-green-100 text-green-800",
+  HIGH: "bg-destructive/10 text-destructive",
+  MEDIUM: "bg-warning/10 text-warning",
+  LOW: "bg-success/10 text-success",
 };
 
 export function ProspectsClient({
@@ -117,6 +119,7 @@ export function ProspectsClient({
   prospectType?: "COMMERCIAL" | "FINANCIAL";
   title?: string;
 }) {
+  const confirm = useConfirm();
   const [prospects, setProspects] = useState(initialProspects);
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
@@ -216,20 +219,14 @@ export function ProspectsClient({
       }
       setEditOpen(false);
       setEditingId(null);
-      toast.success("Prospect mis a jour");
+      toast.success("Prospect mis à jour");
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Erreur");
     }
   };
 
   const handleDeleteProspect = async (p: Prospect) => {
-    if (
-      !confirm(
-        `Supprimer le prospect « ${p.company} » ? Cette action est irreversible.`
-      )
-    ) {
-      return;
-    }
+    if (!(await confirm({ title: `Supprimer le prospect « ${p.company} » ? Cette action est irréversible.`, confirmLabel: "Supprimer", destructive: true }))) return;
     try {
       const res = await fetch(`/api/prospects/${p.id}`, { method: "DELETE" });
       if (!res.ok) {
@@ -242,7 +239,7 @@ export function ProspectsClient({
         next.delete(p.id);
         return next;
       });
-      toast.success("Prospect supprime");
+      toast.success("Prospect supprimé");
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Erreur");
     }
@@ -390,7 +387,7 @@ export function ProspectsClient({
 
   const selectAllFiltered = () => {
     setSelectedIds(new Set(sortedProspects.map((p) => p.id)));
-    toast.success(`${sortedProspects.length} prospect(s) selectionne(s)`);
+    toast.success(`${sortedProspects.length} prospect(s) sélectionné(s)`);
   };
 
   const handleBulkStatusApply = async () => {
@@ -410,7 +407,7 @@ export function ProspectsClient({
       }
     }
     if (ok === 0) {
-      toast.error("Aucune mise a jour reussie");
+      toast.error("Aucune mise à jour réussie");
       return;
     }
     setProspects((prev) =>
@@ -421,7 +418,7 @@ export function ProspectsClient({
     if (selectedProspect && selectedIds.has(selectedProspect.id)) {
       setSelectedProspect({ ...selectedProspect, status: bulkStatus });
     }
-    toast.success(`Statut mis a jour pour ${ok} prospect(s)`);
+    toast.success(`Statut mis à jour pour ${ok} prospect(s)`);
   };
 
   useEffect(() => {
@@ -477,19 +474,13 @@ export function ProspectsClient({
     const rows = prospects.filter((p) => selectedIds.has(p.id));
     if (rows.length === 0) return;
     downloadProspectsCsv(rows, "prospects_selection.csv");
-    toast.success(`${rows.length} ligne(s) exportee(s)`);
+    toast.success(`${rows.length} ligne(s) exportée(s)`);
   };
 
   const handleBulkDelete = async () => {
     const ids = [...selectedIds];
     if (ids.length === 0) return;
-    if (
-      !confirm(
-        `Supprimer ${ids.length} prospect(s) ? Cette action est irreversible.`
-      )
-    ) {
-      return;
-    }
+    if (!(await confirm({ title: `Supprimer ${ids.length} prospect(s) ? Cette action est irréversible.`, confirmLabel: "Supprimer", destructive: true }))) return;
     const deletedIds: string[] = [];
     for (const id of ids) {
       try {
@@ -500,7 +491,7 @@ export function ProspectsClient({
       }
     }
     if (deletedIds.length === 0) {
-      toast.error("Aucune suppression reussie");
+      toast.error("Aucune suppression réussie");
       return;
     }
     setProspects((prev) => prev.filter((p) => !deletedIds.includes(p.id)));
@@ -511,7 +502,7 @@ export function ProspectsClient({
     toast.success(
       `${deletedIds.length} prospect(s) supprime(s)${
         deletedIds.length < ids.length
-          ? ` (${ids.length - deletedIds.length} echec(s))`
+          ? ` (${ids.length - deletedIds.length} échec(s))`
           : ""
       }`
     );
@@ -563,7 +554,7 @@ export function ProspectsClient({
       });
       if (!res.ok) throw new Error("Erreur d'import");
       const result = await res.json();
-      toast.success(`${result.imported} prospects importes, ${result.duplicates} doublons ignores`);
+      toast.success(`${result.imported} prospects importés, ${result.duplicates} doublons ignores`);
       window.location.reload();
     } catch {
       toast.error("Erreur lors de l'import");
@@ -572,7 +563,7 @@ export function ProspectsClient({
 
   const handleExportCSV = () => {
     downloadProspectsCsv(sortedProspects, "prospects_export.csv");
-    toast.success("Export genere");
+    toast.success("Export généré");
   };
 
   return (
@@ -650,7 +641,7 @@ export function ProspectsClient({
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label>Telephone</Label>
+                    <Label>Téléphone</Label>
                     <Input
                       value={formData.phone}
                       onChange={(e) =>
@@ -689,7 +680,7 @@ export function ProspectsClient({
                       }
                     >
                       <SelectTrigger>
-                        <SelectValue placeholder="Selectionner" />
+                        <SelectValue placeholder="Sélectionner" />
                       </SelectTrigger>
                       <SelectContent>
                         <SelectItem value="importer">Importateur</SelectItem>
@@ -712,7 +703,7 @@ export function ProspectsClient({
                       }
                     >
                       <SelectTrigger>
-                        <SelectValue placeholder="Selectionner" />
+                        <SelectValue placeholder="Sélectionner" />
                       </SelectTrigger>
                       <SelectContent>
                         <SelectItem value="cocoa_beans">
@@ -746,7 +737,7 @@ export function ProspectsClient({
                       </SelectTrigger>
                       <SelectContent>
                         <SelectItem value="en">Anglais</SelectItem>
-                        <SelectItem value="fr">Francais</SelectItem>
+                        <SelectItem value="fr">Français</SelectItem>
                         <SelectItem value="es">Espagnol</SelectItem>
                         <SelectItem value="pt">Portugais</SelectItem>
                         <SelectItem value="de">Allemand</SelectItem>
@@ -754,7 +745,7 @@ export function ProspectsClient({
                     </Select>
                   </div>
                   <div className="space-y-2">
-                    <Label>Priorite</Label>
+                    <Label>Priorité</Label>
                     <Select
                       value={formData.priority}
                       onValueChange={(v) =>
@@ -825,7 +816,7 @@ export function ProspectsClient({
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label>Telephone</Label>
+                    <Label>Téléphone</Label>
                     <Input
                       value={editFormData.phone}
                       onChange={(e) =>
@@ -876,10 +867,10 @@ export function ProspectsClient({
                       }
                     >
                       <SelectTrigger>
-                        <SelectValue placeholder="Selectionner" />
+                        <SelectValue placeholder="Sélectionner" />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="__ct_none__">Non defini</SelectItem>
+                        <SelectItem value="__ct_none__">Non défini</SelectItem>
                         <SelectItem value="importer">Importateur</SelectItem>
                         <SelectItem value="distributor">
                           Distributeur
@@ -903,10 +894,10 @@ export function ProspectsClient({
                       }
                     >
                       <SelectTrigger>
-                        <SelectValue placeholder="Selectionner" />
+                        <SelectValue placeholder="Sélectionner" />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="__pr_none__">Non defini</SelectItem>
+                        <SelectItem value="__pr_none__">Non défini</SelectItem>
                         <SelectItem value="cocoa_beans">
                           Feves de cacao
                         </SelectItem>
@@ -941,7 +932,7 @@ export function ProspectsClient({
                       </SelectTrigger>
                       <SelectContent>
                         <SelectItem value="en">Anglais</SelectItem>
-                        <SelectItem value="fr">Francais</SelectItem>
+                        <SelectItem value="fr">Français</SelectItem>
                         <SelectItem value="es">Espagnol</SelectItem>
                         <SelectItem value="pt">Portugais</SelectItem>
                         <SelectItem value="de">Allemand</SelectItem>
@@ -949,7 +940,7 @@ export function ProspectsClient({
                     </Select>
                   </div>
                   <div className="space-y-2">
-                    <Label>Priorite</Label>
+                    <Label>Priorité</Label>
                     <Select
                       value={editFormData.priority}
                       onValueChange={(v) =>
@@ -986,11 +977,11 @@ export function ProspectsClient({
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="NEW">Nouveau</SelectItem>
-                      <SelectItem value="CONTACTED">Contacte</SelectItem>
+                      <SelectItem value="CONTACTED">Contacté</SelectItem>
                       <SelectItem value="IN_DISCUSSION">En discussion</SelectItem>
                       <SelectItem value="CONVERTED">Converti</SelectItem>
                       <SelectItem value="COLD">Froid</SelectItem>
-                      <SelectItem value="UNSUBSCRIBED">Desabonne</SelectItem>
+                      <SelectItem value="UNSUBSCRIBED">Désabonné</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
@@ -1037,11 +1028,11 @@ export function ProspectsClient({
               <SelectContent>
                 <SelectItem value="all">Tous les statuts</SelectItem>
                 <SelectItem value="NEW">Nouveau</SelectItem>
-                <SelectItem value="CONTACTED">Contacte</SelectItem>
+                <SelectItem value="CONTACTED">Contacté</SelectItem>
                 <SelectItem value="IN_DISCUSSION">En discussion</SelectItem>
                 <SelectItem value="CONVERTED">Converti</SelectItem>
                 <SelectItem value="COLD">Froid</SelectItem>
-                <SelectItem value="UNSUBSCRIBED">Desabonne</SelectItem>
+                <SelectItem value="UNSUBSCRIBED">Désabonné</SelectItem>
               </SelectContent>
             </Select>
             <Select
@@ -1065,7 +1056,7 @@ export function ProspectsClient({
               onValueChange={(v) => setPriorityFilter(v ?? "all")}
             >
               <SelectTrigger className="h-9">
-                <SelectValue placeholder="Priorite" />
+                <SelectValue placeholder="Priorité" />
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">Toutes priorites</SelectItem>
@@ -1115,7 +1106,7 @@ export function ProspectsClient({
               Tri :{" "}
               <span className="font-medium text-foreground">
                 {sortKey === "createdAt"
-                  ? "Date creation"
+                  ? "Date création"
                   : sortKey === "company"
                     ? "Entreprise"
                     : sortKey === "score"
@@ -1164,11 +1155,11 @@ export function ProspectsClient({
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="NEW">Nouveau</SelectItem>
-                    <SelectItem value="CONTACTED">Contacte</SelectItem>
+                    <SelectItem value="CONTACTED">Contacté</SelectItem>
                     <SelectItem value="IN_DISCUSSION">En discussion</SelectItem>
                     <SelectItem value="CONVERTED">Converti</SelectItem>
                     <SelectItem value="COLD">Froid</SelectItem>
-                    <SelectItem value="UNSUBSCRIBED">Desabonne</SelectItem>
+                    <SelectItem value="UNSUBSCRIBED">Désabonné</SelectItem>
                   </SelectContent>
                 </Select>
                 <Button
@@ -1229,10 +1220,10 @@ export function ProspectsClient({
                         <Checkbox
                           checked={allVisibleSelected}
                           onCheckedChange={() => toggleSelectAllVisible()}
-                          aria-label="Selectionner tous les prospects visibles"
+                          aria-label="Sélectionner tous les prospects visibles"
                           title={
                             someVisibleSelected && !allVisibleSelected
-                              ? "Selection partielle — cliquer pour tout selectionner"
+                              ? "Selection partielle — cliquer pour tout sélectionner"
                               : undefined
                           }
                         />
@@ -1267,7 +1258,7 @@ export function ProspectsClient({
                       </div>
                     </TableHead>
                     <SortHead label="Statut" colKey="status" className="bg-muted/95" />
-                    <TableHead className="bg-muted/95">Priorite</TableHead>
+                    <TableHead className="bg-muted/95">Priorité</TableHead>
                     <TableHead className="w-[100px] bg-muted/95 text-right">
                       Actions
                     </TableHead>
@@ -1290,7 +1281,7 @@ export function ProspectsClient({
                             onCheckedChange={(v) =>
                               toggleSelectOne(prospect.id, v === true)
                             }
-                            aria-label={`Selectionner ${prospect.company}`}
+                            aria-label={`Sélectionner ${prospect.company}`}
                           />
                         </div>
                       </TableCell>
@@ -1317,12 +1308,12 @@ export function ProspectsClient({
                         <span
                           className={`font-semibold ${
                             prospect.score >= 60
-                              ? "text-green-600"
+                              ? "text-success"
                               : prospect.score >= 30
-                                ? "text-yellow-600"
+                                ? "text-warning"
                                 : prospect.score >= 0
-                                  ? "text-gray-600"
-                                  : "text-red-600"
+                                  ? "text-muted-foreground"
+                                  : "text-destructive"
                           }`}
                         >
                           {prospect.score}
@@ -1335,7 +1326,7 @@ export function ProspectsClient({
                             STATUS_COLORS[prospect.status] || ""
                           }
                         >
-                          {prospect.status}
+                          {PROSPECT_STATUS_LABELS[prospect.status] ?? prospect.status}
                         </Badge>
                       </TableCell>
                       <TableCell>
@@ -1345,7 +1336,7 @@ export function ProspectsClient({
                             PRIORITY_COLORS[prospect.priority] || ""
                           }
                         >
-                          {prospect.priority}
+                          {PRIORITY_LABELS[prospect.priority] ?? prospect.priority}
                         </Badge>
                       </TableCell>
                       <TableCell className="text-right">
@@ -1428,10 +1419,10 @@ export function ProspectsClient({
                     <span
                       className={`text-sm font-semibold ${
                         selectedProspect.score >= 60
-                          ? "text-green-600"
+                          ? "text-success"
                           : selectedProspect.score >= 30
-                            ? "text-yellow-600"
-                            : "text-gray-600"
+                            ? "text-warning"
+                            : "text-muted-foreground"
                       }`}
                     >
                       Score : {selectedProspect.score}
@@ -1445,7 +1436,7 @@ export function ProspectsClient({
               <div className="space-y-4 px-4">
                 <DetailRow icon={User} label="Contact" value={selectedProspect.contact} />
                 <DetailRow icon={Mail} label="Email" value={selectedProspect.email} href={`mailto:${selectedProspect.email}`} />
-                <DetailRow icon={Phone} label="Telephone" value={selectedProspect.phone} href={selectedProspect.phone ? `tel:${selectedProspect.phone}` : undefined} />
+                <DetailRow icon={Phone} label="Téléphone" value={selectedProspect.phone} href={selectedProspect.phone ? `tel:${selectedProspect.phone}` : undefined} />
                 <DetailRow icon={MapPin} label="Pays" value={selectedProspect.country} />
                 <DetailRow icon={Tag} label="Secteur" value={selectedProspect.sector} />
                 <DetailRow icon={Star} label="Type client" value={selectedProspect.clientType} />
@@ -1499,11 +1490,11 @@ export function ProspectsClient({
 
 const STATUS_LABELS: Record<string, string> = {
   NEW: "Nouveau",
-  CONTACTED: "Contacte",
+  CONTACTED: "Contacté",
   IN_DISCUSSION: "En discussion",
   CONVERTED: "Converti",
   COLD: "Froid",
-  UNSUBSCRIBED: "Desabonne",
+  UNSUBSCRIBED: "Désabonné",
 };
 
 const PRIORITY_LABELS: Record<string, string> = {
@@ -1514,7 +1505,7 @@ const PRIORITY_LABELS: Record<string, string> = {
 
 const LANG_LABELS: Record<string, string> = {
   en: "Anglais",
-  fr: "Francais",
+  fr: "Français",
   es: "Espagnol",
   pt: "Portugais",
   de: "Allemand",

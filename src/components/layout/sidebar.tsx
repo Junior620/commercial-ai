@@ -2,160 +2,108 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import Image from "next/image";
+import { useEffect, useState } from "react";
+import { ChevronsLeft, ChevronsRight, Menu } from "lucide-react";
 import { cn } from "@/lib/utils";
-import {
-  LayoutDashboard,
-  Users,
-  Layers,
-  Mail,
-  Search,
-  Settings,
-  Send,
-  MessageSquare,
-  Bot,
-  Landmark,
-  SearchCheck,
-  BriefcaseBusiness,
-  ChevronLeft,
-  ChevronRight,
-  Menu,
-} from "lucide-react";
-import { useState } from "react";
 import { Button } from "@/components/ui/button";
-import { AIBadge } from "@/components/ui/ai-badge";
-import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
+import { Sheet, SheetContent, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
+import { BrandMark } from "@/components/brand/brand-mark";
+import { NAV_SECTIONS, isActivePath } from "@/components/layout/navigation";
 
-const navigation: Array<{
-  name: string;
-  href: string;
-  icon: typeof LayoutDashboard;
-  aiTag?: boolean;
-}> = [
-  { name: "Dashboard", href: "/", icon: LayoutDashboard },
-  { name: "Prospects", href: "/prospects", icon: Users, aiTag: true },
-  { name: "Prospects fin.", href: "/financial-prospects", icon: Landmark, aiTag: true },
-  { name: "Segments", href: "/segments", icon: Layers },
-  { name: "Scraping", href: "/scraping", icon: Search, aiTag: true },
-  { name: "Scraping fin.", href: "/financial-scraping", icon: SearchCheck, aiTag: true },
-  { name: "Campagnes", href: "/campaigns", icon: Mail, aiTag: true },
-  { name: "Campagnes fin.", href: "/financial-campaigns", icon: BriefcaseBusiness, aiTag: true },
-  { name: "Envoi", href: "/sending", icon: Send },
-  { name: "Reponses", href: "/responses", icon: MessageSquare },
-  { name: "Agent IA", href: "/ai", icon: Bot, aiTag: true },
-  { name: "Parametres", href: "/settings", icon: Settings },
-];
+const COLLAPSE_KEY = "scpb.sidebar.collapsed";
 
-type SidebarProps = {
-  className?: string;
-};
-
-type SidebarNavProps = {
-  collapsed?: boolean;
-  onNavigate?: () => void;
-};
-
-function SidebarNav({ collapsed = false, onNavigate }: SidebarNavProps) {
+function SidebarNav({ collapsed = false, onNavigate }: { collapsed?: boolean; onNavigate?: () => void }) {
   const pathname = usePathname();
   return (
-    <nav className="flex-1 space-y-1 p-2">
-      {navigation.map((item) => {
-        const isActive =
-          pathname === item.href ||
-          (item.href !== "/" && pathname.startsWith(item.href));
-        return (
-          <Link
-            key={item.name}
-            href={item.href}
-            className={cn(
-              "flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors",
-              isActive
-                ? "bg-primary text-primary-foreground"
-                : "text-muted-foreground hover:bg-accent hover:text-accent-foreground"
-            )}
-            title={collapsed ? item.name : undefined}
-            onClick={onNavigate}
-          >
-            <item.icon className="h-4 w-4 shrink-0" />
-            {!collapsed && (
-              <span className="flex flex-1 items-center justify-between gap-2">
-                <span className="truncate">{item.name}</span>
-                {item.aiTag && !isActive ? (
-                  <span
-                    title="Propulse par IA"
-                    className="inline-flex h-4 items-center gap-0.5 rounded-full border border-violet-200/70 bg-violet-50 px-1.5 text-[9px] font-semibold uppercase tracking-wide text-violet-700 dark:border-violet-900/60 dark:bg-violet-950/40 dark:text-violet-200"
+    <nav aria-label="Navigation principale" className="flex-1 overflow-y-auto px-3 py-4">
+      {NAV_SECTIONS.map((section) => (
+        <div key={section.label} className="mb-5 last:mb-0">
+          {collapsed ? (
+            <div className="mx-auto mb-2 h-px w-6 bg-sidebar-border" aria-hidden />
+          ) : (
+            <p className="mb-1.5 px-3 text-xs font-medium tracking-wide text-sidebar-foreground/55">{section.label}</p>
+          )}
+          <ul className="space-y-0.5">
+            {section.items.map((item) => {
+              const active = isActivePath(pathname, item.href);
+              return (
+                <li key={item.href}>
+                  <Link
+                    href={item.href}
+                    onClick={onNavigate}
+                    aria-current={active ? "page" : undefined}
+                    title={collapsed ? item.name : undefined}
+                    className={cn(
+                      "group relative flex h-10 items-center gap-3 rounded-md px-3 text-sm font-medium transition-colors",
+                      "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sidebar-ring",
+                      collapsed && "justify-center px-0",
+                      active
+                        ? "bg-sidebar-accent text-sidebar-accent-foreground"
+                        : "text-sidebar-foreground/80 hover:bg-sidebar-accent/60 hover:text-sidebar-accent-foreground"
+                    )}
                   >
-                    IA
-                  </span>
-                ) : null}
-              </span>
-            )}
-          </Link>
-        );
-      })}
+                    {active ? (
+                      <span className="absolute inset-y-2 left-0 w-0.5 rounded-full bg-sidebar-primary" aria-hidden />
+                    ) : null}
+                    <item.icon className={cn("h-[18px] w-[18px] shrink-0", active && "text-sidebar-primary")} />
+                    {collapsed ? <span className="sr-only">{item.name}</span> : <span className="truncate">{item.name}</span>}
+                  </Link>
+                </li>
+              );
+            })}
+          </ul>
+        </div>
+      ))}
     </nav>
   );
 }
 
-export function Sidebar({ className }: SidebarProps) {
+export function Sidebar({ className }: { className?: string }) {
   const [collapsed, setCollapsed] = useState(false);
+
+  useEffect(() => {
+    setCollapsed(window.localStorage.getItem(COLLAPSE_KEY) === "1");
+  }, []);
+
+  const toggle = () => {
+    setCollapsed((prev) => {
+      window.localStorage.setItem(COLLAPSE_KEY, prev ? "0" : "1");
+      return !prev;
+    });
+  };
 
   return (
     <aside
       className={cn(
-        "flex flex-col border-r bg-background/90 backdrop-blur transition-all duration-300",
-        collapsed ? "w-16" : "w-64",
+        "flex flex-col bg-sidebar text-sidebar-foreground transition-[width] duration-200",
+        collapsed ? "w-[72px]" : "w-64",
         className
       )}
     >
-      <div className="flex h-16 items-center justify-between border-b px-4">
-        <div className="flex items-center gap-2">
-          <div className="flex h-8 w-8 items-center justify-center overflow-hidden rounded-lg border bg-background">
-            <Image
-              src="/logo.png"
-              alt="Logo SCPB Commercial AI"
-              width={32}
-              height={32}
-              className="h-full w-full object-contain p-0.5"
-              priority
-            />
-          </div>
-          {!collapsed && (
-            <div className="min-w-0">
-              <div className="flex items-center gap-1.5">
-                <h1 className="truncate text-sm font-semibold">
-                  SCPB Commercial AI
-                </h1>
-                <AIBadge label="IA" size="xs" variant="solid" animated />
-              </div>
-              <p className="text-[10px] text-muted-foreground">
-                SCPB · Intelligence Commerciale
-              </p>
-            </div>
-          )}
-        </div>
-        <Button
-          variant="ghost"
-          size="icon"
-          className="h-8 w-8 shrink-0"
-          onClick={() => setCollapsed(!collapsed)}
-        >
-          {collapsed ? (
-            <ChevronRight className="h-4 w-4" />
-          ) : (
-            <ChevronLeft className="h-4 w-4" />
-          )}
-        </Button>
+      <div className={cn("flex h-16 items-center border-b border-sidebar-border", collapsed ? "justify-center px-2" : "px-4")}>
+        <Link href="/" className="min-w-0 rounded-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sidebar-ring">
+          <BrandMark inverted withName={!collapsed} />
+        </Link>
       </div>
 
       <SidebarNav collapsed={collapsed} />
 
-      <div className="border-t p-4">
-        {!collapsed && (
-          <p className="text-xs text-muted-foreground text-center">
-            v1.0 — Avril 2026
-          </p>
-        )}
+      <div className={cn("border-t border-sidebar-border p-3", collapsed && "flex justify-center")}>
+        <Button
+          variant="ghost"
+          size={collapsed ? "icon" : "sm"}
+          onClick={toggle}
+          aria-label={collapsed ? "Déplier le menu" : "Replier le menu"}
+          aria-expanded={!collapsed}
+          className="text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
+        >
+          {collapsed ? <ChevronsRight className="h-4 w-4" /> : (
+            <>
+              <ChevronsLeft className="h-4 w-4" />
+              Replier
+            </>
+          )}
+        </Button>
       </div>
     </aside>
   );
@@ -165,38 +113,13 @@ export function MobileSidebar() {
   const [open, setOpen] = useState(false);
   return (
     <Sheet open={open} onOpenChange={setOpen}>
-      <SheetTrigger
-        render={
-          <Button
-            variant="ghost"
-            size="icon"
-            className="h-9 w-9 rounded-full md:hidden"
-            aria-label="Ouvrir le menu"
-          />
-        }
-      >
+      <SheetTrigger render={<Button variant="ghost" size="icon" className="md:hidden" aria-label="Ouvrir le menu" />}>
         <Menu className="h-5 w-5" />
       </SheetTrigger>
-      <SheetContent side="left" className="w-[82vw] max-w-xs p-0">
-        <div className="flex h-16 items-center gap-2 border-b px-4">
-          <div className="flex h-8 w-8 items-center justify-center overflow-hidden rounded-lg border bg-background">
-            <Image
-              src="/logo.png"
-              alt="Logo SCPB Commercial AI"
-              width={32}
-              height={32}
-              className="h-full w-full object-contain p-0.5"
-            />
-          </div>
-          <div className="min-w-0">
-            <div className="flex items-center gap-1.5">
-              <h1 className="truncate text-sm font-semibold">SCPB Commercial AI</h1>
-              <AIBadge label="IA" size="xs" variant="solid" animated />
-            </div>
-            <p className="text-[10px] text-muted-foreground">
-              SCPB · Intelligence Commerciale
-            </p>
-          </div>
+      <SheetContent side="left" className="w-[82vw] max-w-xs border-sidebar-border bg-sidebar p-0 text-sidebar-foreground">
+        <SheetTitle className="sr-only">Menu</SheetTitle>
+        <div className="flex h-16 items-center border-b border-sidebar-border px-4">
+          <BrandMark inverted />
         </div>
         <SidebarNav onNavigate={() => setOpen(false)} />
       </SheetContent>

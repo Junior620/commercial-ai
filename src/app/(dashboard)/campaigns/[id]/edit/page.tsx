@@ -115,7 +115,7 @@ export default function EditCampaignPage({
         const err = await res.json().catch(() => ({}));
         throw new Error(err.error || "Erreur");
       }
-      toast.success("Campagne mise a jour");
+      toast.success("Campagne mise à jour");
       router.push(`/campaigns/${id}`);
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Erreur");
@@ -136,13 +136,13 @@ export default function EditCampaignPage({
     <div className="mx-auto max-w-2xl space-y-6">
       <PageTitle
         title="Modifier la campagne"
-        description="Mettez a jour les parametres de la campagne"
+        description="Mettez à jour les paramètres de la campagne"
         icon={Pencil}
       />
 
       <Card>
         <CardHeader>
-          <CardTitle>Parametres</CardTitle>
+          <CardTitle>Paramètres</CardTitle>
         </CardHeader>
         <CardContent className="space-y-6">
           <div className="space-y-2">
@@ -193,10 +193,10 @@ export default function EditCampaignPage({
                 }
               >
                 <SelectTrigger>
-                  <SelectValue placeholder="Selectionner" />
+                  <SelectValue placeholder="Sélectionner" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="__p_none__">Non defini</SelectItem>
+                  <SelectItem value="__p_none__">Non défini</SelectItem>
                   {CAMPAIGN_PRODUCT_OPTIONS.map((p) => (
                     <SelectItem key={p.id} value={p.id}>
                       {p.label}
@@ -219,7 +219,7 @@ export default function EditCampaignPage({
                 <SelectContent>
                   <SelectItem value="auto">Auto (langue du prospect)</SelectItem>
                   <SelectItem value="en">Anglais</SelectItem>
-                  <SelectItem value="fr">Francais</SelectItem>
+                  <SelectItem value="fr">Français</SelectItem>
                   <SelectItem value="es">Espagnol</SelectItem>
                   <SelectItem value="pt">Portugais</SelectItem>
                   <SelectItem value="de">Allemand</SelectItem>
@@ -262,7 +262,7 @@ export default function EditCampaignPage({
               />
             </div>
             <div className="space-y-2">
-              <Label>Delai relance (jours)</Label>
+              <Label>Délai relance (jours)</Label>
               <Input
                 type="number"
                 value={formData.followUpDelayDays}

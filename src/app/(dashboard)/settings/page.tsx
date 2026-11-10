@@ -1,391 +1,354 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
+import { Loader2, Settings, UserPlus } from "lucide-react";
+import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
-import { toast } from "sonner";
-import { Settings, UserPlus } from "lucide-react";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Switch } from "@/components/ui/switch";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { PageTitle } from "@/components/layout/page-title";
 
-export default function SettingsPage() {
-  const [settings, setSettings] = useState({
-    companyName: "",
-    senderName: "",
-    senderEmail: "",
-    dailyEmailLimit: "50",
-    emailSpacingSeconds: "30",
-    defaultSignature: "",
-    weeklyEmailTarget: "200",
-    weeklyNewProspectTarget: "30",
-    weeklyReplyTarget: "5",
-    alertBouncePctThreshold: "5",
-  });
-  const [defaultUser, setDefaultUser] = useState({
-    email: "",
-    password: "",
-    fullName: "",
-  });
-  const [creatingUser, setCreatingUser] = useState(false);
-  const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
+type SettingsForm = {
+  companyAddress: string;
+  dailyEmailLimit: string;
+  emailSpacingSeconds: string;
+  weeklyEmailTarget: string;
+  weeklyNewProspectTarget: string;
+  weeklyReplyTarget: string;
+  alertBouncePctThreshold: string;
+};
 
-  useEffect(() => {
-    const loadSettings = async () => {
-      try {
-        const res = await fetch("/api/settings", { cache: "no-store" });
-        if (!res.ok) throw new Error("Erreur de chargement");
-        const data = await res.json();
-        setSettings({
-          companyName: data.companyName || "",
-          senderName: data.senderName || "",
-          senderEmail: data.senderEmail || "",
-          dailyEmailLimit: String(data.dailyEmailLimit ?? 50),
-          emailSpacingSeconds: String(data.emailSpacingSeconds ?? 30),
-          defaultSignature: data.defaultSignature || "",
-          weeklyEmailTarget: String(data.weeklyEmailTarget ?? 200),
-          weeklyNewProspectTarget: String(
-            data.weeklyNewProspectTarget ?? 30
-          ),
-          weeklyReplyTarget: String(data.weeklyReplyTarget ?? 5),
-          alertBouncePctThreshold: String(
-            data.alertBouncePctThreshold ?? 5
-          ),
-        });
-      } catch {
-        toast.error("Impossible de charger les paramètres");
-      } finally {
-        setLoading(false);
-      }
-    };
-    loadSettings();
+type Member = { id: string; email: string; name: string | null; role: string; active: boolean };
+
+const ROLE_OPTIONS = [
+  { value: "ADMIN", label: "Administrateur" },
+  { value: "COMMERCIAL", label: "Commercial" },
+  { value: "ASSISTANT", label: "Assistant" },
+  { value: "DIRECTION", label: "Direction (lecture seule)" },
+];
+
+function toForm(data: Record<string, unknown>): SettingsForm {
+  return {
+    companyAddress: String(data.companyAddress ?? ""),
+    dailyEmailLimit: String(data.dailyEmailLimit ?? 50),
+    emailSpacingSeconds: String(data.emailSpacingSeconds ?? 30),
+    weeklyEmailTarget: String(data.weeklyEmailTarget ?? 200),
+    weeklyNewProspectTarget: String(data.weeklyNewProspectTarget ?? 30),
+    weeklyReplyTarget: String(data.weeklyReplyTarget ?? 5),
+    alertBouncePctThreshold: String(data.alertBouncePctThreshold ?? 5),
+  };
+}
+
+function NumberField({
+  id,
+  label,
+  hint,
+  value,
+  onChange,
+  min,
+  max,
+}: {
+  id: string;
+  label: string;
+  hint?: string;
+  value: string;
+  onChange: (v: string) => void;
+  min: number;
+  max?: number;
+}) {
+  return (
+    <div className="space-y-1.5">
+      <Label htmlFor={id}>{label}</Label>
+      <Input id={id} type="number" inputMode="numeric" value={value} min={min} max={max} onChange={(e) => onChange(e.target.value)} />
+      {hint ? <p className="text-xs text-muted-foreground">{hint}</p> : null}
+    </div>
+  );
+}
+
+function MembersCard() {
+  const [members, setMembers] = useState<Member[] | null>(null);
+  const [forbidden, setForbidden] = useState(false);
+  const [invite, setInvite] = useState({ email: "", name: "", role: "COMMERCIAL" });
+  const [inviting, setInviting] = useState(false);
+
+  const load = useCallback(async () => {
+    const res = await fetch("/api/members");
+    if (res.status === 403) return setForbidden(true);
+    if (res.ok) setMembers(await res.json());
   }, []);
 
-  const handleSave = async () => {
+  useEffect(() => {
+    load();
+  }, [load]);
+
+  if (forbidden) return null;
+
+  const sendInvite = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setInviting(true);
+    try {
+      const res = await fetch("/api/members", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(invite),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error || "Invitation impossible");
+      toast.success(`Invitation envoyée à ${invite.email}`);
+      setInvite({ email: "", name: "", role: "COMMERCIAL" });
+      load();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Erreur");
+    } finally {
+      setInviting(false);
+    }
+  };
+
+  const update = async (member: Member, data: Partial<Pick<Member, "role" | "active">>) => {
+    const res = await fetch(`/api/members/${member.id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(data),
+    });
+    const body = await res.json().catch(() => ({}));
+    if (!res.ok) return toast.error(body.error || "Mise à jour impossible");
+    toast.success("Membre mis à jour");
+    load();
+  };
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>Équipe</CardTitle>
+        <CardDescription>
+          L&apos;accès est réservé aux membres invités. Un membre désactivé ne peut plus se connecter.
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-5">
+        <form onSubmit={sendInvite} className="grid gap-3 sm:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)_minmax(0,1fr)_auto] sm:items-end">
+          <div className="space-y-1.5">
+            <Label htmlFor="invite-email">Email professionnel</Label>
+            <Input
+              id="invite-email"
+              type="email"
+              required
+              value={invite.email}
+              onChange={(e) => setInvite({ ...invite, email: e.target.value })}
+              placeholder="prenom.nom@entreprise.com"
+            />
+          </div>
+          <div className="space-y-1.5">
+            <Label htmlFor="invite-name">Nom (facultatif)</Label>
+            <Input id="invite-name" value={invite.name} onChange={(e) => setInvite({ ...invite, name: e.target.value })} />
+          </div>
+          <div className="space-y-1.5">
+            <Label htmlFor="invite-role">Rôle</Label>
+            <Select value={invite.role} onValueChange={(v) => v && setInvite({ ...invite, role: v })}>
+              <SelectTrigger id="invite-role" className="w-full">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {ROLE_OPTIONS.map((r) => (
+                  <SelectItem key={r.value} value={r.value}>
+                    {r.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <Button type="submit" disabled={inviting || !invite.email}>
+            {inviting ? <Loader2 className="h-4 w-4 animate-spin" /> : <UserPlus className="h-4 w-4" />}
+            Inviter
+          </Button>
+        </form>
+
+        {members === null ? (
+          <Skeleton className="h-32" />
+        ) : (
+          <div className="overflow-x-auto rounded-md border">
+            <Table className="min-w-[560px]">
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Membre</TableHead>
+                  <TableHead>Rôle</TableHead>
+                  <TableHead className="text-right">Accès</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {members.map((m) => (
+                  <TableRow key={m.id} className={m.active ? undefined : "opacity-60"}>
+                    <TableCell>
+                      <p className="font-medium">{m.name || m.email}</p>
+                      {m.name ? <p className="text-xs text-muted-foreground">{m.email}</p> : null}
+                    </TableCell>
+                    <TableCell>
+                      <Select value={m.role} onValueChange={(v) => v && v !== m.role && update(m, { role: v })}>
+                        <SelectTrigger className="w-52" aria-label={`Rôle de ${m.email}`}>
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {ROLE_OPTIONS.map((r) => (
+                            <SelectItem key={r.value} value={r.value}>
+                              {r.label}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </TableCell>
+                    <TableCell className="text-right">
+                      <Switch
+                        checked={m.active}
+                        onCheckedChange={(checked) => update(m, { active: checked })}
+                        aria-label={m.active ? `Désactiver ${m.email}` : `Réactiver ${m.email}`}
+                      />
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
+export default function SettingsPage() {
+  const [form, setForm] = useState<SettingsForm | null>(null);
+  const [saving, setSaving] = useState(false);
+  const set = (key: keyof SettingsForm) => (value: string) => setForm((f) => (f ? { ...f, [key]: value } : f));
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const res = await fetch("/api/settings", { cache: "no-store" });
+        if (!res.ok) throw new Error();
+        setForm(toForm(await res.json()));
+      } catch {
+        toast.error("Impossible de charger les paramètres");
+        setForm(toForm({}));
+      }
+    })();
+  }, []);
+
+  const handleSave = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!form) return;
     setSaving(true);
     try {
       const res = await fetch("/api/settings", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          ...settings,
-          dailyEmailLimit: parseInt(settings.dailyEmailLimit, 10),
-          emailSpacingSeconds: parseInt(settings.emailSpacingSeconds, 10),
-          weeklyEmailTarget: parseInt(settings.weeklyEmailTarget, 10),
-          weeklyNewProspectTarget: parseInt(
-            settings.weeklyNewProspectTarget,
-            10
-          ),
-          weeklyReplyTarget: parseInt(settings.weeklyReplyTarget, 10),
-          alertBouncePctThreshold: parseInt(
-            settings.alertBouncePctThreshold,
-            10
-          ),
+          companyAddress: form.companyAddress,
+          dailyEmailLimit: Number(form.dailyEmailLimit),
+          emailSpacingSeconds: Number(form.emailSpacingSeconds),
+          weeklyEmailTarget: Number(form.weeklyEmailTarget),
+          weeklyNewProspectTarget: Number(form.weeklyNewProspectTarget),
+          weeklyReplyTarget: Number(form.weeklyReplyTarget),
+          alertBouncePctThreshold: Number(form.alertBouncePctThreshold),
         }),
       });
-      if (!res.ok) throw new Error("Erreur");
-      // Re-sync with persisted values
-      const saved = await res.json();
-      setSettings({
-        companyName: saved.companyName || "",
-        senderName: saved.senderName || "",
-        senderEmail: saved.senderEmail || "",
-        dailyEmailLimit: String(saved.dailyEmailLimit ?? 50),
-        emailSpacingSeconds: String(saved.emailSpacingSeconds ?? 30),
-        defaultSignature: saved.defaultSignature || "",
-        weeklyEmailTarget: String(saved.weeklyEmailTarget ?? 200),
-        weeklyNewProspectTarget: String(
-          saved.weeklyNewProspectTarget ?? 30
-        ),
-        weeklyReplyTarget: String(saved.weeklyReplyTarget ?? 5),
-        alertBouncePctThreshold: String(
-          saved.alertBouncePctThreshold ?? 5
-        ),
-      });
-      toast.success("Parametres sauvegardes");
-    } catch {
-      toast.error("Erreur de sauvegarde");
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error || "Erreur de sauvegarde");
+      setForm(toForm(data));
+      toast.success("Paramètres enregistrés");
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Erreur de sauvegarde");
     } finally {
       setSaving(false);
     }
   };
 
-  const handleCreateDefaultUser = async () => {
-    if (!defaultUser.email || !defaultUser.password) {
-      toast.error("Email et mot de passe requis");
-      return;
-    }
-    setCreatingUser(true);
-    try {
-      const res = await fetch("/api/settings/default-user", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(defaultUser),
-      });
-      const data = await res.json();
-      if (!res.ok) {
-        throw new Error(data.error || "Erreur de création");
-      }
-      toast.success("Utilisateur par défaut créé");
-      setDefaultUser({ email: "", password: "", fullName: "" });
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Erreur");
-    } finally {
-      setCreatingUser(false);
-    }
-  };
-
   return (
-    <div className="max-w-2xl mx-auto space-y-6">
-      <PageTitle
-        title="Paramètres"
-        description="Configuration globale de la plateforme"
-        icon={Settings}
-      />
+    <div className="mx-auto max-w-4xl space-y-6">
+      <PageTitle title="Paramètres" description="Règles d'envoi, mentions légales, objectifs et équipe." icon={Settings} />
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Informations entreprise</CardTitle>
-          <CardDescription>
-            Ces informations seront utilisees dans les emails generes
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="space-y-2">
-            <Label>Nom de l&apos;entreprise</Label>
-            <Input
-              value={settings.companyName}
-              onChange={(e) =>
-                setSettings({ ...settings, companyName: e.target.value })
-              }
-              placeholder="Votre Entreprise SARL"
-            />
-          </div>
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label>Nom de l&apos;expediteur</Label>
-              <Input
-                value={settings.senderName}
-                onChange={(e) =>
-                  setSettings({ ...settings, senderName: e.target.value })
-                }
-                placeholder="Jean Dupont"
+      {!form ? (
+        <div className="space-y-4" aria-busy="true">
+          <Skeleton className="h-48 rounded-xl" />
+          <Skeleton className="h-48 rounded-xl" />
+        </div>
+      ) : (
+        <form onSubmit={handleSave} className="space-y-6">
+          <Card>
+            <CardHeader>
+              <CardTitle>Envoi et délivrabilité</CardTitle>
+              <CardDescription>
+                Un rythme modéré protège la réputation du domaine expéditeur. Commencez bas (20 à 50 par jour) puis augmentez progressivement.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="grid gap-4 sm:grid-cols-2">
+              <NumberField id="daily-limit" label="Emails par jour (toutes campagnes)" value={form.dailyEmailLimit} onChange={set("dailyEmailLimit")} min={1} max={500} />
+              <NumberField
+                id="spacing"
+                label="Espacement entre deux emails (secondes)"
+                hint="30 à 120 secondes recommandées."
+                value={form.emailSpacingSeconds}
+                onChange={set("emailSpacingSeconds")}
+                min={0}
+                max={600}
               />
-            </div>
-            <div className="space-y-2">
-              <Label>Email expediteur</Label>
-              <Input
-                value={settings.senderEmail}
-                onChange={(e) =>
-                  setSettings({ ...settings, senderEmail: e.target.value })
-                }
-                placeholder="commercial@entreprise.com"
+              <NumberField
+                id="bounce-alert"
+                label="Seuil d'alerte rebonds sur 30 jours (%)"
+                value={form.alertBouncePctThreshold}
+                onChange={set("alertBouncePctThreshold")}
+                min={1}
+                max={100}
               />
-            </div>
-          </div>
-        </CardContent>
-      </Card>
+            </CardContent>
+          </Card>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Configuration d&apos;envoi</CardTitle>
-          <CardDescription>
-            Parametres de delivrabilite et quotas
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label>Limite emails/jour</Label>
-              <Input
-                type="number"
-                value={settings.dailyEmailLimit}
-                onChange={(e) =>
-                  setSettings({
-                    ...settings,
-                    dailyEmailLimit: e.target.value,
-                  })
-                }
-                min="1"
-                max="500"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label>Espacement entre emails (secondes)</Label>
-              <Input
-                type="number"
-                value={settings.emailSpacingSeconds}
-                onChange={(e) =>
-                  setSettings({
-                    ...settings,
-                    emailSpacingSeconds: e.target.value,
-                  })
-                }
-                min="5"
-                max="300"
-              />
-            </div>
-          </div>
-        </CardContent>
-      </Card>
+          <Card>
+            <CardHeader>
+              <CardTitle>Mentions légales des emails</CardTitle>
+              <CardDescription>
+                L&apos;adresse postale figure en pied de chaque email, avec la source des données et le lien de désinscription.
+                Le nom, le poste et la signature de l&apos;expéditeur sont définis par les variables SENDER_* du serveur.
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-1.5">
+                <Label htmlFor="company-address">Adresse postale de l&apos;entreprise</Label>
+                <Input
+                  id="company-address"
+                  value={form.companyAddress}
+                  onChange={(e) => set("companyAddress")(e.target.value)}
+                  placeholder="Rue, BP, ville, pays"
+                  maxLength={300}
+                />
+              </div>
+            </CardContent>
+          </Card>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Objectifs strategiques (7 jours glissants)</CardTitle>
-          <CardDescription>
-            Utilises sur le dashboard pour suivre la cadence commerciale
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label>Cible emails envoyes / 7j</Label>
-              <Input
-                type="number"
-                value={settings.weeklyEmailTarget}
-                onChange={(e) =>
-                  setSettings({
-                    ...settings,
-                    weeklyEmailTarget: e.target.value,
-                  })
-                }
-                min="1"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label>Cible nouveaux prospects / 7j</Label>
-              <Input
-                type="number"
-                value={settings.weeklyNewProspectTarget}
-                onChange={(e) =>
-                  setSettings({
-                    ...settings,
-                    weeklyNewProspectTarget: e.target.value,
-                  })
-                }
-                min="0"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label>Cible reponses marquees / 7j</Label>
-              <Input
-                type="number"
-                value={settings.weeklyReplyTarget}
-                onChange={(e) =>
-                  setSettings({
-                    ...settings,
-                    weeklyReplyTarget: e.target.value,
-                  })
-                }
-                min="0"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label>Seuil alerte rebond 30j (%)</Label>
-              <Input
-                type="number"
-                value={settings.alertBouncePctThreshold}
-                onChange={(e) =>
-                  setSettings({
-                    ...settings,
-                    alertBouncePctThreshold: e.target.value,
-                  })
-                }
-                min="1"
-                max="50"
-              />
-            </div>
-          </div>
-        </CardContent>
-      </Card>
+          <Card>
+            <CardHeader>
+              <CardTitle>Objectifs hebdomadaires</CardTitle>
+              <CardDescription>Affichés sur le tableau de bord (7 jours glissants).</CardDescription>
+            </CardHeader>
+            <CardContent className="grid gap-4 sm:grid-cols-3">
+              <NumberField id="target-emails" label="Emails envoyés" value={form.weeklyEmailTarget} onChange={set("weeklyEmailTarget")} min={0} />
+              <NumberField id="target-prospects" label="Nouveaux prospects" value={form.weeklyNewProspectTarget} onChange={set("weeklyNewProspectTarget")} min={0} />
+              <NumberField id="target-replies" label="Réponses" value={form.weeklyReplyTarget} onChange={set("weeklyReplyTarget")} min={0} />
+            </CardContent>
+          </Card>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Signature par defaut</CardTitle>
-          <CardDescription>
-            Utilisee automatiquement dans tous les emails
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <Textarea
-            value={settings.defaultSignature}
-            onChange={(e) =>
-              setSettings({
-                ...settings,
-                defaultSignature: e.target.value,
-              })
-            }
-            placeholder={"Cordialement,\nVotre nom\nTitre - Entreprise\nTel: +xxx"}
-            rows={6}
-          />
-        </CardContent>
-      </Card>
+          <div className="flex justify-end">
+            <Button type="submit" size="lg" disabled={saving}>
+              {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+              Enregistrer les paramètres
+            </Button>
+          </div>
+        </form>
+      )}
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Utilisateur par défaut</CardTitle>
-          <CardDescription>
-            Créez un compte administrateur initial depuis les paramètres
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="space-y-2">
-            <Label>Email utilisateur</Label>
-            <Input
-              type="email"
-              value={defaultUser.email}
-              onChange={(e) =>
-                setDefaultUser({ ...defaultUser, email: e.target.value })
-              }
-              placeholder="admin@scpb.com"
-            />
-          </div>
-          <div className="space-y-2">
-            <Label>Nom complet (optionnel)</Label>
-            <Input
-              value={defaultUser.fullName}
-              onChange={(e) =>
-                setDefaultUser({ ...defaultUser, fullName: e.target.value })
-              }
-              placeholder="Administrateur SCPB"
-            />
-          </div>
-          <div className="space-y-2">
-            <Label>Mot de passe temporaire</Label>
-            <Input
-              type="password"
-              value={defaultUser.password}
-              onChange={(e) =>
-                setDefaultUser({ ...defaultUser, password: e.target.value })
-              }
-              placeholder="Minimum 6 caractères"
-              minLength={6}
-            />
-          </div>
-          <Button
-            onClick={handleCreateDefaultUser}
-            disabled={creatingUser}
-            className="w-full"
-          >
-            <UserPlus className="mr-2 h-4 w-4" />
-            {creatingUser
-              ? "Création en cours..."
-              : "Créer l'utilisateur par défaut"}
-          </Button>
-        </CardContent>
-      </Card>
-
-      <Button onClick={handleSave} className="w-full" disabled={loading || saving}>
-        {loading ? "Chargement..." : saving ? "Sauvegarde..." : "Sauvegarder les parametres"}
-      </Button>
+      <MembersCard />
     </div>
   );
 }
