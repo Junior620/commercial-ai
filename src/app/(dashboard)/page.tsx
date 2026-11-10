@@ -32,7 +32,7 @@ import { getDashboardExtras } from "@/lib/dashboard-extras";
 import { PageTitle } from "@/components/layout/page-title";
 import { AIBanner } from "@/components/ui/ai-banner";
 import { AIBadge } from "@/components/ui/ai-badge";
-import { AITimeline } from "@/components/dashboard/ai-timeline";
+import { AITimeline, loadAITimelineData } from "@/components/dashboard/ai-timeline";
 
 const SCRAPE_LABELS: Record<string, string> = {
   PENDING: "En attente",
@@ -271,6 +271,13 @@ export default async function DashboardPage() {
   }
   const extras = await getDashboardExtras();
 
+  let aiTimelineData: Awaited<ReturnType<typeof loadAITimelineData>> | null = null;
+  try {
+    aiTimelineData = await loadAITimelineData();
+  } catch (e) {
+    console.error("[dashboard] loadAITimelineData:", e);
+  }
+
   const kpis = [
         {
           label: "Prospects",
@@ -432,7 +439,7 @@ export default async function DashboardPage() {
 
       <div className="grid gap-4 lg:grid-cols-3">
           <div className="lg:col-span-1">
-            <AITimeline />
+            <AITimeline data={aiTimelineData} />
           </div>
           <div className="lg:col-span-2 space-y-4">
             <div className="grid gap-4 md:grid-cols-2">

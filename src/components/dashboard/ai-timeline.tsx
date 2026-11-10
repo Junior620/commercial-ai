@@ -80,7 +80,43 @@ function relativeTime(date: Date | null | undefined): string {
   return date.toLocaleDateString("fr-FR");
 }
 
-async function loadAITimelineData() {
+export type AITimelineData = {
+  prospectsScoredDay: number;
+  hotProspectsDay: number;
+  emailsGeneratedDay: number;
+  emailsRepliedDay: number;
+  emailsOpenedWeek: number;
+  lastScrape: {
+    id: string;
+    status: string;
+    resultsCount: number;
+    completedAt: Date | null;
+    createdAt: Date;
+  } | null;
+  lastCampaign: {
+    id: string;
+    name: string;
+    status: string;
+    updatedAt: Date;
+  } | null;
+  lastReply: {
+    id: string;
+    classification: string;
+    createdAt: Date;
+  } | null;
+  lastHotProspect: {
+    id: string;
+    company: string;
+    score: number;
+    updatedAt: Date;
+  } | null;
+};
+
+/**
+ * À appeler depuis la page Dashboard **après** getStats / getDashboardExtras pour éviter
+ * des requêtes Prisma concurrentes (saturation du pool session Supabase, EMAXCONNSESSION).
+ */
+export async function loadAITimelineData(): Promise<AITimelineData> {
   const now = Date.now();
   const dayAgo = new Date(now - 24 * 60 * 60 * 1000);
   const weekAgo = new Date(now - 7 * 24 * 60 * 60 * 1000);
@@ -137,13 +173,18 @@ async function loadAITimelineData() {
   };
 }
 
-export async function AITimeline() {
-  let data: Awaited<ReturnType<typeof loadAITimelineData>> | null = null;
-  try {
-    data = await loadAITimelineData();
-  } catch (err) {
-    console.error("[AITimeline] load:", err);
-    return null;
+export function AITimeline({ data }: { data: AITimelineData | null }) {
+  if (!data) {
+    return (
+      <Card className="border-dashed border-muted-foreground/30">
+        <CardHeader>
+          <CardTitle className="text-sm">Activité de l&apos;IA</CardTitle>
+          <CardDescription className="text-xs">
+            Impossible de charger les indicateurs pour le moment (réessayer plus tard).
+          </CardDescription>
+        </CardHeader>
+      </Card>
+    );
   }
 
   const events: TimelineEvent[] = [];
