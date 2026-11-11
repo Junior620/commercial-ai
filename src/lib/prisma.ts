@@ -20,7 +20,9 @@ const globalForPrisma = globalThis as unknown as {
 function getOrCreatePgPool(connectionString: string): Pool {
   if (globalForPrisma.pgPool) return globalForPrisma.pgPool;
 
-  const fallback = process.env.NODE_ENV === "production" ? 5 : 1;
+  // Serverless (Vercel) : chaque instance garde peu de connexions ; utiliser de préférence
+  // le « Transaction pooler » Supabase (port 6543) dans DATABASE_URL.
+  const fallback = process.env.NODE_ENV === "production" ? 2 : 1;
   const raw = process.env.DATABASE_POOL_MAX?.trim();
   const parsed =
     raw && raw.length > 0 ? Number.parseInt(raw, 10) : Number.NaN;
@@ -43,21 +45,25 @@ function getOrCreatePgPool(connectionString: string): Pool {
   return pool;
 }
 
-function createPrismaClient() {
-  const connectionString = process.env.DATABASE_URL;
+function getPrismaClient(): PrismaClient {
+  if (globalForPrisma.prisma) return globalForPrisma.prisma;
+  const connectionString = process.env.DATABASE_URL?.trim();
   if (!connectionString) {
-    console.warn("DATABASE_URL is not set — Prisma will not be available");
-    return null as unknown as PrismaClient;
+    throw new Error("DATABASE_URL n'est pas défini : impossible d'accéder à la base de données.");
   }
-  const pool = getOrCreatePgPool(connectionString);
-  const adapter = new PrismaPg(pool);
-  return new PrismaClient({ adapter });
+  const client = new PrismaClient({ adapter: new PrismaPg(getOrCreatePgPool(connectionString)) });
+  globalForPrisma.prisma = client;
+  return client;
 }
 
-export const prisma =
-  globalForPrisma.prisma ??
-  (() => {
-    const c = createPrismaClient();
-    globalForPrisma.prisma = c;
-    return c;
-  })();
+/**
+ * Client Prisma créé à la première utilisation : une variable manquante produit
+ * une erreur explicite au lieu d'un « cannot read properties of null ».
+ */
+export const prisma = new Proxy({} as PrismaClient, {
+  get(_target, prop) {
+    const client = getPrismaClient();
+    const value = Reflect.get(client, prop, client);
+    return typeof value === "function" ? value.bind(client) : value;
+  },
+});

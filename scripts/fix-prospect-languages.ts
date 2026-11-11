@@ -9,6 +9,7 @@
  *
  * Options :
  *   --apply     Ecrire en base (sinon lecture seule)
+ *   --countries Normaliser aussi le pays en code ISO 3166-1 alpha-2 (« Belgium » -> « BE »)
  *   --source=X  Limiter aux prospects avec cette source (ex. apify_google_maps)
  *   --force     Mettre a jour si inferred !== language meme si language !== en
  *               (attention : ecrase des choix manuels possibles)
@@ -18,23 +19,24 @@ import "dotenv/config";
 import { Pool } from "pg";
 import { PrismaClient } from "../src/generated/prisma/client";
 import { PrismaPg } from "@prisma/adapter-pg";
-import { inferProspectLanguageFromCountry } from "../src/lib/prospect-language";
+import { inferProspectLanguageFromCountry, normalizeCountryToIso2 } from "../src/lib/prospect-language";
 
 function parseArgs() {
   const argv = process.argv.slice(2);
   const apply = argv.includes("--apply");
   const force = argv.includes("--force");
+  const countries = argv.includes("--countries");
   let source: string | undefined;
   for (const a of argv) {
     if (a.startsWith("--source=")) {
       source = a.slice("--source=".length).trim() || undefined;
     }
   }
-  return { apply, force, source };
+  return { apply, force, source, countries };
 }
 
 async function main() {
-  const { apply, force, source } = parseArgs();
+  const { apply, force, source, countries } = parseArgs();
 
   const connectionString = process.env.DATABASE_URL;
   if (!connectionString?.trim()) {
@@ -80,20 +82,24 @@ async function main() {
       from: string;
       to: string;
       source: string | null;
+      iso?: string;
     }[] = [];
 
     for (const p of prospects) {
+      const iso = countries ? normalizeCountryToIso2(p.country) : p.country;
+      const isoChanged = countries && /^[A-Z]{2}$/.test(iso) && iso !== p.country;
       const inferred = inferProspectLanguageFromCountry(p.country);
-      if (inferred === p.language) continue;
-      if (!force && p.language !== "en") continue;
+      const langChanged = inferred !== p.language && (force || p.language === "en");
+      if (!langChanged && !isoChanged) continue;
 
       toUpdate.push({
         id: p.id,
         company: p.company,
         country: p.country,
         from: p.language,
-        to: inferred,
+        to: langChanged ? inferred : p.language,
         source: p.source,
+        iso: isoChanged ? iso : undefined,
       });
     }
 
@@ -110,7 +116,7 @@ async function main() {
     const preview = toUpdate.slice(0, 30);
     for (const row of preview) {
       console.log(
-        `  - ${row.company} | ${row.country} : ${row.from} -> ${row.to}` +
+        `  - ${row.company} | ${row.country}${row.iso ? ` -> ${row.iso}` : ""} : ${row.from} -> ${row.to}` +
           (row.source ? ` [${row.source}]` : "")
       );
     }
@@ -129,7 +135,7 @@ async function main() {
     for (const row of toUpdate) {
       await prisma.prospect.update({
         where: { id: row.id },
-        data: { language: row.to },
+        data: { language: row.to, ...(row.iso ? { country: row.iso } : {}) },
       });
       done++;
     }
