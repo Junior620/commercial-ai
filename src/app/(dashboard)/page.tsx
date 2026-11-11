@@ -46,10 +46,10 @@ function greeting(name: string | null, email: string): string {
 }
 
 const KPI_TONES = {
-  brand: "bg-primary/10 text-primary",
-  sun: "bg-sun/20 text-sun-foreground dark:text-sun",
-  info: "bg-info/10 text-info",
-  success: "bg-success/10 text-success",
+  brand: "bg-primary-gradient text-primary-foreground shadow-glow-primary",
+  sun: "bg-sun-gradient text-sun-foreground shadow-glow-sun",
+  info: "bg-[linear-gradient(135deg,oklch(0.6_0.08_225),oklch(0.5_0.07_235))] text-white shadow-[0_6px_20px_-8px_oklch(0.55_0.08_230/0.55)]",
+  success: "bg-[linear-gradient(135deg,oklch(0.62_0.12_145),oklch(0.52_0.11_140))] text-white shadow-[0_6px_20px_-8px_oklch(0.55_0.12_142/0.55)]",
 };
 
 function Kpi({
@@ -69,7 +69,7 @@ function Kpi({
 }) {
   return (
     <Link href={href} className="group rounded-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
-      <Card className="h-full transition-colors group-hover:border-primary/30">
+      <Card className="glow-top-line h-full transition-colors group-hover:border-primary/30">
         <CardContent className="flex items-start gap-4">
           <span className={cn("flex h-11 w-11 shrink-0 items-center justify-center rounded-lg", KPI_TONES[tone])}>
             <Icon className="h-5 w-5" aria-hidden />
@@ -131,21 +131,29 @@ function Goal({ label, current, target }: { label: string; current: number; targ
         </span>
       </div>
       <div className="h-2 overflow-hidden rounded-full bg-muted" role="progressbar" aria-valuenow={p} aria-valuemin={0} aria-valuemax={100} aria-label={label}>
-        {p > 0 ? <div className={cn("h-full rounded-full", p >= 100 ? "bg-success" : "bg-primary")} style={{ width: `${p}%` }} /> : null}
+        {p > 0 ? (
+          <div
+            className={cn(
+              "h-full rounded-full shadow-[0_0_10px_-2px_oklch(0.687_0.134_117.7/0.7)]",
+              p >= 100 ? "bg-success" : "bg-[linear-gradient(90deg,var(--primary),oklch(0.687_0.134_117.7))]"
+            )}
+            style={{ width: `${p}%` }}
+          />
+        ) : null}
       </div>
     </div>
   );
 }
 
 const PIPELINE_COLORS: Record<string, string> = {
-  NEW: "bg-info",
-  CONTACTED: "bg-sun",
-  IN_DISCUSSION: "bg-primary",
-  CONVERTED: "bg-success",
+  NEW: "bg-info bg-[linear-gradient(90deg,oklch(0.6_0.08_225),oklch(0.52_0.07_232))]",
+  CONTACTED: "bg-sun bg-sun-gradient",
+  IN_DISCUSSION: "bg-primary bg-primary-gradient",
+  CONVERTED: "bg-success bg-[linear-gradient(90deg,oklch(0.62_0.12_145),oklch(0.52_0.11_140))]",
 };
 
 const ALERT_STYLES = {
-  info: { box: "border-sun/50 bg-sun/15", icon: Info, button: "bg-[#26300F] text-[#F8F3EA] hover:bg-[#26300F]/90" },
+  info: { box: "border-sun/50 bg-[linear-gradient(90deg,oklch(0.799_0.16_76.4/0.20),oklch(0.799_0.16_76.4/0.06))] shadow-glow-sun", icon: Info, button: "bg-[#26300F] text-[#F8F3EA] hover:bg-[#26300F]/90" },
   warning: { box: "border-warning/40 bg-warning/10", icon: AlertTriangle, button: "" },
   danger: { box: "border-destructive/30 bg-destructive/10 text-destructive", icon: AlertTriangle, button: "" },
 };
@@ -221,7 +229,7 @@ export default async function DashboardPage() {
             <CardLink href="/prospects">Prospects</CardLink>
           </CardHeader>
           <CardContent className="space-y-5">
-            <div className="flex h-3 overflow-hidden rounded-full bg-muted" aria-hidden>
+            <div className="flex h-3 overflow-hidden rounded-full bg-muted shadow-[0_0_14px_-4px_oklch(0.687_0.134_117.7/0.6)]" aria-hidden>
               {data.pipeline.map((row) =>
                 row.value > 0 ? (
                   <div key={row.status} className={PIPELINE_COLORS[row.status]} style={{ width: `${(row.value / pipelineTotal) * 100}%` }} />
@@ -282,7 +290,7 @@ export default async function DashboardPage() {
                   return (
                     <li key={d.day} className="flex h-full flex-col items-center justify-end gap-1.5">
                       <span className="text-xs font-semibold tabular-nums">{d.count || ""}</span>
-                      <span className="w-full max-w-10 rounded-t-md bg-chart-1" style={{ height: `${Math.max(3, (d.count / volumeMax) * 100)}%` }} aria-hidden />
+                      <span className="w-full max-w-10 rounded-t-md bg-[linear-gradient(180deg,oklch(0.687_0.134_117.7),var(--primary))] shadow-[0_0_12px_-3px_oklch(0.687_0.134_117.7/0.7)]" style={{ height: `${Math.max(3, (d.count / volumeMax) * 100)}%` }} aria-hidden />
                       <span className="text-xs capitalize text-muted-foreground">
                         {label}
                         <span className="sr-only"> : {d.count} email(s)</span>

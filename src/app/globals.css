@@ -94,6 +94,16 @@
   --chart-4: oklch(0.55 0.05 100);
   --chart-5: oklch(0.535 0.151 32.2);
   --radius: 0.5rem;
+  /* Dégradés et halos « néon doux » : opacités volontairement faibles */
+  --glow-primary: 0 6px 20px -8px oklch(0.687 0.134 117.7 / 0.55);
+  --glow-sun: 0 6px 22px -8px oklch(0.799 0.16 76.4 / 0.6);
+  --glow-ring: 0 0 0 1px oklch(0.687 0.134 117.7 / 0.18), 0 8px 28px -14px oklch(0.687 0.134 117.7 / 0.45);
+  --surface-gradient: linear-gradient(180deg, oklch(0.997 0.006 90) 0%, oklch(0.985 0.012 100) 100%);
+  --primary-gradient: linear-gradient(135deg, oklch(0.52 0.1 120) 0%, oklch(0.42 0.085 122) 100%);
+  --sun-gradient: linear-gradient(135deg, oklch(0.84 0.15 82) 0%, oklch(0.76 0.16 70) 100%);
+  --app-mesh:
+    radial-gradient(60rem 30rem at 100% -10%, oklch(0.799 0.16 76.4 / 0.10), transparent 60%),
+    radial-gradient(50rem 30rem at -10% 110%, oklch(0.687 0.134 117.7 / 0.10), transparent 60%);
   --sidebar: oklch(0.29 0.055 120);
   --sidebar-foreground: oklch(0.93 0.02 82);
   --sidebar-primary: oklch(0.799 0.16 76.4);
@@ -136,6 +146,14 @@
   --chart-3: oklch(0.55 0.092 113.7);
   --chart-4: oklch(0.7 0.05 60);
   --chart-5: oklch(0.65 0.16 32);
+  --glow-primary: 0 6px 24px -6px oklch(0.687 0.134 117.7 / 0.45);
+  --glow-sun: 0 6px 24px -6px oklch(0.799 0.16 76.4 / 0.45);
+  --glow-ring: 0 0 0 1px oklch(0.687 0.134 117.7 / 0.22), 0 10px 32px -12px oklch(0.687 0.134 117.7 / 0.35);
+  --surface-gradient: linear-gradient(180deg, oklch(0.245 0.028 118) 0%, oklch(0.215 0.024 118) 100%);
+  --primary-gradient: linear-gradient(135deg, oklch(0.74 0.14 118) 0%, oklch(0.64 0.13 120) 100%);
+  --app-mesh:
+    radial-gradient(60rem 30rem at 100% -10%, oklch(0.799 0.16 76.4 / 0.08), transparent 60%),
+    radial-gradient(50rem 30rem at -10% 110%, oklch(0.687 0.134 117.7 / 0.10), transparent 60%);
   --sidebar: oklch(0.17 0.03 120);
   --sidebar-foreground: oklch(0.93 0.02 82);
   --sidebar-primary: oklch(0.799 0.16 76.4);
@@ -179,5 +197,48 @@
 @layer components {
   .app-card {
     @apply border bg-card shadow-sm;
+  }
+}
+
+/* ─── Dégradés et halos (utilisables partout) ─── */
+@utility bg-app-mesh {
+  background-image: var(--app-mesh);
+  background-attachment: fixed;
+}
+@utility bg-surface-gradient {
+  background-image: var(--surface-gradient);
+}
+@utility bg-primary-gradient {
+  background-image: var(--primary-gradient);
+}
+@utility bg-sun-gradient {
+  background-image: var(--sun-gradient);
+}
+@utility shadow-glow-primary {
+  box-shadow: var(--glow-primary);
+}
+@utility shadow-glow-sun {
+  box-shadow: var(--glow-sun);
+}
+@utility shadow-glow-ring {
+  box-shadow: var(--glow-ring);
+}
+/* Texte en dégradé olive → soleil, pour de rares accents (chiffres clés) */
+@utility text-gradient-brand {
+  background-image: linear-gradient(90deg, var(--primary) 0%, oklch(0.62 0.13 95) 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+/* Fine ligne lumineuse en haut d'une carte */
+@utility glow-top-line {
+  position: relative;
+  &::before {
+    content: "";
+    position: absolute;
+    inset: 0 12% auto 12%;
+    height: 1px;
+    background: linear-gradient(90deg, transparent, oklch(0.799 0.16 76.4 / 0.55), transparent);
+    pointer-events: none;
   }
 }

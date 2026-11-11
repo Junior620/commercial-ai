@@ -38,14 +38,14 @@ function SidebarNav({ collapsed = false, onNavigate }: { collapsed?: boolean; on
                       "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sidebar-ring",
                       collapsed && "justify-center px-0",
                       active
-                        ? "bg-sidebar-accent text-sidebar-accent-foreground"
+                        ? "bg-[linear-gradient(90deg,oklch(0.799_0.16_76.4/0.16),oklch(0.799_0.16_76.4/0.03))] text-sidebar-accent-foreground shadow-[inset_0_0_0_1px_oklch(0.799_0.16_76.4/0.18)]"
                         : "text-sidebar-foreground/80 hover:bg-sidebar-accent/60 hover:text-sidebar-accent-foreground"
                     )}
                   >
                     {active ? (
-                      <span className="absolute inset-y-2 left-0 w-0.5 rounded-full bg-sidebar-primary" aria-hidden />
+                      <span className="absolute inset-y-2 left-0 w-[3px] rounded-full bg-sidebar-primary shadow-[0_0_10px_1px_oklch(0.799_0.16_76.4/0.7)]" aria-hidden />
                     ) : null}
-                    <item.icon className={cn("h-[18px] w-[18px] shrink-0", active && "text-sidebar-primary")} />
+                    <item.icon className={cn("h-[18px] w-[18px] shrink-0", active && "text-sidebar-primary drop-shadow-[0_0_6px_oklch(0.799_0.16_76.4/0.6)]")} />
                     {collapsed ? <span className="sr-only">{item.name}</span> : <span className="truncate">{item.name}</span>}
                   </Link>
                 </li>
@@ -75,7 +75,7 @@ export function Sidebar({ className }: { className?: string }) {
   return (
     <aside
       className={cn(
-        "flex flex-col bg-sidebar text-sidebar-foreground transition-[width] duration-200",
+        "flex flex-col bg-sidebar bg-[linear-gradient(180deg,oklch(0.31_0.06_120)_0%,oklch(0.25_0.05_122)_100%)] text-sidebar-foreground transition-[width] duration-200 dark:bg-[linear-gradient(180deg,oklch(0.2_0.035_120)_0%,oklch(0.15_0.025_122)_100%)]",
         collapsed ? "w-[72px]" : "w-64",
         className
       )}

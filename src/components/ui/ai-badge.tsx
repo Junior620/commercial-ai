@@ -30,7 +30,7 @@ export function AIBadge({ label = "Assistant", size = "sm", className, title }: 
     <span
       title={title ?? "Contenu proposé par l'assistant de rédaction"}
       className={cn(
-        "inline-flex shrink-0 items-center rounded-full border border-sun/40 bg-sun/15 font-medium text-sun-foreground dark:text-sun",
+        "inline-flex shrink-0 items-center rounded-full border border-sun/40 bg-[linear-gradient(90deg,oklch(0.799_0.16_76.4/0.22),oklch(0.799_0.16_76.4/0.08))] font-medium text-sun-foreground shadow-[0_0_12px_-4px_oklch(0.799_0.16_76.4/0.6)] dark:text-sun",
         sz.root,
         className
       )}

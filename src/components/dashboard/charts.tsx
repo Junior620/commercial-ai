@@ -25,6 +25,12 @@ export function CountryChart({ data }: { data: { country: string; count: number 
     <div role="img" aria-label={`Prospects par pays : ${rows.map((r) => `${r.name} ${r.count}`).join(", ")}`}>
       <ResponsiveContainer width="100%" height={Math.max(180, rows.length * 36)}>
         <BarChart data={rows} layout="vertical" margin={{ left: 4, right: 44, top: 2, bottom: 2 }} barCategoryGap={8}>
+          <defs>
+            <linearGradient id="country-bar" x1="0" y1="0" x2="1" y2="0">
+              <stop offset="0%" stopColor="var(--primary)" />
+              <stop offset="100%" stopColor="oklch(0.687 0.134 117.7)" />
+            </linearGradient>
+          </defs>
           <XAxis type="number" hide allowDecimals={false} />
           <YAxis
             type="category"
@@ -46,7 +52,7 @@ export function CountryChart({ data }: { data: { country: string; count: number 
             }}
             formatter={(value) => [value, "Prospects"]}
           />
-          <Bar dataKey="count" fill="var(--chart-1)" radius={[0, 6, 6, 0]} background={{ fill: "var(--muted)", radius: 6 }}>
+          <Bar dataKey="count" fill="url(#country-bar)" radius={[0, 6, 6, 0]} background={{ fill: "var(--muted)", radius: 6 }}>
             <LabelList dataKey="count" position="right" fontSize={12} fontWeight={600} fill="var(--foreground)" />
           </Bar>
         </BarChart>

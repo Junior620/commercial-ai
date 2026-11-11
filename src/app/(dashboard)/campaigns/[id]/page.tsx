@@ -380,7 +380,7 @@ export default function CampaignDetailPage({ params }: { params: Promise<{ id: s
             <span
               className={cn(
                 "flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-xs font-semibold",
-                step.done ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"
+                step.done ? "bg-primary-gradient text-primary-foreground shadow-glow-primary" : "bg-muted text-muted-foreground"
               )}
             >
               {step.done ? <CheckCircle2 className="h-4 w-4" /> : i + 1}

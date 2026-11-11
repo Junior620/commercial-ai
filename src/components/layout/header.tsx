@@ -161,7 +161,7 @@ export function Header({ user }: { user: HeaderUser }) {
   };
 
   return (
-    <header className="flex h-16 shrink-0 items-center justify-between gap-3 border-b bg-background/85 px-3 backdrop-blur sm:px-4 md:px-6">
+    <header className="relative flex h-16 shrink-0 items-center justify-between gap-3 border-b bg-background/70 px-3 backdrop-blur-md after:pointer-events-none after:absolute after:inset-x-0 after:-bottom-px after:h-px after:bg-[linear-gradient(90deg,transparent,oklch(0.799_0.16_76.4/0.45),oklch(0.687_0.134_117.7/0.45),transparent)] sm:px-4 md:px-6">
       <div className="flex items-center gap-2">
         <MobileSidebar />
         <SearchPalette />
@@ -181,7 +181,7 @@ export function Header({ user }: { user: HeaderUser }) {
             className="flex items-center gap-2 rounded-full p-0.5 outline-none transition-colors hover:bg-muted focus-visible:ring-2 focus-visible:ring-ring sm:rounded-md sm:pr-2"
           >
             <Avatar className="h-8 w-8">
-              <AvatarFallback className="bg-primary/15 text-xs font-semibold text-primary">{initials(user)}</AvatarFallback>
+              <AvatarFallback className="bg-primary-gradient text-xs font-semibold text-primary-foreground shadow-glow-primary">{initials(user)}</AvatarFallback>
             </Avatar>
             <span className="hidden max-w-48 text-left leading-tight sm:block">
               <span className="block truncate text-sm font-medium">{displayName(user)}</span>
