@@ -162,19 +162,15 @@ export default function LoginPage() {
         <p className="text-xs text-muted-foreground">© {new Date().getFullYear()} SCPB · Outil interne</p>
       </div>
 
-      <aside className="relative hidden overflow-hidden bg-sidebar text-sidebar-foreground lg:flex lg:flex-col lg:justify-between lg:p-12">
-        <div
-          aria-hidden
-          className="pointer-events-none absolute -right-24 -top-24 h-80 w-80 rounded-full bg-sun/25 blur-3xl"
-        />
+      <aside className="relative hidden overflow-hidden bg-[#EDEFDC] text-[#1F2510] lg:flex lg:flex-col lg:justify-between lg:p-12">
+        <div aria-hidden className="pointer-events-none absolute -right-32 -top-32 h-96 w-96 rounded-full bg-[#F7AD21]/25 blur-3xl" />
+        <div aria-hidden className="pointer-events-none absolute -bottom-40 -left-24 h-96 w-96 rounded-full bg-[#94A538]/20 blur-3xl" />
         <div className="relative">
-          <span className="inline-flex rounded-xl bg-[#F8F3EA] px-5 py-3">
-            <Image src="/brand/logo.png" alt="SCPB" width={150} height={100} className="h-16 w-auto" />
-          </span>
-          <h2 className="mt-10 max-w-md text-4xl font-semibold leading-tight text-[#F8F3EA]">
+          <Image src="/brand/logo.png" alt="SCPB" width={200} height={133} className="h-24 w-auto" priority />
+          <h2 className="mt-10 max-w-md text-4xl font-semibold leading-tight text-[#26300F]">
             Trouver, convaincre et suivre les acheteurs de la filière cacao.
           </h2>
-          <ul className="mt-8 space-y-3 text-[15px] text-sidebar-foreground/80">
+          <ul className="mt-8 space-y-3 text-[15px] text-[#3F4824]">
             <li>Recherche de chocolatiers, importateurs et industriels qualifiés</li>
             <li>Emails rédigés dans la langue de chaque prospect, relus avant envoi</li>
             <li>Envoi progressif, relances et suivi des réponses</li>

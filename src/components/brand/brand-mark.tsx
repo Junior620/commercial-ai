@@ -15,11 +15,11 @@ export function BrandMark({ withName = true, inverted = false, className }: Bran
     <span className={cn("flex min-w-0 items-center gap-2.5", className)}>
       <span
         className={cn(
-          "flex h-9 w-9 shrink-0 items-center justify-center rounded-lg",
-          inverted ? "bg-[#F8F3EA]" : "bg-card ring-1 ring-border"
+          "flex h-9 w-9 shrink-0 items-center justify-center",
+          !inverted && "rounded-lg bg-card ring-1 ring-border"
         )}
       >
-        <Image src="/brand/mark.png" alt="" width={28} height={28} className="h-7 w-7 object-contain" priority />
+        <Image src="/brand/mark.png" alt="" width={28} height={28} className={cn("object-contain", inverted ? "h-9 w-9" : "h-7 w-7")} priority />
       </span>
       {withName ? (
         <span className="min-w-0 leading-tight">

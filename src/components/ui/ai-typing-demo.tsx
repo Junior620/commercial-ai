@@ -137,19 +137,19 @@ export function AITypingDemo({ className }: { className?: string }) {
   return (
     <div
       className={cn(
-        "relative overflow-hidden rounded-xl border border-white/10 bg-white/[0.04] p-2.5 shadow-xl backdrop-blur max-[360px]:p-2 sm:p-4",
+        "relative overflow-hidden rounded-xl border border-[#D6DABB] bg-[#FFFDF8] p-2.5 text-[#1F2510] shadow-lg max-[360px]:p-2 sm:p-4",
         className
       )}
     >
       {/* header: envelope + ai pill */}
       <div className="mb-2.5 flex flex-wrap items-start justify-between gap-1.5 sm:mb-3 sm:gap-2">
-        <div className="flex min-w-0 flex-1 items-center gap-1.5 text-[11px] text-muted-foreground sm:gap-2 sm:text-xs">
-          <div className="flex h-6 w-6 items-center justify-center rounded-lg border border-white/10 bg-white/[0.06] sm:h-7 sm:w-7">
+        <div className="flex min-w-0 flex-1 items-center gap-1.5 text-[11px] text-[#5F6650] sm:gap-2 sm:text-xs">
+          <div className="flex h-6 w-6 items-center justify-center rounded-lg border border-[#D6DABB] bg-[#F3F4E6] text-[#4E5A1F] sm:h-7 sm:w-7">
             <Mail className="h-3.5 w-3.5" />
           </div>
           <div className="min-w-0 leading-tight">
-            <p className="font-medium text-white max-[360px]:text-[10px]">Brouillon · IA</p>
-            <p className="text-[9px] text-muted-foreground sm:text-[10px]">
+            <p className="font-medium text-[#1F2510] max-[360px]:text-[10px]">Brouillon</p>
+            <p className="text-[9px] text-[#5F6650] sm:text-[10px]">
               <span className="block truncate">Pour {sample.to} · {sample.company}</span>
             </p>
           </div>
@@ -175,39 +175,39 @@ export function AITypingDemo({ className }: { className?: string }) {
 
       {/* subject */}
       <div className="mb-1.5 sm:mb-2">
-        <p className="text-[9px] uppercase tracking-wide text-muted-foreground sm:text-[10px]">
+        <p className="text-[9px] uppercase tracking-wide text-[#5F6650] sm:text-[10px]">
           Objet
         </p>
-        <p className="text-xs font-semibold text-white sm:text-sm">
+        <p className="text-xs font-semibold text-[#1F2510] sm:text-sm">
           {subject}
           {phase === "subject" && <BlinkingCursor />}
         </p>
       </div>
 
       {/* body */}
-      <div className="space-y-1 rounded-lg border border-white/15 bg-black/35 p-2.5 sm:p-3">
-        <p className="text-[9px] uppercase tracking-wide text-muted-foreground sm:text-[10px]">
+      <div className="space-y-1 rounded-lg border border-[#E4E6CF] bg-[#F7F7EC] p-2.5 sm:p-3">
+        <p className="text-[9px] uppercase tracking-wide text-[#5F6650] sm:text-[10px]">
           Message
         </p>
         <pre
-          className="max-h-40 min-h-[6.75rem] overflow-hidden whitespace-pre-wrap break-words font-sans text-[11px] leading-relaxed text-muted-foreground sm:max-h-44 sm:min-h-[8.5rem] sm:text-xs"
+          className="max-h-40 min-h-[6.75rem] overflow-hidden whitespace-pre-wrap break-words font-sans text-[11px] leading-relaxed text-[#5F6650] sm:max-h-44 sm:min-h-[8.5rem] sm:text-xs"
           aria-live="polite"
         >
 {body}
           {phase === "body" && <BlinkingCursor />}
           {phase === "done" && (
             <span className="ml-1 inline-flex items-center gap-1 rounded-full bg-success/15 px-2 py-0.5 text-[10px] font-medium text-success">
-              <Check className="h-3 w-3" /> généré par IA
+              <Check className="h-3 w-3" /> prêt à relire
             </span>
           )}
         </pre>
       </div>
 
       {/* footer: model row */}
-      <div className="mt-2.5 flex flex-wrap items-center justify-between gap-1.5 text-[9px] text-muted-foreground sm:mt-3 sm:gap-2 sm:text-[10px]">
+      <div className="mt-2.5 flex flex-wrap items-center justify-between gap-1.5 text-[9px] text-[#5F6650] sm:mt-3 sm:gap-2 sm:text-[10px]">
         <div className="inline-flex min-w-0 items-center gap-1">
           <Bot className="h-3 w-3 text-primary" />
-          <span className="truncate">Claude 3.5 · ton commercial</span>
+          <span className="truncate">Assistant de rédaction · ton commercial</span>
         </div>
         <div className="inline-flex items-center gap-2 uppercase tracking-wide">
           {/* Pastilles de progression (boucle infinie) */}
@@ -219,7 +219,7 @@ export function AITypingDemo({ className }: { className?: string }) {
                   "h-1 rounded-full transition-all",
                   i === index
                     ? "w-4 bg-primary"
-                    : "w-1.5 bg-white/20"
+                    : "w-1.5 bg-[#D6DABB]"
                 )}
               />
             ))}
