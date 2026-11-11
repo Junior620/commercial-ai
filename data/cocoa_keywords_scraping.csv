@@ -1,4 +1,65 @@
-﻿category,subcategory,language,target_type,keyword,geo_scope,country,notes
+category,subcategory,language,target_type,keyword,geo_scope,country,notes
+focus,cocoa beans,en,buyer,cocoa grinding company,global,,Achète des fèves
+focus,cocoa beans,en,buyer,cocoa processing plant,global,,Achète des fèves
+focus,cocoa beans,en,buyer,bean to bar chocolate maker,global,,Achète des fèves
+focus,cocoa beans,en,buyer,craft chocolate factory,global,,Achète des fèves
+focus,cocoa beans,en,buyer,cocoa beans importer,global,,Achète des fèves
+focus,cocoa beans,en,buyer,cocoa trading company,global,,Achète des fèves
+focus,cocoa beans,fr,buyer,broyeur de cacao,global,,Achète des fèves
+focus,cocoa beans,fr,buyer,importateur de fèves de cacao,global,,Achète des fèves
+focus,cocoa beans,de,buyer,Kakaoverarbeitung,global,,Achète des fèves
+focus,cocoa beans,nl,buyer,cacaoverwerking,global,,Achète des fèves
+focus,cocoa beans,es,buyer,procesadora de cacao,global,,Achète des fèves
+focus,cocoa beans,it,buyer,torrefazione cacao,global,,Achète des fèves
+focus,cocoa butter,en,buyer,cosmetics manufacturer,global,,Utilise du beurre de cacao
+focus,cocoa butter,en,buyer,natural skincare manufacturer,global,,Utilise du beurre de cacao
+focus,cocoa butter,en,buyer,soap manufacturer,global,,Utilise du beurre de cacao
+focus,cocoa butter,en,buyer,cosmetic raw materials distributor,global,,Revend du beurre de cacao
+focus,cocoa butter,en,buyer,chocolate couverture manufacturer,global,,Utilise du beurre de cacao
+focus,cocoa butter,en,buyer,cocoa butter importer,global,,Revend du beurre de cacao
+focus,cocoa butter,fr,buyer,fabricant de cosmétiques,global,,Utilise du beurre de cacao
+focus,cocoa butter,fr,buyer,distributeur de matières premières cosmétiques,global,,Revend du beurre de cacao
+focus,cocoa butter,de,buyer,Kosmetikhersteller,global,,Utilise du beurre de cacao
+focus,cocoa butter,es,buyer,fabricante de cosméticos,global,,Utilise du beurre de cacao
+focus,cocoa butter,it,buyer,produttore di cosmetici,global,,Utilise du beurre de cacao
+focus,cocoa butter,nl,buyer,cosmeticafabrikant,global,,Utilise du beurre de cacao
+focus,cocoa mass/liquor,en,buyer,chocolate factory,global,,Utilise de la masse de cacao
+focus,cocoa mass/liquor,en,buyer,chocolate manufacturer,global,,Utilise de la masse de cacao
+focus,cocoa mass/liquor,en,buyer,confectionery manufacturer,global,,Utilise de la masse de cacao
+focus,cocoa mass/liquor,en,buyer,praline manufacturer,global,,Utilise de la masse de cacao
+focus,cocoa mass/liquor,en,buyer,chocolate spread manufacturer,global,,Utilise de la masse de cacao
+focus,cocoa mass/liquor,fr,buyer,fabricant de chocolat,global,,Utilise de la masse de cacao
+focus,cocoa mass/liquor,fr,buyer,chocolaterie industrielle,global,,Utilise de la masse de cacao
+focus,cocoa mass/liquor,fr,buyer,confiserie industrielle,global,,Utilise de la masse de cacao
+focus,cocoa mass/liquor,de,buyer,Schokoladenfabrik,global,,Utilise de la masse de cacao
+focus,cocoa mass/liquor,de,buyer,Süßwarenhersteller,global,,Utilise de la masse de cacao
+focus,cocoa mass/liquor,nl,buyer,chocoladefabriek,global,,Utilise de la masse de cacao
+focus,cocoa mass/liquor,es,buyer,fábrica de chocolate,global,,Utilise de la masse de cacao
+focus,cocoa mass/liquor,it,buyer,fabbrica di cioccolato,global,,Utilise de la masse de cacao
+focus,cocoa powder,en,buyer,biscuit manufacturer,global,,Utilise de la poudre de cacao
+focus,cocoa powder,en,buyer,cookie manufacturer,global,,Utilise de la poudre de cacao
+focus,cocoa powder,en,buyer,ice cream manufacturer,global,,Utilise de la poudre de cacao
+focus,cocoa powder,en,buyer,industrial bakery,global,,Utilise de la poudre de cacao
+focus,cocoa powder,en,buyer,cereal manufacturer,global,,Utilise de la poudre de cacao
+focus,cocoa powder,en,buyer,dairy products manufacturer,global,,Utilise de la poudre de cacao
+focus,cocoa powder,en,buyer,beverage powder manufacturer,global,,Utilise de la poudre de cacao
+focus,cocoa powder,en,buyer,bakery ingredients distributor,global,,Revend de la poudre de cacao
+focus,cocoa powder,fr,buyer,biscuiterie industrielle,global,,Utilise de la poudre de cacao
+focus,cocoa powder,fr,buyer,fabricant de glaces,global,,Utilise de la poudre de cacao
+focus,cocoa powder,fr,buyer,boulangerie industrielle,global,,Utilise de la poudre de cacao
+focus,cocoa powder,de,buyer,Keksfabrik,global,,Utilise de la poudre de cacao
+focus,cocoa powder,de,buyer,Speiseeishersteller,global,,Utilise de la poudre de cacao
+focus,cocoa powder,es,buyer,fábrica de galletas,global,,Utilise de la poudre de cacao
+focus,cocoa powder,it,buyer,produttore di gelati,global,,Utilise de la poudre de cacao
+focus,cocoa powder,nl,buyer,koekjesfabriek,global,,Utilise de la poudre de cacao
+focus,derivatives,en,buyer,cocoa products importer,global,,Revend fèves et dérivés
+focus,derivatives,en,buyer,food ingredients distributor,global,,Revend fèves et dérivés
+focus,derivatives,en,buyer,food ingredients importer,global,,Revend fèves et dérivés
+focus,derivatives,en,buyer,confectionery ingredients wholesaler,global,,Revend fèves et dérivés
+focus,derivatives,fr,buyer,distributeur d’ingrédients alimentaires,global,,Revend fèves et dérivés
+focus,derivatives,de,buyer,Lebensmittelzutaten Großhandel,global,,Revend fèves et dérivés
+focus,derivatives,es,buyer,distribuidor de ingredientes alimentarios,global,,Revend fèves et dérivés
+focus,derivatives,nl,buyer,groothandel voedingsingrediënten,global,,Revend fèves et dérivés
 buyer,cosmetics,en,buyer,beauty ingredients importer cocoa butter,global,,Buyer keyword
 buyer,cosmetics,en,buyer,cosmetic ingredient supplier cocoa butter,global,,Buyer keyword
 buyer,cosmetics,en,buyer,cosmetic ingredient supplier in Belgium,country,Belgium,Geo-targeted keyword
@@ -111,23 +172,15 @@ buyer,trader/distributor,en,buyer,food ingredients distributor cocoa,global,,Buy
 buyer,trader/distributor,es,buyer,distribuidor de cacao,global,,Localized or LinkedIn keyword
 buyer,trader/distributor,fr,buyer,distributeur cacao,global,,Localized or LinkedIn keyword
 buyer,trader/distributor,fr,buyer,grossiste cacao,global,,Localized or LinkedIn keyword
-general,general,en,seller,bulk cocoa supplier,global,,Base keyword
 general,general,en,seller,cacao company,global,,Base keyword
-general,general,en,seller,cacao exporter,global,,Base keyword
 general,general,en,seller,cacao importer,global,,Base keyword
-general,general,en,seller,cacao supplier,global,,Base keyword
 general,general,en,seller,cacao trader,global,,Base keyword
 general,general,en,seller,cocoa company,global,,Base keyword
 general,general,en,seller,cocoa distributor,global,,Base keyword
-general,general,en,seller,cocoa exporter,global,,Base keyword
 general,general,en,seller,cocoa importer,global,,Base keyword
-general,general,en,seller,cocoa ingredients supplier,global,,Base keyword
 general,general,en,seller,cocoa processing company,global,,Base keyword
 general,general,en,seller,cocoa processor,global,,Base keyword
-general,general,en,seller,cocoa products supplier,global,,Base keyword
 general,general,en,seller,cocoa products wholesaler,global,,Base keyword
-general,general,en,seller,cocoa raw material supplier,global,,Base keyword
-general,general,en,seller,cocoa supplier,global,,Base keyword
 general,general,en,seller,cocoa trader,global,,Base keyword
 general,general,en,seller,cocoa trader in Belgium,country,Belgium,Geo-targeted keyword
 general,general,en,seller,cocoa trader in Egypt,country,Egypt,Geo-targeted keyword
@@ -146,141 +199,30 @@ general,general,en,seller,cocoa trader in Turkey,country,Turkey,Geo-targeted key
 general,general,en,seller,cocoa trader in UAE,country,UAE,Geo-targeted keyword
 general,general,en,seller,cocoa trader in UK,country,UK,Geo-targeted keyword
 general,general,en,seller,cocoa wholesaler,global,,Base keyword
-general,general,en,seller,industrial cocoa supplier,global,,Base keyword
-general,general,es,seller,exportador de cacao,global,,Localized or LinkedIn keyword
 general,general,es,seller,importador de cacao,global,,Localized or LinkedIn keyword
-general,general,es,seller,proveedor de cacao,global,,Localized or LinkedIn keyword
-general,general,fr,seller,dérivés du cacao fournisseur,global,,Localized or LinkedIn keyword
-general,general,fr,seller,exportateur cacao,global,,Localized or LinkedIn keyword
-general,general,fr,seller,fournisseur cacao,global,,Localized or LinkedIn keyword
 general,general,fr,seller,importateur cacao,global,,Localized or LinkedIn keyword
-general,general,pt,seller,exportador de cacau,global,,Localized or LinkedIn keyword
-general,general,pt,seller,fornecedor de cacau,global,,Localized or LinkedIn keyword
 general,general,pt,seller,importador de cacau,global,,Localized or LinkedIn keyword
-linkedin_combo,procurement,en,contact,chocolate manufacturer sourcing manager,global,,Localized or LinkedIn keyword
-linkedin_combo,procurement,en,contact,cocoa butter procurement manager,global,,Localized or LinkedIn keyword
-linkedin_combo,procurement,en,contact,cocoa importer purchasing manager,global,,Localized or LinkedIn keyword
-linkedin_combo,procurement,en,contact,food ingredients purchasing manager,global,,Localized or LinkedIn keyword
-linkedin_role,procurement,en,contact,head of procurement,global,,Localized or LinkedIn keyword
-linkedin_role,procurement,en,contact,import manager,global,,Localized or LinkedIn keyword
-linkedin_role,procurement,en,contact,ingredient buyer,global,,Localized or LinkedIn keyword
-linkedin_role,procurement,en,contact,procurement manager,global,,Localized or LinkedIn keyword
-linkedin_role,procurement,en,contact,purchasing manager,global,,Localized or LinkedIn keyword
-linkedin_role,procurement,en,contact,raw materials buyer,global,,Localized or LinkedIn keyword
-linkedin_role,procurement,en,contact,sourcing manager,global,,Localized or LinkedIn keyword
-linkedin_role,sales,en,contact,business development manager,global,,Localized or LinkedIn keyword
-linkedin_role,supply chain,en,contact,supply chain manager,global,,Localized or LinkedIn keyword
-linkedin_role,trading,en,contact,trading manager,global,,Localized or LinkedIn keyword
-product,cocoa beans,en,seller,bulk cocoa beans supplier,global,,Product keyword
-product,cocoa beans,en,seller,cacao beans exporter,global,,Product keyword
-product,cocoa beans,en,seller,cacao beans supplier,global,,Product keyword
-product,cocoa beans,en,seller,cocoa beans exporter,global,,Product keyword
-product,cocoa beans,en,seller,cocoa beans exporter in Belgium,country,Belgium,Geo-targeted keyword
-product,cocoa beans,en,seller,cocoa beans exporter in Egypt,country,Egypt,Geo-targeted keyword
-product,cocoa beans,en,seller,cocoa beans exporter in France,country,France,Geo-targeted keyword
-product,cocoa beans,en,seller,cocoa beans exporter in Germany,country,Germany,Geo-targeted keyword
-product,cocoa beans,en,seller,cocoa beans exporter in Italy,country,Italy,Geo-targeted keyword
-product,cocoa beans,en,seller,cocoa beans exporter in Morocco,country,Morocco,Geo-targeted keyword
-product,cocoa beans,en,seller,cocoa beans exporter in Netherlands,country,Netherlands,Geo-targeted keyword
-product,cocoa beans,en,seller,cocoa beans exporter in Poland,country,Poland,Geo-targeted keyword
-product,cocoa beans,en,seller,cocoa beans exporter in Portugal,country,Portugal,Geo-targeted keyword
-product,cocoa beans,en,seller,cocoa beans exporter in Saudi Arabia,country,Saudi Arabia,Geo-targeted keyword
-product,cocoa beans,en,seller,cocoa beans exporter in Spain,country,Spain,Geo-targeted keyword
-product,cocoa beans,en,seller,cocoa beans exporter in Switzerland,country,Switzerland,Geo-targeted keyword
-product,cocoa beans,en,seller,cocoa beans exporter in Tunisia,country,Tunisia,Geo-targeted keyword
-product,cocoa beans,en,seller,cocoa beans exporter in Turkey,country,Turkey,Geo-targeted keyword
-product,cocoa beans,en,seller,cocoa beans exporter in UAE,country,UAE,Geo-targeted keyword
-product,cocoa beans,en,seller,cocoa beans exporter in UK,country,UK,Geo-targeted keyword
-product,cocoa beans,en,seller,cocoa beans supplier,global,,Product keyword
+linkedin_combo,procurement,en,contact,chocolate manufacturer sourcing manager,global,,Cible secondaire
+linkedin_combo,procurement,en,contact,cocoa butter procurement manager,global,,Cible secondaire
+linkedin_combo,procurement,en,contact,cocoa importer purchasing manager,global,,Cible secondaire
+linkedin_combo,procurement,en,contact,food ingredients purchasing manager,global,,Cible secondaire
+linkedin_role,procurement,en,contact,head of procurement,global,,Cible secondaire
+linkedin_role,procurement,en,contact,import manager,global,,Cible secondaire
+linkedin_role,procurement,en,contact,ingredient buyer,global,,Cible secondaire
+linkedin_role,procurement,en,contact,procurement manager,global,,Cible secondaire
+linkedin_role,procurement,en,contact,purchasing manager,global,,Cible secondaire
+linkedin_role,procurement,en,contact,raw materials buyer,global,,Cible secondaire
+linkedin_role,procurement,en,contact,sourcing manager,global,,Cible secondaire
+linkedin_role,sales,en,contact,business development manager,global,,Cible secondaire
+linkedin_role,supply chain,en,contact,supply chain manager,global,,Cible secondaire
+linkedin_role,trading,en,contact,trading manager,global,,Cible secondaire
 product,cocoa beans,en,seller,cocoa beans trader,global,,Product keyword
 product,cocoa beans,en,seller,cocoa beans wholesaler,global,,Product keyword
-product,cocoa beans,en,seller,raw cocoa beans supplier,global,,Product keyword
-product,cocoa butter,en,seller,bulk cocoa butter supplier,global,,Product keyword
-product,cocoa butter,en,seller,cocoa butter exporter,global,,Product keyword
 product,cocoa butter,en,seller,cocoa butter manufacturer,global,,Product keyword
-product,cocoa butter,en,seller,cocoa butter supplier,global,,Product keyword
-product,cocoa butter,en,seller,cocoa butter supplier in Belgium,country,Belgium,Geo-targeted keyword
-product,cocoa butter,en,seller,cocoa butter supplier in Egypt,country,Egypt,Geo-targeted keyword
-product,cocoa butter,en,seller,cocoa butter supplier in France,country,France,Geo-targeted keyword
-product,cocoa butter,en,seller,cocoa butter supplier in Germany,country,Germany,Geo-targeted keyword
-product,cocoa butter,en,seller,cocoa butter supplier in Italy,country,Italy,Geo-targeted keyword
-product,cocoa butter,en,seller,cocoa butter supplier in Morocco,country,Morocco,Geo-targeted keyword
-product,cocoa butter,en,seller,cocoa butter supplier in Netherlands,country,Netherlands,Geo-targeted keyword
-product,cocoa butter,en,seller,cocoa butter supplier in Poland,country,Poland,Geo-targeted keyword
-product,cocoa butter,en,seller,cocoa butter supplier in Portugal,country,Portugal,Geo-targeted keyword
-product,cocoa butter,en,seller,cocoa butter supplier in Saudi Arabia,country,Saudi Arabia,Geo-targeted keyword
-product,cocoa butter,en,seller,cocoa butter supplier in Spain,country,Spain,Geo-targeted keyword
-product,cocoa butter,en,seller,cocoa butter supplier in Switzerland,country,Switzerland,Geo-targeted keyword
-product,cocoa butter,en,seller,cocoa butter supplier in Tunisia,country,Tunisia,Geo-targeted keyword
-product,cocoa butter,en,seller,cocoa butter supplier in Turkey,country,Turkey,Geo-targeted keyword
-product,cocoa butter,en,seller,cocoa butter supplier in UAE,country,UAE,Geo-targeted keyword
-product,cocoa butter,en,seller,cocoa butter supplier in UK,country,UK,Geo-targeted keyword
 product,cocoa butter,en,seller,cocoa butter wholesaler,global,,Product keyword
-product,cocoa butter,en,seller,deodorized cocoa butter supplier,global,,Product keyword
-product,cocoa butter,en,seller,food grade cocoa butter supplier,global,,Product keyword
-product,cocoa butter,en,seller,natural cocoa butter supplier,global,,Product keyword
-product,cocoa butter,en,seller,organic cocoa butter supplier,global,,Product keyword
-product,cocoa butter,es,seller,proveedor de manteca de cacao,global,,Localized or LinkedIn keyword
-product,cocoa butter,fr,seller,exportateur beurre de cacao,global,,Localized or LinkedIn keyword
-product,cocoa butter,fr,seller,fournisseur beurre de cacao,global,,Localized or LinkedIn keyword
-product,cocoa butter,pt,seller,fornecedor de manteiga de cacau,global,,Localized or LinkedIn keyword
-product,cocoa mass/liquor,en,seller,cocoa liquor exporter,global,,Product keyword
-product,cocoa mass/liquor,en,seller,cocoa liquor supplier,global,,Product keyword
 product,cocoa mass/liquor,en,seller,cocoa liquor wholesaler,global,,Product keyword
-product,cocoa mass/liquor,en,seller,cocoa mass exporter,global,,Product keyword
-product,cocoa mass/liquor,en,seller,cocoa mass supplier,global,,Product keyword
-product,cocoa mass/liquor,en,seller,cocoa mass supplier in Belgium,country,Belgium,Geo-targeted keyword
-product,cocoa mass/liquor,en,seller,cocoa mass supplier in Egypt,country,Egypt,Geo-targeted keyword
-product,cocoa mass/liquor,en,seller,cocoa mass supplier in France,country,France,Geo-targeted keyword
-product,cocoa mass/liquor,en,seller,cocoa mass supplier in Germany,country,Germany,Geo-targeted keyword
-product,cocoa mass/liquor,en,seller,cocoa mass supplier in Italy,country,Italy,Geo-targeted keyword
-product,cocoa mass/liquor,en,seller,cocoa mass supplier in Morocco,country,Morocco,Geo-targeted keyword
-product,cocoa mass/liquor,en,seller,cocoa mass supplier in Netherlands,country,Netherlands,Geo-targeted keyword
-product,cocoa mass/liquor,en,seller,cocoa mass supplier in Poland,country,Poland,Geo-targeted keyword
-product,cocoa mass/liquor,en,seller,cocoa mass supplier in Portugal,country,Portugal,Geo-targeted keyword
-product,cocoa mass/liquor,en,seller,cocoa mass supplier in Saudi Arabia,country,Saudi Arabia,Geo-targeted keyword
-product,cocoa mass/liquor,en,seller,cocoa mass supplier in Spain,country,Spain,Geo-targeted keyword
-product,cocoa mass/liquor,en,seller,cocoa mass supplier in Switzerland,country,Switzerland,Geo-targeted keyword
-product,cocoa mass/liquor,en,seller,cocoa mass supplier in Tunisia,country,Tunisia,Geo-targeted keyword
-product,cocoa mass/liquor,en,seller,cocoa mass supplier in Turkey,country,Turkey,Geo-targeted keyword
-product,cocoa mass/liquor,en,seller,cocoa mass supplier in UAE,country,UAE,Geo-targeted keyword
-product,cocoa mass/liquor,en,seller,cocoa mass supplier in UK,country,UK,Geo-targeted keyword
-product,cocoa mass/liquor,en,seller,cocoa paste supplier,global,,Product keyword
-product,cocoa mass/liquor,en,seller,cocoa solids supplier,global,,Product keyword
-product,cocoa mass/liquor,fr,seller,liqueur de cacao fournisseur,global,,Localized or LinkedIn keyword
-product,cocoa mass/liquor,fr,seller,masse de cacao fournisseur,global,,Localized or LinkedIn keyword
-product,cocoa powder,en,seller,alkalized cocoa powder supplier,global,,Product keyword
-product,cocoa powder,en,seller,bulk cocoa powder supplier,global,,Product keyword
-product,cocoa powder,en,seller,cocoa powder exporter,global,,Product keyword
 product,cocoa powder,en,seller,cocoa powder manufacturer,global,,Product keyword
-product,cocoa powder,en,seller,cocoa powder supplier,global,,Product keyword
-product,cocoa powder,en,seller,cocoa powder supplier in Belgium,country,Belgium,Geo-targeted keyword
-product,cocoa powder,en,seller,cocoa powder supplier in Egypt,country,Egypt,Geo-targeted keyword
-product,cocoa powder,en,seller,cocoa powder supplier in France,country,France,Geo-targeted keyword
-product,cocoa powder,en,seller,cocoa powder supplier in Germany,country,Germany,Geo-targeted keyword
-product,cocoa powder,en,seller,cocoa powder supplier in Italy,country,Italy,Geo-targeted keyword
-product,cocoa powder,en,seller,cocoa powder supplier in Morocco,country,Morocco,Geo-targeted keyword
-product,cocoa powder,en,seller,cocoa powder supplier in Netherlands,country,Netherlands,Geo-targeted keyword
-product,cocoa powder,en,seller,cocoa powder supplier in Poland,country,Poland,Geo-targeted keyword
-product,cocoa powder,en,seller,cocoa powder supplier in Portugal,country,Portugal,Geo-targeted keyword
-product,cocoa powder,en,seller,cocoa powder supplier in Saudi Arabia,country,Saudi Arabia,Geo-targeted keyword
-product,cocoa powder,en,seller,cocoa powder supplier in Spain,country,Spain,Geo-targeted keyword
-product,cocoa powder,en,seller,cocoa powder supplier in Switzerland,country,Switzerland,Geo-targeted keyword
-product,cocoa powder,en,seller,cocoa powder supplier in Tunisia,country,Tunisia,Geo-targeted keyword
-product,cocoa powder,en,seller,cocoa powder supplier in Turkey,country,Turkey,Geo-targeted keyword
-product,cocoa powder,en,seller,cocoa powder supplier in UAE,country,UAE,Geo-targeted keyword
-product,cocoa powder,en,seller,cocoa powder supplier in UK,country,UK,Geo-targeted keyword
-product,cocoa powder,en,seller,natural cocoa powder supplier,global,,Product keyword
-product,cocoa powder,en,seller,organic cocoa powder supplier,global,,Product keyword
-product,cocoa powder,es,seller,proveedor de cacao en polvo,global,,Localized or LinkedIn keyword
-product,cocoa powder,fr,seller,exportateur poudre de cacao,global,,Localized or LinkedIn keyword
-product,cocoa powder,fr,seller,fournisseur poudre de cacao,global,,Localized or LinkedIn keyword
-product,cocoa powder,pt,seller,fornecedor de pó de cacau,global,,Localized or LinkedIn keyword
-product,derivatives,en,seller,cocoa derivatives supplier,global,,Product keyword
-product,derivatives,en,seller,cocoa ingredients exporter,global,,Product keyword
 product,derivatives,en,seller,cocoa products manufacturer,global,,Product keyword
-product,derivatives,en,seller,cocoa semi finished products supplier,global,,Product keyword
-product,derivatives,en,seller,semi finished cocoa products supplier,global,,Product keyword
 trader,trading,en,trader,cocoa trading company,global,,Trader keyword
 trader,trading,en,trader,cocoa trader,global,,Trader keyword
 trader,trading,en,trader,cacao trading company,global,,Trader keyword
@@ -335,12 +277,7 @@ trader,trading,en,trader,cocoa broker in Switzerland,country,Switzerland,Geo-tar
 trader,trading,en,trader,cocoa broker in UK,country,UK,Geo-targeted trader
 trader,trading,en,trader,cocoa broker in UAE,country,UAE,Geo-targeted trader
 general,general,en,seller,coffee company,global,,Coffee keyword
-general,general,en,seller,coffee supplier,global,,Coffee keyword
-general,general,en,seller,coffee exporter,global,,Coffee keyword
-general,general,en,seller,green coffee supplier,global,,Coffee keyword
 general,general,en,seller,coffee processing company,global,,Coffee keyword
-general,general,fr,seller,fournisseur cafe,global,,Coffee keyword FR
-general,general,es,seller,proveedor de cafe,global,,Coffee keyword ES
 buyer,food/chocolate,en,buyer,coffee roaster,global,,Coffee buyer keyword
 buyer,food/chocolate,en,buyer,specialty coffee roaster,global,,Coffee buyer keyword
 buyer,food/chocolate,en,buyer,coffee roaster in Belgium,country,Belgium,Geo-targeted coffee buyer
@@ -359,43 +296,34 @@ buyer,food/chocolate,en,buyer,coffee roaster in Tunisia,country,Tunisia,Geo-targ
 buyer,food/chocolate,en,buyer,coffee roaster in Turkey,country,Turkey,Geo-targeted coffee buyer
 buyer,food/chocolate,en,buyer,coffee roaster in UAE,country,UAE,Geo-targeted coffee buyer
 buyer,food/chocolate,en,buyer,coffee roaster in UK,country,UK,Geo-targeted coffee buyer
-product,coffee beans,en,seller,coffee beans supplier,global,,Coffee product keyword
-product,coffee beans,en,seller,green coffee beans exporter,global,,Coffee product keyword
-product,coffee beans,en,seller,arabica coffee beans supplier,global,,Coffee product keyword
-product,coffee beans,en,seller,robusta coffee beans supplier,global,,Coffee product keyword
-product,green coffee,en,seller,green coffee supplier,global,,Coffee product keyword
-product,green coffee,en,seller,green coffee exporter,global,,Coffee product keyword
-product,ground coffee,en,seller,ground coffee supplier,global,,Coffee product keyword
-product,ground coffee,en,seller,bulk ground coffee manufacturer,global,,Coffee product keyword
-product,instant coffee,en,seller,instant coffee supplier,global,,Coffee product keyword
-product,instant coffee,en,seller,spray dried instant coffee supplier,global,,Coffee product keyword
+product,ground coffee,en,seller,bulk ground coffee manufacturer,global,,Café : cible secondaire
 trader,trading,en,trader,coffee trading company,global,,Coffee trader keyword
 trader,trading,en,trader,green coffee trader,global,,Coffee trader keyword
 trader,trading,en,trader,coffee commodity trader,global,,Coffee trader keyword
 trader,trading,fr,trader,negociant cafe,global,,Coffee trader keyword FR
-agri_tech,agri-tech,en,seller,agritech cocoa traceability platform,global,,Emerging domain keyword
-agri_tech,agri-tech,en,seller,coffee farm satellite monitoring company,global,,Emerging domain keyword
-agri_tech,agri-tech,en,seller,drone crop monitoring cacao,global,,Emerging domain keyword
-agri_tech,agri-tech,en,seller,precision agriculture coffee plantations,global,,Emerging domain keyword
-agri_tech,agri-tech,fr,seller,solution tracabilite cacao,global,,Emerging domain keyword FR
-finance_risk,finance,en,seller,agricultural microfinance cocoa farmers,global,,Emerging domain keyword
-finance_risk,finance,en,seller,parametric crop insurance coffee,global,,Emerging domain keyword
-finance_risk,finance,en,seller,commodity risk management cacao,global,,Emerging domain keyword
-finance_risk,finance,fr,seller,assurance recolte cafe,global,,Emerging domain keyword FR
-finance_risk,finance,fr,seller,microfinance cooperative cacao,global,,Emerging domain keyword FR
-machinery_packaging,machinery,en,seller,cocoa bean sorting machine manufacturer,global,,Emerging domain keyword
-machinery_packaging,machinery,en,seller,coffee roaster equipment supplier,global,,Emerging domain keyword
-machinery_packaging,machinery,en,seller,cocoa processing line manufacturer,global,,Emerging domain keyword
-machinery_packaging,packaging,en,seller,high barrier coffee packaging supplier,global,,Emerging domain keyword
-machinery_packaging,packaging,en,seller,degas valve coffee bags manufacturer,global,,Emerging domain keyword
-machinery_packaging,packaging,fr,seller,emballage barriere cafe,global,,Emerging domain keyword FR
-compliance_traceability,compliance,en,seller,EUDR compliance services cocoa,global,,Emerging domain keyword
-compliance_traceability,compliance,en,seller,cocoa supply chain traceability software,global,,Emerging domain keyword
-compliance_traceability,compliance,en,seller,coffee deforestation due diligence platform,global,,Emerging domain keyword
-compliance_traceability,compliance,fr,seller,conformite rdue cacao,global,,Emerging domain keyword FR
-compliance_traceability,compliance,fr,seller,audit tracabilite cafe,global,,Emerging domain keyword FR
-circular_bioeconomy,circular,en,seller,cocoa husk valorization company,global,,Emerging domain keyword
-circular_bioeconomy,circular,en,seller,coffee waste to bioenergy technology,global,,Emerging domain keyword
-circular_bioeconomy,circular,en,seller,cacao biomass bioplastics supplier,global,,Emerging domain keyword
-circular_bioeconomy,circular,en,seller,polyphenol extraction cocoa shells,global,,Emerging domain keyword
-circular_bioeconomy,circular,fr,seller,economie circulaire cacao,global,,Emerging domain keyword FR
+agri_tech,agri-tech,en,seller,agritech cocoa traceability platform,global,,Cible secondaire
+agri_tech,agri-tech,en,seller,coffee farm satellite monitoring company,global,,Cible secondaire
+agri_tech,agri-tech,en,seller,drone crop monitoring cacao,global,,Cible secondaire
+agri_tech,agri-tech,en,seller,precision agriculture coffee plantations,global,,Cible secondaire
+agri_tech,agri-tech,fr,seller,solution tracabilite cacao,global,,Cible secondaire
+finance_risk,finance,en,seller,agricultural microfinance cocoa farmers,global,,Cible secondaire
+finance_risk,finance,en,seller,parametric crop insurance coffee,global,,Cible secondaire
+finance_risk,finance,en,seller,commodity risk management cacao,global,,Cible secondaire
+finance_risk,finance,fr,seller,assurance recolte cafe,global,,Cible secondaire
+finance_risk,finance,fr,seller,microfinance cooperative cacao,global,,Cible secondaire
+machinery_packaging,machinery,en,seller,cocoa bean sorting machine manufacturer,global,,Cible secondaire
+machinery_packaging,machinery,en,seller,coffee roaster equipment supplier,global,,Cible secondaire
+machinery_packaging,machinery,en,seller,cocoa processing line manufacturer,global,,Cible secondaire
+machinery_packaging,packaging,en,seller,high barrier coffee packaging supplier,global,,Cible secondaire
+machinery_packaging,packaging,en,seller,degas valve coffee bags manufacturer,global,,Cible secondaire
+machinery_packaging,packaging,fr,seller,emballage barriere cafe,global,,Cible secondaire
+compliance_traceability,compliance,en,seller,EUDR compliance services cocoa,global,,Cible secondaire
+compliance_traceability,compliance,en,seller,cocoa supply chain traceability software,global,,Cible secondaire
+compliance_traceability,compliance,en,seller,coffee deforestation due diligence platform,global,,Cible secondaire
+compliance_traceability,compliance,fr,seller,conformite rdue cacao,global,,Cible secondaire
+compliance_traceability,compliance,fr,seller,audit tracabilite cafe,global,,Cible secondaire
+circular_bioeconomy,circular,en,seller,cocoa husk valorization company,global,,Cible secondaire
+circular_bioeconomy,circular,en,seller,coffee waste to bioenergy technology,global,,Cible secondaire
+circular_bioeconomy,circular,en,seller,cacao biomass bioplastics supplier,global,,Cible secondaire
+circular_bioeconomy,circular,en,seller,polyphenol extraction cocoa shells,global,,Cible secondaire
+circular_bioeconomy,circular,fr,seller,economie circulaire cacao,global,,Cible secondaire

@@ -1,14 +1,15 @@
 "use client";
 
-import { useState } from "react";
-import { useRouter } from "next/navigation";
+import { Suspense, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { Mail } from "lucide-react";
 import { toast } from "sonner";
 import { PageTitle } from "@/components/layout/page-title";
 import { CampaignForm, EMPTY_CAMPAIGN, toCampaignPayload, type CampaignFormValues } from "@/components/campaigns/campaign-form";
 
-export default function NewCampaignPage() {
+function NewCampaign() {
   const router = useRouter();
+  const product = useSearchParams().get("product");
   const [submitting, setSubmitting] = useState(false);
 
   const create = async (values: CampaignFormValues) => {
@@ -33,7 +34,15 @@ export default function NewCampaignPage() {
   return (
     <div className="mx-auto max-w-3xl">
       <PageTitle title="Nouvelle campagne" description="Choisissez la cible, le produit et le ton. La rédaction vient ensuite." icon={Mail} />
-      <CampaignForm initial={EMPTY_CAMPAIGN} submitLabel="Créer la campagne" submitting={submitting} onSubmit={create} />
+      <CampaignForm initial={{ ...EMPTY_CAMPAIGN, ...(product ? { product } : {}) }} submitLabel="Créer la campagne" submitting={submitting} onSubmit={create} />
     </div>
+  );
+}
+
+export default function NewCampaignPage() {
+  return (
+    <Suspense>
+      <NewCampaign />
+    </Suspense>
   );
 }

@@ -3,7 +3,8 @@ import { generateEmail, generateFollowUp, type EmailTone } from "@/lib/claude";
 import { resolveCampaignLanguage } from "@/lib/prospect-language";
 import { DO_NOT_CONTACT_STATUSES, TARGETABLE_STATUSES } from "@/lib/sending";
 import { FOLLOW_UP_TYPES, SEQUENCE, computeDueFollowUps, type DueFollowUp } from "@/lib/followups";
-import { PRODUCT_LABELS } from "@/lib/product-catalog";
+import { CORE_PRODUCT_IDS, PRODUCT_LABELS } from "@/lib/product-catalog";
+import { classifyTarget } from "@/lib/targeting";
 import {
   buildProspectWhereFromFilters,
   hasTargetingCriteria,
@@ -35,32 +36,84 @@ function isUniqueViolation(err: unknown): boolean {
   return typeof err === "object" && err !== null && (err as { code?: string }).code === "P2002";
 }
 
+const COFFEE_PRODUCT_IDS = ["coffee_beans", "green_coffee", "ground_coffee", "instant_coffee"];
+const RESELLER_TYPES = ["importer", "distributor", "wholesaler", "trader"];
+
+/**
+ * Critères de ciblage d'une campagne :
+ * - jamais de prospects hors cible ;
+ * - produit cacao précis (ex. beurre) : prospects qui en ont besoin, ou revendeurs B2B du cœur de cible ;
+ * - café : prospects café uniquement ;
+ * - gamme complète : cœur de cible et secondaires.
+ */
+export function buildCampaignTargetWhere(opts: {
+  segmentId?: string | null;
+  segmentFilters?: unknown;
+  product?: string | null;
+}): Prisma.ProspectWhereInput {
+  let segmentWhere: Prisma.ProspectWhereInput = {};
+  if (opts.segmentId) {
+    const filters = normalizeSegmentFilters((opts.segmentFilters ?? {}) as Record<string, unknown>);
+    segmentWhere = hasTargetingCriteria(filters)
+      ? { OR: [buildProspectWhereFromFilters(filters), { segmentLinks: { some: { segmentId: opts.segmentId } } }] }
+      : { segmentLinks: { some: { segmentId: opts.segmentId } } };
+  }
+
+  let productWhere: Prisma.ProspectWhereInput = {};
+  const product = opts.product && opts.product !== "all" ? opts.product : null;
+  if (product && (CORE_PRODUCT_IDS as readonly string[]).includes(product)) {
+    productWhere = {
+      OR: [
+        { productNeeds: { has: product } },
+        { product },
+        { targetFit: "CORE", clientType: { in: RESELLER_TYPES } },
+      ],
+    };
+  } else if (product && COFFEE_PRODUCT_IDS.includes(product)) {
+    productWhere = {
+      OR: [{ product: { in: COFFEE_PRODUCT_IDS } }, { sector: { contains: "coffee", mode: "insensitive" } }],
+    };
+  }
+
+  return {
+    AND: [
+      segmentWhere,
+      productWhere,
+      {
+        prospectType: "COMMERCIAL",
+        targetFit: { not: "OUT_OF_SCOPE" },
+        status: { in: TARGETABLE_STATUSES },
+      },
+    ],
+  };
+}
+
+/** Nombre de prospects qu'une campagne ciblerait (aperçu dans le formulaire). */
+export async function countCampaignTargets(opts: { segmentId?: string | null; product?: string | null }) {
+  const segment = opts.segmentId
+    ? await prisma.segment.findUnique({ where: { id: opts.segmentId }, select: { filters: true } })
+    : null;
+  const where = buildCampaignTargetWhere({ segmentId: opts.segmentId, segmentFilters: segment?.filters, product: opts.product });
+  const [total, core] = await Promise.all([
+    prisma.prospect.count({ where }),
+    prisma.prospect.count({ where: { AND: [where, { targetFit: "CORE" }] } }),
+  ]);
+  return { total, core };
+}
+
 /** Prospects à qui générer un premier email pour cette campagne. */
 export async function listGenerationTargets(campaignId: string): Promise<string[]> {
   const campaign = await prisma.campaign.findUnique({
     where: { id: campaignId },
-    select: { segmentId: true, segment: { select: { filters: true } } },
+    select: { segmentId: true, product: true, segment: { select: { filters: true } } },
   });
   if (!campaign) return [];
-
-  // Segment : critères évalués à la volée (inclut les prospects ajoutés depuis sa création).
-  let segmentWhere: Prisma.ProspectWhereInput = {};
-  if (campaign.segmentId) {
-    const filters = normalizeSegmentFilters((campaign.segment?.filters ?? {}) as Record<string, unknown>);
-    segmentWhere = hasTargetingCriteria(filters)
-      ? { OR: [buildProspectWhereFromFilters(filters), { segmentLinks: { some: { segmentId: campaign.segmentId } } }] }
-      : { segmentLinks: { some: { segmentId: campaign.segmentId } } };
-  }
 
   const prospects = await prisma.prospect.findMany({
     where: {
       AND: [
-        segmentWhere,
-        {
-          prospectType: "COMMERCIAL",
-          status: { in: TARGETABLE_STATUSES },
-          emails: { none: { campaignId, type: "INITIAL" } },
-        },
+        buildCampaignTargetWhere({ segmentId: campaign.segmentId, segmentFilters: campaign.segment?.filters, product: campaign.product }),
+        { emails: { none: { campaignId, type: "INITIAL" } } },
       ],
     },
     select: { id: true, email: true },
@@ -86,6 +139,7 @@ export async function generateInitialEmail(campaignId: string, prospectId: strin
     prisma.prospect.findUnique({ where: { id: prospectId } }),
   ]);
   if (!campaign || !prospect || DO_NOT_CONTACT_STATUSES.includes(prospect.status)) return "skipped";
+  if (prospect.targetFit === "OUT_OF_SCOPE") return "skipped";
 
   const existing = await prisma.email.findFirst({
     where: { campaignId, prospectId, type: "INITIAL" },
@@ -102,6 +156,9 @@ export async function generateInitialEmail(campaignId: string, prospectId: strin
     language: resolveCampaignLanguage(campaign.language, prospect.language, prospect.country),
     tone: campaign.tone as EmailTone,
     campaignProduct: campaignProductLabel(campaign.product),
+    campaignProductId: campaign.product || "all",
+    productNeeds: prospect.productNeeds,
+    buyerType: classifyTarget({ title: prospect.company, categoryName: prospect.sector }).buyerType,
   });
 
   try {

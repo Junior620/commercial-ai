@@ -8,6 +8,7 @@ import { LANGUAGE_LABELS } from "@/lib/labels";
 import { PRODUCT_LABELS } from "@/lib/product-catalog";
 import { cn } from "@/lib/utils";
 import { CLIENT_TYPE_LABELS, SOURCE_LABELS, countryName, scoreTone, type Prospect } from "@/components/prospects/types";
+import { FitBadge, NeedChips } from "@/components/prospects/fit-badge";
 
 function DetailRow({
   icon: Icon,
@@ -70,10 +71,17 @@ export function ProspectSheet({
               <SheetDescription className="mt-1 flex flex-wrap items-center gap-2">
                 <StatusBadge kind="prospect" value={prospect.status} />
                 <StatusBadge kind="priority" value={prospect.priority} />
+                <FitBadge fit={prospect.targetFit} />
                 <span className={cn("ml-auto text-sm font-semibold", scoreTone(prospect.score))}>Score {prospect.score}/100</span>
               </SheetDescription>
             </SheetHeader>
             <div className="space-y-4 border-y px-4 py-5">
+              {prospect.productNeeds?.length ? (
+                <div className="rounded-md border border-primary/20 bg-primary/5 p-3">
+                  <p className="mb-1.5 text-xs font-medium text-muted-foreground">Produits pertinents</p>
+                  <NeedChips needs={prospect.productNeeds} />
+                </div>
+              ) : null}
               <DetailRow icon={User} label="Contact" value={prospect.contact} />
               <DetailRow icon={Mail} label="Email" value={prospect.email} href={`mailto:${prospect.email}`} />
               <DetailRow icon={Phone} label="Téléphone" value={prospect.phone} href={prospect.phone ? `tel:${prospect.phone}` : undefined} />

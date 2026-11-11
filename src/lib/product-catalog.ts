@@ -1,35 +1,35 @@
-export const CAMPAIGN_PRODUCT_OPTIONS = [
-  { id: "all", label: "Tous produits" },
-  { id: "cocoa_beans", label: "Fèves de cacao" },
-  { id: "cocoa_butter", label: "Beurre de cacao" },
-  { id: "cocoa_powder", label: "Poudre de cacao" },
-  { id: "cocoa_mass", label: "Masse de cacao" },
-  { id: "derivatives", label: "Dérivés cacao" },
-  { id: "coffee_beans", label: "Grains de café" },
-  { id: "green_coffee", label: "Café vert" },
-  { id: "ground_coffee", label: "Café moulu" },
-  { id: "instant_coffee", label: "Café soluble" },
-] as const;
+/**
+ * Catalogue produits. L'offre prioritaire de SCPB : fèves de cacao et produits
+ * transformés (beurre, masse, poudre). Le café reste disponible en secondaire.
+ */
 
-export const SCRAPING_PRODUCT_OPTIONS = [
-  { id: "all", label: "Tous les produits" },
-  { id: "cocoa beans", label: "Fèves de cacao" },
-  { id: "cocoa butter", label: "Beurre de cacao" },
-  { id: "cocoa powder", label: "Poudre de cacao" },
-  { id: "cocoa mass/liquor", label: "Masse de cacao" },
-  { id: "derivatives", label: "Dérivés cacao" },
-  { id: "cosmetics", label: "Cosmétiques" },
-  { id: "food/chocolate", label: "Alimentation / chocolat" },
-  { id: "coffee beans", label: "Grains de café" },
-  { id: "green coffee", label: "Café vert" },
-  { id: "ground coffee", label: "Café moulu" },
-  { id: "instant coffee", label: "Café soluble" },
-  { id: "agri-tech", label: "Agri-Tech & capteurs" },
-  { id: "packaging", label: "Emballage & matériaux" },
-  { id: "machinery", label: "Machines de transformation" },
-  { id: "compliance", label: "Traçabilité & conformité" },
-  { id: "circular", label: "Bioéconomie circulaire" },
-] as const;
+export type ProductOption = { id: string; label: string; group: "core" | "secondary" };
+
+export const CAMPAIGN_PRODUCT_OPTIONS: ProductOption[] = [
+  { id: "all", label: "Fèves et dérivés (gamme complète)", group: "core" },
+  { id: "cocoa_beans", label: "Fèves de cacao", group: "core" },
+  { id: "cocoa_butter", label: "Beurre de cacao", group: "core" },
+  { id: "cocoa_mass", label: "Masse (liqueur) de cacao", group: "core" },
+  { id: "cocoa_powder", label: "Poudre de cacao", group: "core" },
+  { id: "coffee_beans", label: "Grains de café", group: "secondary" },
+  { id: "green_coffee", label: "Café vert", group: "secondary" },
+  { id: "ground_coffee", label: "Café moulu", group: "secondary" },
+  { id: "instant_coffee", label: "Café soluble", group: "secondary" },
+];
+
+export const SCRAPING_PRODUCT_OPTIONS: ProductOption[] = [
+  { id: "all", label: "Fèves et dérivés (gamme complète)", group: "core" },
+  { id: "cocoa beans", label: "Fèves de cacao", group: "core" },
+  { id: "cocoa butter", label: "Beurre de cacao", group: "core" },
+  { id: "cocoa mass/liquor", label: "Masse de cacao", group: "core" },
+  { id: "cocoa powder", label: "Poudre de cacao", group: "core" },
+  { id: "derivatives", label: "Revendeurs d'ingrédients cacao", group: "core" },
+  { id: "coffee beans", label: "Grains de café", group: "secondary" },
+  { id: "green coffee", label: "Café vert", group: "secondary" },
+];
+
+/** Produits du cœur de cible (identifiants des prospects et des campagnes). */
+export const CORE_PRODUCT_IDS = ["cocoa_beans", "cocoa_butter", "cocoa_mass", "cocoa_powder"] as const;
 
 export const PRODUCT_LABELS: Record<string, string> = {
   cocoa_beans: "Fèves de cacao",
@@ -37,12 +37,12 @@ export const PRODUCT_LABELS: Record<string, string> = {
   cocoa_powder: "Poudre de cacao",
   cocoa_mass: "Masse de cacao",
   cocoa_liquor: "Masse de cacao",
-  derivatives: "Dérivés cacao",
+  derivatives: "Dérivés du cacao",
   cosmetics: "Cosmétiques",
-  food_chocolate: "Alimentation / chocolat",
+  food_chocolate: "Chocolat et confiserie",
   coffee_beans: "Grains de café",
   green_coffee: "Café vert",
   ground_coffee: "Café moulu",
   instant_coffee: "Café soluble",
-  all: "Tous produits",
+  all: "Fèves et dérivés",
 };

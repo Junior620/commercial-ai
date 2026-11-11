@@ -26,6 +26,7 @@ type FormValues = {
   priority: string;
   status: string;
   notes: string;
+  targetFit: string;
 };
 
 const NONE = "__none__";
@@ -46,6 +47,7 @@ function toValues(p: Prospect | null): FormValues {
     priority: p?.priority ?? "MEDIUM",
     status: p?.status ?? "NEW",
     notes: p?.notes ?? "",
+    targetFit: p?.targetFit ?? "",
   };
 }
 
@@ -128,7 +130,7 @@ export function ProspectFormDialog({
       notes: opt(values.notes),
       priority: values.priority,
       ...(values.language ? { language: values.language } : {}),
-      ...(isNew ? {} : { status: values.status }),
+      ...(isNew ? {} : { status: values.status, ...(values.targetFit ? { targetFit: values.targetFit } : {}) }),
     };
     try {
       const res = await fetch(isNew ? "/api/prospects" : `/api/prospects/${prospect!.id}`, {
@@ -202,6 +204,15 @@ export function ProspectFormDialog({
           />
           <SelectField id="pf-priority" label="Priorité" value={values.priority} onChange={set("priority")} options={PRIORITY_LABELS} />
           {!isNew ? <SelectField id="pf-status" label="Statut" value={values.status} onChange={set("status")} options={PROSPECT_STATUS_LABELS} /> : null}
+          {!isNew ? (
+            <SelectField
+              id="pf-fit"
+              label="Adéquation à la cible"
+              value={values.targetFit}
+              onChange={set("targetFit")}
+              options={{ CORE: "Cœur de cible", SECONDARY: "Secondaire", OUT_OF_SCOPE: "Hors cible" }}
+            />
+          ) : null}
           <div className="space-y-1.5 sm:col-span-2">
             <Label htmlFor="pf-notes">Notes</Label>
             <Textarea id="pf-notes" rows={3} value={values.notes} onChange={(e) => set("notes")(e.target.value)} />

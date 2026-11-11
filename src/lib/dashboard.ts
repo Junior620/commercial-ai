@@ -4,6 +4,7 @@ import { SENT_STATUSES } from "@/lib/sending";
 
 const DAY = 24 * 60 * 60 * 1000;
 const COMMERCIAL = { prospectType: "COMMERCIAL" as const };
+const CORE = { prospectType: "COMMERCIAL" as const, targetFit: "CORE" as const };
 
 export type DashboardData = Awaited<ReturnType<typeof loadDashboard>>;
 
@@ -25,9 +26,9 @@ export async function loadDashboard() {
   const sentList = SENT_STATUSES.map((st) => `'${st}'`).join(",");
 
   // Lot 1 : agrégats (exécutés en parallèle, dans la limite du pool Postgres)
-  const [settings, prospectStatus, newProspects7d, emails30, emailCounts, volumeRows, pendingReview, byCountry] = await Promise.all([
+  const [settings, prospectStatus, newProspects7d, emails30, emailCounts, volumeRows, pendingReview, byCountry, fitCounts, demandRows] = await Promise.all([
     prisma.appSettings.findUnique({ where: { id: "default" } }),
-    prisma.prospect.groupBy({ by: ["status"], where: COMMERCIAL, _count: { _all: true } }),
+    prisma.prospect.groupBy({ by: ["status"], where: { ...COMMERCIAL, targetFit: { not: "OUT_OF_SCOPE" } }, _count: { _all: true } }),
     prisma.prospect.count({ where: { ...COMMERCIAL, createdAt: { gte: weekAgo } } }),
     prisma.email.groupBy({
       by: ["status"],
@@ -62,11 +63,17 @@ export async function loadDashboard() {
     }),
     prisma.prospect.groupBy({
       by: ["country"],
-      where: COMMERCIAL,
+      where: CORE,
       _count: { _all: true },
       orderBy: { _count: { country: "desc" } },
       take: 8,
     }),
+    prisma.prospect.groupBy({ by: ["targetFit"], where: COMMERCIAL, _count: { _all: true } }),
+    prisma.$queryRaw<{ need: string; total: bigint; untouched: bigint }[]>`
+      SELECT need, count(*) AS total, count(*) FILTER (WHERE status = 'NEW') AS untouched
+      FROM "prospects", unnest("productNeeds") AS need
+      WHERE "prospectType" = 'COMMERCIAL' AND "targetFit" = 'CORE'
+      GROUP BY need`,
   ]);
 
   // Lot 2 : listes
@@ -84,7 +91,7 @@ export async function loadDashboard() {
       select: { id: true, name: true, sentCount: true, openCount: true, replyCount: true, bounceCount: true, deliveredCount: true },
     }),
     prisma.prospect.findMany({
-      where: { ...COMMERCIAL, status: "NEW", score: { gte: 50 }, emails: { none: {} } },
+      where: { ...CORE, status: "NEW", emails: { none: {} } },
       orderBy: { score: "desc" },
       take: 6,
       select: { id: true, company: true, country: true, score: true },
@@ -105,6 +112,11 @@ export async function loadDashboard() {
   ]);
 
   const statusCount = (st: string) => prospectStatus.find((p) => p.status === st)?._count._all ?? 0;
+  const fitCount = (f: string) => fitCounts.find((x) => x.targetFit === f)?._count._all ?? 0;
+  const demand = ["cocoa_beans", "cocoa_butter", "cocoa_mass", "cocoa_powder"].map((need) => {
+    const row = demandRows.find((r) => r.need === need);
+    return { need, total: Number(row?.total ?? 0), untouched: Number(row?.untouched ?? 0) };
+  });
   const totalProspects = prospectStatus.reduce((sum, p) => sum + p._count._all, 0);
   const e30 = (statuses: string[]) =>
     emails30.filter((e) => statuses.includes(e.status)).reduce((sum, e) => sum + e._count._all, 0);
@@ -170,6 +182,8 @@ export async function loadDashboard() {
       prospects: settings?.weeklyNewProspectTarget ?? 30,
       replies: settings?.weeklyReplyTarget ?? 5,
     },
+    fit: { core: fitCount("CORE"), secondary: fitCount("SECONDARY"), out: fitCount("OUT_OF_SCOPE") },
+    demand,
     kpis: {
       totalProspects,
       newProspects7d,

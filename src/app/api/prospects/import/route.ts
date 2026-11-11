@@ -52,7 +52,8 @@ export async function POST(req: NextRequest) {
       const country = normalizeCountryToIso2(countryRaw);
       const website = pick(row, ["website", "Website", "site", "Site"], 300);
       const sector = pick(row, ["sector", "Sector", "secteur", "Secteur"]);
-      const score = calculateLeadScore({ title: company, categoryName: sector, country, email, website }).score;
+      const scoring = calculateLeadScore({ title: company, categoryName: sector, country, email, website });
+      const score = scoring.score;
       rows.push({
         email,
         company,
@@ -65,7 +66,9 @@ export async function POST(req: NextRequest) {
         language: normalizeLanguage(pick(row, ["language", "Language", "langue", "Langue"], 10)) || inferProspectLanguageFromCountry(country),
         website,
         score,
-        priority: priorityFromScore(score),
+        priority: priorityFromScore(score, scoring.fit),
+        targetFit: scoring.fit,
+        productNeeds: scoring.productNeeds,
         source: "csv_import",
         prospectType: "COMMERCIAL" as const,
       });

@@ -175,7 +175,7 @@ export const runScrapingJob = inngest.createFunction(
     },
   },
   async ({ event, step }) => {
-    const { jobId, keywords, countries, maxResults } = event.data as ScrapingRequestedData;
+    const { jobId, keywords, countries, maxResults, includeOutOfScope } = event.data as ScrapingRequestedData;
     const L = SCRAPING_LIMITS;
 
     const stopIfCancelled = async (label: string, runs: { runId: string; label: string }[] = []) => {
@@ -303,7 +303,7 @@ export const runScrapingJob = inngest.createFunction(
     // Phase 7 : import
     return step.run("import", async () => {
       if (await isJobCancelled(jobId)) return { cancelled: true };
-      const { created, withEmail } = await importPlaces(places);
+      const { created, withEmail, outOfScope } = await importPlaces(places, { includeOutOfScope });
       await prisma.scrapingJob.updateMany({
         where: { id: jobId, status: "RUNNING" },
         data: {
@@ -313,13 +313,13 @@ export const runScrapingJob = inngest.createFunction(
           progress: {
             phase: "Terminé",
             percent: 100,
-            detail: `${created} prospect(s) créé(s) sur ${places.length} fiche(s), ${withEmail} avec email`,
+            detail: `${created} prospect(s) créé(s) sur ${places.length} fiche(s) · ${withEmail} retenu(s) avec email${outOfScope ? ` · ${outOfScope} écarté(s) car hors cible (commerces, cafés, concurrents)` : ""}`,
             runs,
             updatedAt: new Date().toISOString(),
           },
         },
       });
-      return { created, places: places.length, withEmail };
+      return { created, places: places.length, withEmail, outOfScope };
     });
   }
 );

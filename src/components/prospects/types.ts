@@ -17,8 +17,29 @@ export interface Prospect {
   website: string | null;
   source: string | null;
   notes: string | null;
+  targetFit?: "CORE" | "SECONDARY" | "OUT_OF_SCOPE";
+  productNeeds?: string[];
   createdAt?: string;
 }
+
+export const FIT_LABELS: Record<string, string> = {
+  CORE: "Cœur de cible",
+  SECONDARY: "Secondaire",
+  OUT_OF_SCOPE: "Hors cible",
+};
+
+export const FIT_CLASSES: Record<string, string> = {
+  CORE: "border-primary/30 bg-[linear-gradient(90deg,oklch(0.687_0.134_117.7/0.18),oklch(0.687_0.134_117.7/0.06))] text-primary",
+  SECONDARY: "border-sun/40 bg-sun/15 text-sun-foreground dark:text-sun",
+  OUT_OF_SCOPE: "border-border bg-muted text-muted-foreground",
+};
+
+export const NEED_LABELS: Record<string, string> = {
+  cocoa_beans: "Fèves",
+  cocoa_butter: "Beurre",
+  cocoa_mass: "Masse",
+  cocoa_powder: "Poudre",
+};
 
 export const CLIENT_TYPE_LABELS: Record<string, string> = {
   importer: "Importateur",

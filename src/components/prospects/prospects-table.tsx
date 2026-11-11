@@ -7,6 +7,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { StatusBadge } from "@/components/shared/status-badge";
 import { cn } from "@/lib/utils";
 import { countryName, scoreTone, type Prospect } from "@/components/prospects/types";
+import { FitBadge, NeedChips } from "@/components/prospects/fit-badge";
 
 export type SortKey = "createdAt" | "company" | "score" | "country" | "status";
 
@@ -76,6 +77,7 @@ export function ProspectsTable(props: TableProps) {
                 <p className="truncate text-xs text-muted-foreground">{p.email}</p>
                 <div className="mt-2 flex flex-wrap items-center gap-2">
                   <StatusBadge kind="prospect" value={p.status} />
+                  <FitBadge fit={p.targetFit} />
                   <span className="text-xs text-muted-foreground">{countryName(p.country)}</span>
                   <span className={cn("text-xs font-semibold", scoreTone(p.score))}>Score {p.score}</span>
                 </div>
@@ -101,6 +103,7 @@ export function ProspectsTable(props: TableProps) {
                 <SortButton label="Pays" col="country" {...sortProps} />
               </TableHead>
               <TableHead className="max-w-[14rem]">Activité</TableHead>
+              <TableHead>Cible</TableHead>
               <TableHead>
                 <SortButton label="Score" col="score" {...sortProps} />
               </TableHead>
@@ -131,8 +134,12 @@ export function ProspectsTable(props: TableProps) {
                 </TableCell>
                 <TableCell className="text-sm">{p.contact?.trim() || <span className="text-muted-foreground">—</span>}</TableCell>
                 <TableCell className="text-sm">{countryName(p.country)}</TableCell>
-                <TableCell className="max-w-[14rem] truncate text-sm" title={p.sector ?? undefined}>
-                  {p.sector || "—"}
+                <TableCell className="max-w-[14rem] text-sm" title={p.sector ?? undefined}>
+                  <span className="block truncate">{p.sector || "—"}</span>
+                  <NeedChips needs={p.productNeeds} />
+                </TableCell>
+                <TableCell>
+                  <FitBadge fit={p.targetFit} />
                 </TableCell>
                 <TableCell>
                   <span className={cn("font-semibold", scoreTone(p.score))}>{p.score}</span>

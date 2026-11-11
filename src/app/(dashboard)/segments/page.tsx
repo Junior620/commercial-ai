@@ -61,62 +61,37 @@ interface SegmentProspect {
   createdAt: string;
 }
 
+/** Segments prêts à l'emploi, alignés sur l'offre fèves / beurre / masse / poudre. */
 const PREDEFINED_SEGMENTS = [
   {
-    name: "Industriels agroalimentaires",
-    filters: { sector: "food", clientType: "manufacturer" },
+    name: "Chocolatiers et confiseurs industriels — masse et beurre",
+    description: "Chocolateries et confiseries qui transforment de la masse et du beurre de cacao.",
+    filters: { targetFits: ["CORE"], productNeeds: ["cocoa_mass"] },
   },
   {
-    name: "Chocolatiers artisanaux",
-    filters: { sector: "chocolate", clientType: "manufacturer" },
+    name: "Bean-to-bar, broyeurs et négociants — fèves",
+    description: "Acheteurs de fèves : broyeurs, transformateurs, bean-to-bar, importateurs.",
+    filters: { targetFits: ["CORE", "SECONDARY"], productNeeds: ["cocoa_beans"] },
   },
   {
-    name: "Importateurs matieres premieres",
-    filters: { clientType: "importer" },
+    name: "Biscuiterie, glaces, boulangerie industrielle — poudre",
+    description: "Industriels alimentaires utilisateurs de poudre de cacao.",
+    filters: { targetFits: ["CORE"], productNeeds: ["cocoa_powder"] },
   },
   {
-    name: "Distributeurs specialises",
-    filters: { clientType: "distributor" },
+    name: "Cosmétique — beurre de cacao",
+    description: "Fabricants et distributeurs de cosmétiques.",
+    filters: { targetFits: ["CORE"], productNeeds: ["cocoa_butter"], sectors: ["cosmetic", "beauty"] },
   },
   {
-    name: "Industriels cosmetiques",
-    filters: { sector: "cosmetics" },
+    name: "Importateurs et distributeurs d'ingrédients cacao",
+    description: "Revendeurs B2B de fèves et de dérivés.",
+    filters: { targetFits: ["CORE"], clientTypes: ["importer", "distributor", "wholesaler", "trader"] },
   },
   {
-    name: "Traders matieres premieres",
-    filters: { clientType: "trader" },
-  },
-  {
-    name: "Torréfacteurs café",
-    filters: { sector: "coffee", clientType: "manufacturer" },
-  },
-  {
-    name: "Importateurs café vert",
-    filters: { products: ["green_coffee"], clientType: "importer" },
-  },
-  {
-    name: "Agri-Tech cacao/café",
-    filters: { sectors: ["agri-tech", "precision agriculture", "satellite"] },
-  },
-  {
-    name: "Conformité RDUE & traçabilité",
-    filters: { sectors: ["traceability", "compliance", "sustainability"] },
-  },
-  {
-    name: "Équipement torréfaction & tri",
-    filters: { sectors: ["machinery"], clientType: "manufacturer" },
-  },
-  {
-    name: "Emballage haute barrière",
-    filters: { sectors: ["packaging", "materials"] },
-  },
-  {
-    name: "Finance agricole & assurance",
-    filters: { sectors: ["finance", "insurance"], clientType: "distributor" },
-  },
-  {
-    name: "Bioéconomie circulaire",
-    filters: { sectors: ["bioeconomy", "waste valorization"] },
+    name: "Artisans chocolatiers (secondaire)",
+    description: "Petits volumes : masse, beurre, parfois fèves pour le bean-to-bar.",
+    filters: { targetFits: ["SECONDARY"], sectors: ["chocolate"] },
   },
 ];
 
@@ -236,7 +211,7 @@ export default function SegmentsPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           name: preset.name,
-          description: `Segment prédéfini : ${preset.name}`,
+          description: preset.description,
           filters: preset.filters,
         }),
       });
@@ -475,7 +450,7 @@ export default function SegmentsPage() {
 
       <Card className="border-dashed bg-muted/20 shadow-none">
         <CardHeader className="pb-2">
-          <CardTitle className="text-base">Modèles rapides</CardTitle>
+          <CardTitle className="text-base">Segments prêts à l’emploi : fèves et dérivés</CardTitle>
           <CardDescription>
             Un clic crée un segment avec des critères courants. Vous pourrez
             l’affiner plus tard via une campagne ou en recréant un segment
@@ -491,9 +466,10 @@ export default function SegmentsPage() {
                 className="h-auto justify-start gap-2 border border-border/80 bg-background px-3 py-3 text-left shadow-sm hover:bg-muted/60"
                 onClick={() => handleCreatePredefined(preset)}
               >
-                <Layers className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" />
-                <span className="text-sm font-medium leading-snug">
-                  {preset.name}
+                <Layers className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
+                <span className="min-w-0 whitespace-normal">
+                  <span className="block text-sm font-medium leading-snug">{preset.name}</span>
+                  <span className="mt-0.5 block text-xs font-normal text-muted-foreground">{preset.description}</span>
                 </span>
               </Button>
             ))}

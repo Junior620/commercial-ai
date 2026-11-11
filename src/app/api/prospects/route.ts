@@ -5,6 +5,7 @@ import { requireUser, WRITE_ROLES } from "@/lib/auth";
 import { parseJsonBody, serverError } from "@/lib/api";
 import { inferProspectLanguageFromCountry, normalizeCountryToIso2 } from "@/lib/prospect-language";
 import { isSuppressed } from "@/lib/sending";
+import { calculateLeadScore, inferProduct, priorityFromScore } from "@/lib/scoring";
 import type { Prisma } from "@/generated/prisma/client";
 
 const STATUSES = ["NEW", "CONTACTED", "IN_DISCUSSION", "CONVERTED", "COLD", "UNSUBSCRIBED"] as const;
@@ -19,7 +20,7 @@ const ProspectSchema = z.object({
   clientType: z.string().trim().max(60).optional(),
   product: z.string().trim().max(60).optional(),
   language: z.string().trim().max(10).optional(),
-  priority: z.enum(["HIGH", "MEDIUM", "LOW"]).default("MEDIUM"),
+  priority: z.enum(["HIGH", "MEDIUM", "LOW"]).optional(),
   website: z.string().trim().max(300).optional(),
   source: z.string().trim().max(60).optional(),
   notes: z.string().trim().max(5000).optional(),
@@ -27,6 +28,7 @@ const ProspectSchema = z.object({
 
 const QuerySchema = z.object({
   status: z.enum([...STATUSES, "all"]).optional(),
+  fit: z.enum(["CORE", "SECONDARY", "OUT_OF_SCOPE"]).optional(),
   country: z.string().max(80).optional(),
   search: z.string().max(200).optional(),
   limit: z.coerce.number().int().min(1).max(2000).default(100),
@@ -39,10 +41,11 @@ export async function GET(req: NextRequest) {
 
   const parsed = QuerySchema.safeParse(Object.fromEntries(req.nextUrl.searchParams));
   if (!parsed.success) return NextResponse.json({ error: "Paramètres invalides" }, { status: 400 });
-  const { status, country, search, limit, offset } = parsed.data;
+  const { status, country, search, limit, offset, fit } = parsed.data;
 
   const where: Prisma.ProspectWhereInput = { prospectType: "COMMERCIAL" };
   if (status && status !== "all") where.status = status;
+  if (fit) where.targetFit = fit;
   if (country) where.country = normalizeCountryToIso2(country);
   if (search) {
     where.OR = [
@@ -75,10 +78,17 @@ export async function POST(req: NextRequest) {
     }
 
     const country = normalizeCountryToIso2(data.country);
+    const scoreInput = { title: data.company, categoryName: data.sector, country, email: data.email, website: data.website };
+    const scoring = calculateLeadScore(scoreInput);
     const prospect = await prisma.prospect.create({
       data: {
         ...data,
         country,
+        score: scoring.score,
+        targetFit: scoring.fit,
+        productNeeds: scoring.productNeeds,
+        product: data.product || inferProduct(scoreInput),
+        priority: data.priority ?? priorityFromScore(scoring.score, scoring.fit),
         language: data.language || inferProspectLanguageFromCountry(country),
         source: data.source || "manual",
         prospectType: "COMMERCIAL",

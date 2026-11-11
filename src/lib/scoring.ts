@@ -1,38 +1,24 @@
 import { normalizeCountryToIso2 } from "@/lib/prospect-language";
+import { classifyTarget, primaryProduct, type BuyerType, type CocoaProduct, type TargetFit } from "@/lib/targeting";
+import { containsKeyword, normalizeText } from "@/lib/text-match";
 
-const COCOA_KEYWORDS = [
-  "cocoa", "cacao", "chocolate", "chocolat", "chocolatier", "cocoa butter", "beurre de cacao",
-  "cocoa powder", "poudre de cacao", "cocoa mass", "cocoa liquor", "masse de cacao",
-  "cocoa beans", "feves de cacao",
-];
+export { containsKeyword } from "@/lib/text-match";
 
-const COFFEE_KEYWORDS = [
-  "coffee", "cafe", "green coffee", "cafe vert", "coffee roaster", "torrefacteur", "torrefaction", "roastery",
+const PRODUCT_MENTIONS = [
+  "cocoa beans", "cacao beans", "feves de cacao", "cocoa butter", "beurre de cacao", "cocoa mass", "cocoa liquor",
+  "masse de cacao", "cocoa powder", "poudre de cacao", "couverture", "bean to bar", "bean-to-bar",
 ];
 
 const B2B_KEYWORDS = [
-  "manufacturer", "supplier", "exporter", "importer", "distributor", "wholesaler", "wholesale",
-  "trader", "trading", "broker", "brokerage", "factory", "industrial", "industry", "processing",
-  "processor", "bulk", "b2b", "commodity", "commodities", "ingredients", "fabricant", "fournisseur",
-  "exportateur", "importateur", "grossiste", "negociant", "negoce", "courtier", "usine",
-];
-
-/** Signes d'un commerce de détail (le café en tant que lieu n'en fait pas partie). */
-const RETAIL_KEYWORDS = [
-  "boutique", "shop", "retail", "store", "bakery", "patisserie", "boulangerie", "restaurant",
-  "coffee shop", "salon de the", "magasin",
+  "manufacturer", "manufacturing", "factory", "industrial", "industry", "processing", "processor", "importer", "import",
+  "distributor", "wholesaler", "wholesale", "trader", "trading", "broker", "ingredients", "fabricant", "usine",
+  "importateur", "distributeur", "grossiste", "negociant", "b2b",
 ];
 
 /** Marchés prioritaires (codes ISO 3166-1 alpha-2). */
 const TARGET_COUNTRIES = new Set([
-  "BE", "NL", "DE", "FR", "GB", "CH", "IT", "ES", "TR", "AE", "SA", "EG", "MA", "TN", "PL", "PT",
-  "US", "CA",
+  "BE", "NL", "DE", "FR", "GB", "CH", "IT", "ES", "TR", "AE", "SA", "EG", "MA", "TN", "PL", "PT", "US", "CA",
 ]);
-
-const RELEVANT_CATEGORIES = [
-  "food", "chocolate", "cocoa", "coffee", "confectionery", "ingredient", "cosmetic", "manufactur",
-  "trading", "commodity", "broker", "import", "export", "wholesale",
-];
 
 export interface ScoreInput {
   description?: string | null;
@@ -45,76 +31,58 @@ export interface ScoreInput {
 
 export type LeadGrade = "A" | "B" | "C" | "D";
 
-function normalizeText(value: string): string {
-  return value
-    .normalize("NFKD")
-    .replace(/[̀-ͯ]/g, "")
-    .toLowerCase();
-}
-
-function escapeRegex(value: string): string {
-  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-}
-
-/** Correspondance sur mots entiers (« shop » ne correspond pas à « workshop »). */
-export function containsKeyword(text: string, keywords: string[]): boolean {
-  return keywords.some((kw) => new RegExp(`(^|[^\\p{L}\\p{N}])${escapeRegex(kw)}([^\\p{L}\\p{N}]|$)`, "u").test(text));
-}
-
-function analyzedText(input: ScoreInput): string {
-  return normalizeText([input.description, input.categoryName, input.title].filter(Boolean).join(" "));
-}
-
-export function calculateLeadScore(input: ScoreInput): {
+export interface LeadScore {
   score: number;
   grade: LeadGrade;
   reasons: string[];
-} {
+  fit: TargetFit;
+  buyerType: BuyerType;
+  productNeeds: CocoaProduct[];
+}
+
+/**
+ * Score de 0 à 100 orienté vers l'offre SCPB (fèves, beurre, masse, poudre).
+ * L'adéquation à la cible plafonne le score : un commerce de détail ne peut pas être prioritaire.
+ */
+export function calculateLeadScore(input: ScoreInput): LeadScore {
+  const target = classifyTarget(input);
+  const text = normalizeText([input.description, input.categoryName, input.title].filter(Boolean).join(" "));
+  const reasons = [...target.reasons];
   let score = 0;
-  const reasons: string[] = [];
-  const text = analyzedText(input);
 
-  if (containsKeyword(text, COCOA_KEYWORDS)) {
+  if (containsKeyword(text, PRODUCT_MENTIONS)) {
     score += 30;
-    reasons.push("+30 : mention cacao/chocolat");
-  } else if (containsKeyword(text, COFFEE_KEYWORDS)) {
-    score += 20;
-    reasons.push("+20 : mention café");
+    reasons.push("+30 : mentionne fèves, beurre, masse ou poudre de cacao");
   }
-
+  if (target.productNeeds.length > 0 && target.buyerType !== "artisan") {
+    score += 25;
+    reasons.push("+25 : usage transformateur des dérivés du cacao");
+  } else if (target.productNeeds.length > 0) {
+    score += 15;
+    reasons.push("+15 : utilise des dérivés du cacao (petits volumes)");
+  }
   if (containsKeyword(text, B2B_KEYWORDS)) {
     score += 15;
-    reasons.push("+15 : profil B2B");
+    reasons.push("+15 : profil acheteur B2B");
   }
-
-  if (containsKeyword(text, RETAIL_KEYWORDS)) {
-    score -= 20;
-    reasons.push("-20 : profil commerce de détail");
-  }
-
-  const iso = normalizeCountryToIso2(input.country);
-  if (TARGET_COUNTRIES.has(iso)) {
-    score += 20;
-    reasons.push("+20 : marché prioritaire");
-  }
-
-  if (input.email) {
+  if (TARGET_COUNTRIES.has(normalizeCountryToIso2(input.country))) {
     score += 15;
-    reasons.push("+15 : email public trouvé");
+    reasons.push("+15 : marché prioritaire");
+  }
+  if (input.email) {
+    score += 10;
+    reasons.push("+10 : email trouvé");
+  }
+  if (input.website) {
+    score += 5;
+    reasons.push("+5 : site web");
   }
 
-  if (!input.website) {
-    score -= 20;
-    reasons.push("-20 : pas de site web");
-  }
+  const cap = target.fit === "OUT_OF_SCOPE" ? 15 : target.fit === "SECONDARY" ? 55 : 100;
+  if (score > cap) reasons.push(`plafonné à ${cap} (${target.fit === "OUT_OF_SCOPE" ? "hors cible" : "cible secondaire"})`);
+  score = Math.max(0, Math.min(cap, score));
 
-  if (input.categoryName && RELEVANT_CATEGORIES.some((c) => normalizeText(input.categoryName!).includes(c))) {
-    score += 20;
-    reasons.push("+20 : catégorie Google Maps pertinente");
-  }
-
-  score = Math.max(0, Math.min(100, score));
-  return { score, grade: gradeFromScore(score), reasons };
+  return { score, grade: gradeFromScore(score), reasons, fit: target.fit, buyerType: target.buyerType, productNeeds: target.productNeeds };
 }
 
 export function gradeFromScore(score: number): LeadGrade {
@@ -124,39 +92,42 @@ export function gradeFromScore(score: number): LeadGrade {
   return "D";
 }
 
-export function priorityFromScore(score: number): "HIGH" | "MEDIUM" | "LOW" {
+export function priorityFromScore(score: number, fit: TargetFit = "CORE"): "HIGH" | "MEDIUM" | "LOW" {
+  if (fit === "OUT_OF_SCOPE") return "LOW";
   const grade = gradeFromScore(score);
   if (grade === "A") return "HIGH";
   if (grade === "B") return "MEDIUM";
   return "LOW";
 }
 
+const CLIENT_TYPE_BY_BUYER: Partial<Record<BuyerType, string>> = {
+  industrial: "manufacturer",
+  cosmetics: "manufacturer",
+  artisan: "manufacturer",
+  distributor: "distributor",
+  retail: "retailer",
+};
+
 const CLIENT_TYPE_RULES: { keywords: string[]; type: string }[] = [
   { keywords: ["importer", "importateur", "import"], type: "importer" },
-  { keywords: ["distributor", "distributeur", "distribution"], type: "distributor" },
-  { keywords: ["manufacturer", "fabricant", "factory", "usine", "manufacturing", "processing", "processor"], type: "manufacturer" },
   { keywords: ["trader", "trading", "negoce", "negociant", "broker", "brokerage", "courtier", "trade house"], type: "trader" },
   { keywords: ["wholesaler", "grossiste", "wholesale", "bulk", "en gros"], type: "wholesaler" },
+  { keywords: ["distributor", "distributeur", "distribution"], type: "distributor" },
+  { keywords: ["manufacturer", "fabricant", "factory", "usine", "manufacturing", "processing", "processor"], type: "manufacturer" },
   { keywords: ["retailer", "detaillant", "retail", "shop", "boutique", "store", "magasin"], type: "retailer" },
 ];
 
-const PRODUCT_RULES: { keywords: string[]; product: string }[] = [
-  { keywords: ["cocoa beans", "feves de cacao", "cacao beans", "raw cocoa"], product: "cocoa_beans" },
-  { keywords: ["cocoa butter", "beurre de cacao", "cacao butter"], product: "cocoa_butter" },
-  { keywords: ["cocoa powder", "poudre de cacao", "cacao powder"], product: "cocoa_powder" },
-  { keywords: ["cocoa mass", "cocoa liquor", "masse de cacao", "pate de cacao"], product: "cocoa_mass" },
-  { keywords: ["cosmetic", "cosmetics", "cosmetique", "beauty", "skin care", "skincare"], product: "cosmetics" },
-  { keywords: ["chocolate", "chocolat", "confectionery", "confiserie", "praline"], product: "food_chocolate" },
-  { keywords: ["green coffee", "cafe vert"], product: "green_coffee" },
-  { keywords: ["coffee", "cafe", "roaster", "torrefacteur"], product: "coffee_beans" },
-];
-
 export function inferClientType(input: ScoreInput): string | null {
-  const text = analyzedText(input);
-  return CLIENT_TYPE_RULES.find((rule) => containsKeyword(text, rule.keywords))?.type ?? null;
+  const text = normalizeText([input.description, input.categoryName, input.title].filter(Boolean).join(" "));
+  const byKeyword = CLIENT_TYPE_RULES.find((rule) => containsKeyword(text, rule.keywords))?.type;
+  if (byKeyword) return byKeyword;
+  return CLIENT_TYPE_BY_BUYER[classifyTarget(input).buyerType] ?? null;
 }
 
+/** Produit principal à proposer (fèves, beurre, masse ou poudre), ou null si hors cible. */
 export function inferProduct(input: ScoreInput): string | null {
-  const text = analyzedText(input);
-  return PRODUCT_RULES.find((rule) => containsKeyword(text, rule.keywords))?.product ?? null;
+  const target = classifyTarget(input);
+  if (target.fit === "OUT_OF_SCOPE") return null;
+  if (target.buyerType === "coffee") return "coffee_beans";
+  return primaryProduct(target);
 }

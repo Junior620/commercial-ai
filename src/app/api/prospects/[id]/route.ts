@@ -24,6 +24,8 @@ const UpdateProspectSchema = z
     website: nullableText(300),
     source: nullableText(60),
     notes: nullableText(5000),
+    /** Correction manuelle de l'adéquation à la cible */
+    targetFit: z.enum(["CORE", "SECONDARY", "OUT_OF_SCOPE"]).optional(),
   })
   .strict();
 

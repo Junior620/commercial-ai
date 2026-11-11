@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { Loader2 } from "lucide-react";
+import { ProductOptions } from "@/components/shared/product-options";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -71,6 +72,18 @@ export function CampaignForm({
   const [segments, setSegments] = useState<{ id: string; name: string }[]>([]);
   const set = (key: keyof CampaignFormValues) => (value: string) => setValues((v) => ({ ...v, [key]: value }));
 
+  const [preview, setPreview] = useState<{ total: number; core: number } | null>(null);
+  useEffect(() => {
+    const controller = new AbortController();
+    const params = new URLSearchParams({ product: values.product || "all" });
+    if (values.segmentId) params.set("segmentId", values.segmentId);
+    fetch(`/api/campaigns/preview?${params}`, { signal: controller.signal })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((data) => data && setPreview(data))
+      .catch(() => undefined);
+    return () => controller.abort();
+  }, [values.segmentId, values.product]);
+
   useEffect(() => {
     fetch("/api/segments")
       .then((r) => (r.ok ? r.json() : []))
@@ -134,11 +147,7 @@ export function CampaignForm({
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  {CAMPAIGN_PRODUCT_OPTIONS.map((p) => (
-                    <SelectItem key={p.id} value={p.id}>
-                      {p.label}
-                    </SelectItem>
-                  ))}
+                  <ProductOptions options={CAMPAIGN_PRODUCT_OPTIONS} />
                 </SelectContent>
               </Select>
             </div>
@@ -158,6 +167,23 @@ export function CampaignForm({
               </Select>
             </div>
           </div>
+
+          <p
+            role="status"
+            className="rounded-lg border border-primary/20 bg-[linear-gradient(90deg,oklch(0.687_0.134_117.7/0.10),transparent)] px-3 py-2.5 text-sm"
+          >
+            {preview === null ? (
+              "Calcul du ciblage…"
+            ) : preview.total === 0 ? (
+              "Aucun prospect ne correspond à ce ciblage. Choisissez un autre segment ou un autre produit."
+            ) : (
+              <>
+                <span className="font-semibold">{preview.total}</span> prospect(s) ciblé(s), dont{" "}
+                <span className="font-semibold">{preview.core}</span> au cœur de cible. Les prospects hors cible (commerces,
+                cafés, concurrents) sont toujours exclus.
+              </>
+            )}
+          </p>
 
           <div className="space-y-1.5">
             <Label htmlFor="campaign-tone">Ton</Label>

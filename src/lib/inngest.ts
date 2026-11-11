@@ -16,4 +16,6 @@ export interface ScrapingRequestedData {
   keywords: string[];
   countries: string[];
   maxResults: number;
+  /** Importer aussi les fiches hors cible (commerces de détail, cafés…) */
+  includeOutOfScope?: boolean;
 }

@@ -24,6 +24,7 @@ import { CountryChart } from "@/components/dashboard/charts";
 import { loadDashboard } from "@/lib/dashboard";
 import { getCurrentUser } from "@/lib/auth";
 import { PROSPECT_STATUS_LABELS } from "@/lib/labels";
+import { PRODUCT_LABELS } from "@/lib/product-catalog";
 import { cn } from "@/lib/utils";
 
 export const metadata: Metadata = { title: "Tableau de bord" };
@@ -206,7 +207,14 @@ export default async function DashboardPage() {
       ) : null}
 
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        <Kpi label="Prospects" value={kpis.totalProspects.toLocaleString("fr-FR")} hint={`+${kpis.newProspects7d} sur 7 jours`} icon={Users} tone="brand" href="/prospects" />
+        <Kpi
+          label="Prospects cœur de cible"
+          value={data.fit.core.toLocaleString("fr-FR")}
+          hint={`${data.fit.secondary} secondaires · ${data.fit.out} hors cible`}
+          icon={Users}
+          tone="brand"
+          href="/prospects"
+        />
         <Kpi
           label="Emails envoyés (7 j)"
           value={kpis.sent7d}
@@ -224,7 +232,7 @@ export default async function DashboardPage() {
           <CardHeader className="flex flex-row items-start justify-between">
             <div>
               <CardTitle>Pipeline commercial</CardTitle>
-              <CardDescription>{pipelineTotal.toLocaleString("fr-FR")} prospects joignables, par étape</CardDescription>
+              <CardDescription>{pipelineTotal.toLocaleString("fr-FR")} prospects ciblés (cœur et secondaires), par étape</CardDescription>
             </div>
             <CardLink href="/prospects">Prospects</CardLink>
           </CardHeader>
@@ -270,6 +278,38 @@ export default async function DashboardPage() {
           </CardContent>
         </Card>
       </div>
+
+      <Card>
+        <CardHeader className="flex flex-row items-start justify-between">
+          <div>
+            <CardTitle>Demande par produit</CardTitle>
+            <CardDescription>Prospects du cœur de cible susceptibles d&apos;acheter chaque produit</CardDescription>
+          </div>
+          <CardLink href="/segments">Segments</CardLink>
+        </CardHeader>
+        <CardContent>
+          <ul className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+            {data.demand.map((d) => (
+              <li key={d.need} className="glow-top-line rounded-xl border bg-surface-gradient px-4 py-3.5">
+                <p className="text-sm font-medium">{PRODUCT_LABELS[d.need]}</p>
+                <p data-slot="kpi-value" className="mt-1 text-2xl font-semibold">
+                  {d.total}
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  {d.untouched} jamais contacté(s)
+                </p>
+                <Link
+                  href={`/campaigns/new?product=${d.need}`}
+                  className="mt-2 inline-flex items-center gap-1 text-xs font-medium text-primary underline-offset-4 hover:underline"
+                >
+                  Lancer une campagne
+                  <ArrowRight className="h-3 w-3" />
+                </Link>
+              </li>
+            ))}
+          </ul>
+        </CardContent>
+      </Card>
 
       {hasSends ? (
         <div className="grid gap-4 lg:grid-cols-5">
@@ -416,7 +456,7 @@ export default async function DashboardPage() {
           <CardHeader className="flex flex-row items-start justify-between">
             <div>
               <CardTitle>Prospects à saisir</CardTitle>
-              <CardDescription>Les mieux notés, jamais contactés</CardDescription>
+              <CardDescription>Cœur de cible, jamais contactés</CardDescription>
             </div>
             <CardLink href="/prospects">Voir tout</CardLink>
           </CardHeader>
@@ -469,7 +509,7 @@ export default async function DashboardPage() {
       <div className="grid gap-4 lg:grid-cols-3">
         <Card className="lg:col-span-2">
           <CardHeader>
-            <CardTitle>Prospects par pays</CardTitle>
+            <CardTitle>Cœur de cible par pays</CardTitle>
             <CardDescription>Les 8 pays les plus représentés</CardDescription>
           </CardHeader>
           <CardContent>

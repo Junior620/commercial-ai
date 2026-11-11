@@ -15,6 +15,7 @@ import {
 } from "@/lib/apify";
 import { calculateLeadScore, inferClientType, inferProduct, priorityFromScore } from "@/lib/scoring";
 import { deduplicateItems, normalizeDomain } from "@/lib/dedup";
+import { classifyTarget } from "@/lib/targeting";
 import { inferProspectLanguageFromCountry, normalizeCountryToIso2 } from "@/lib/prospect-language";
 import { emailMatchesDomain, extractEmails, fetchAndExtractFromSite, getBestEmail } from "@/lib/email-extractor";
 
@@ -60,6 +61,19 @@ export interface RunEntry {
 
 // ─── Mots-clés ───────────────────────────────────────────────────
 
+/** Ordre de priorité des catégories : le cœur de cible (fèves et dérivés) d'abord. */
+const CATEGORY_PRIORITY = ["focus", "buyer", "trader", "product", "general"];
+
+function rank(category: string): number {
+  const i = CATEGORY_PRIORITY.indexOf(category);
+  return i === -1 ? CATEGORY_PRIORITY.length : i;
+}
+
+/**
+ * Sélectionne les mots-clés de recherche.
+ * Les lignes du CSV sont groupées par sous-catégorie (produit) puis prises à tour de rôle,
+ * pour que 25 mots-clés couvrent fèves, beurre, masse et poudre au lieu des 25 premières lignes.
+ */
 export function buildKeywords(input: {
   categories?: string[];
   countries?: string[];
@@ -68,22 +82,36 @@ export function buildKeywords(input: {
   maxKeywords?: number;
 }): string[] {
   const limit = Math.min(SCRAPING_LIMITS.maxKeywords, Math.max(1, input.maxKeywords || SCRAPING_LIMITS.defaultKeywords));
-  const keywords: string[] = [...(input.customKeywords || [])];
+  const custom = (input.customKeywords || []).map((k) => k.trim()).filter(Boolean);
+  const groups = new Map<string, string[]>();
 
   try {
     const csv = readFileSync(join(process.cwd(), "data", "cocoa_keywords_scraping.csv"), "utf-8");
     const { data } = Papa.parse<Record<string, string>>(csv, { header: true, skipEmptyLines: true });
-    for (const row of data) {
-      if (input.categories?.length && !input.categories.includes(row.category)) continue;
-      if (input.product && CSV_PRODUCT_SUBCATEGORIES.has(row.subcategory) && row.subcategory !== input.product) continue;
-      if (input.countries?.length && row.geo_scope === "country" && !input.countries.includes(row.country)) continue;
-      keywords.push(row.keyword);
+    const rows = data
+      .filter((row) => !input.categories?.length || input.categories.includes(row.category))
+      .filter((row) => !(input.product && CSV_PRODUCT_SUBCATEGORIES.has(row.subcategory) && row.subcategory !== input.product))
+      .filter((row) => !(input.countries?.length && row.geo_scope === "country" && !input.countries.includes(row.country)))
+      .sort((a, b) => rank(a.category) - rank(b.category));
+    for (const row of rows) {
+      const key = `${row.category}:${row.subcategory}`;
+      const list = groups.get(key) ?? [];
+      if (row.keyword?.trim()) list.push(row.keyword.trim());
+      groups.set(key, list);
     }
   } catch {
     // CSV absent : seuls les mots-clés personnalisés sont utilisés.
   }
 
-  return [...new Set(keywords.map((k) => (typeof k === "string" ? k.trim() : "")).filter(Boolean))].slice(0, limit);
+  const picked = [...custom];
+  const queues = [...groups.values()];
+  while (queues.some((q) => q.length) && picked.length < limit * 2) {
+    for (const q of queues) {
+      const next = q.shift();
+      if (next) picked.push(next);
+    }
+  }
+  return [...new Set(picked)].slice(0, limit);
 }
 
 // ─── Suivi du job ────────────────────────────────────────────────
@@ -269,9 +297,20 @@ export function mergeFallback(
 
 // ─── Import ──────────────────────────────────────────────────────
 
-export async function importPlaces(places: EnrichedPlace[]): Promise<{ created: number; withEmail: number }> {
+export async function importPlaces(
+  places: EnrichedPlace[],
+  opts: { includeOutOfScope?: boolean } = {}
+): Promise<{ created: number; withEmail: number; outOfScope: number }> {
+  let outOfScope = 0;
   const candidates = places
     .filter((p) => p.emails.length > 0)
+    .filter((p) => {
+      // Commerces de détail, cafés, concurrents… écartés sauf demande explicite
+      if (opts.includeOutOfScope) return true;
+      const fit = classifyTarget({ title: p.place.title, categoryName: p.place.categoryName, description: p.place.description }).fit;
+      if (fit === "OUT_OF_SCOPE") outOfScope++;
+      return fit !== "OUT_OF_SCOPE";
+    })
     .map(({ place, domain, emails, contactName }) => {
       const email = (getBestEmail(emails, domain || undefined) || emails[0]).toLowerCase();
       const country = normalizeCountryToIso2(place.country) || "UNKNOWN";
@@ -296,7 +335,9 @@ export async function importPlaces(places: EnrichedPlace[]): Promise<{ created: 
         clientType: inferClientType(scoreInput),
         product: inferProduct(scoreInput),
         score: scoring.score,
-        priority: priorityFromScore(scoring.score),
+        priority: priorityFromScore(scoring.score, scoring.fit),
+        targetFit: scoring.fit,
+        productNeeds: scoring.productNeeds,
         source: "apify_google_maps",
         notes: `Score ${scoring.grade} : ${scoring.reasons.join(", ")}`,
         prospectType: "COMMERCIAL" as const,
@@ -324,5 +365,5 @@ export async function importPlaces(places: EnrichedPlace[]): Promise<{ created: 
     const result = await prisma.prospect.createMany({ data: batch, skipDuplicates: true });
     created += result.count;
   }
-  return { created, withEmail: candidates.length };
+  return { created, withEmail: candidates.length, outOfScope };
 }

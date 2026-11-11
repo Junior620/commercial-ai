@@ -67,7 +67,7 @@ export function ProspectsClient({ initialProspects, initialSearch = "" }: { init
   const [prospects, setProspects] = useState(initialProspects);
   const [page, setPage] = useState(1);
   const [search, setSearchRaw] = useState(initialSearch);
-  const [filters, setFiltersRaw] = useState({ status: ALL, country: ALL, priority: ALL, minScore: ALL });
+  const [filters, setFiltersRaw] = useState({ status: ALL, country: ALL, priority: ALL, minScore: ALL, fit: "TARGETED" });
   const setSearch = (v: string) => {
     setSearchRaw(v);
     setPage(1);
@@ -105,6 +105,8 @@ export function ProspectsClient({ initialProspects, initialSearch = "" }: { init
       if (filters.country !== ALL && p.country !== filters.country) return false;
       if (filters.priority !== ALL && p.priority !== filters.priority) return false;
       if (filters.minScore !== ALL && p.score < Number(filters.minScore)) return false;
+      if (filters.fit === "TARGETED" && p.targetFit === "OUT_OF_SCOPE") return false;
+      if (filters.fit !== ALL && filters.fit !== "TARGETED" && p.targetFit !== filters.fit) return false;
       return true;
     });
   }, [prospects, search, filters]);
@@ -131,7 +133,8 @@ export function ProspectsClient({ initialProspects, initialSearch = "" }: { init
   const totalPages = Math.max(1, Math.ceil(sorted.length / PAGE_SIZE));
   const safePage = Math.min(page, totalPages);
   const pageRows = sorted.slice((safePage - 1) * PAGE_SIZE, safePage * PAGE_SIZE);
-  const hasFilters = search !== "" || Object.values(filters).some((v) => v !== ALL);
+  const hasFilters = search !== "" || Object.entries(filters).some(([k, v]) => (k === "fit" ? v !== "TARGETED" : v !== ALL));
+  const hiddenOut = filters.fit === "TARGETED" ? prospects.filter((p) => p.targetFit === "OUT_OF_SCOPE").length : 0;
 
   const onSort = (key: SortKey) => {
     if (sortKey === key) setSortDir((d) => (d === "asc" ? "desc" : "asc"));
@@ -259,7 +262,7 @@ export function ProspectsClient({ initialProspects, initialSearch = "" }: { init
     <div className="space-y-6">
       <PageTitle
         title="Prospects"
-        description={`${prospects.length.toLocaleString("fr-FR")} prospect(s)${hasFilters ? ` · ${filtered.length} après filtres` : ""}`}
+        description={`${prospects.length.toLocaleString("fr-FR")} prospect(s) · ${filtered.length} affiché(s)${hiddenOut ? ` · ${hiddenOut} hors cible masqué(s)` : ""}`}
         icon={Users}
         actions={
           <>
@@ -299,7 +302,7 @@ export function ProspectsClient({ initialProspects, initialSearch = "" }: { init
                 variant="ghost"
                 onClick={() => {
                   setSearch("");
-                  setFilters({ status: ALL, country: ALL, priority: ALL, minScore: ALL });
+                  setFilters({ status: ALL, country: ALL, priority: ALL, minScore: ALL, fit: "TARGETED" });
                 }}
               >
                 <FilterX className="h-4 w-4" />
@@ -307,7 +310,19 @@ export function ProspectsClient({ initialProspects, initialSearch = "" }: { init
               </Button>
             ) : null}
           </div>
-          <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
+          <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-5">
+            <Select value={filters.fit} onValueChange={(v) => v && setFilters((f) => ({ ...f, fit: v }))}>
+              <SelectTrigger aria-label="Adéquation à la cible" className="w-full">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="TARGETED">Cœur de cible et secondaires</SelectItem>
+                <SelectItem value="CORE">Cœur de cible uniquement</SelectItem>
+                <SelectItem value="SECONDARY">Secondaires uniquement</SelectItem>
+                <SelectItem value="OUT_OF_SCOPE">Hors cible</SelectItem>
+                <SelectItem value={ALL}>Tous les prospects</SelectItem>
+              </SelectContent>
+            </Select>
             <FilterSelect label="Statut" value={filters.status} onChange={(v) => setFilters((f) => ({ ...f, status: v }))} allLabel="Tous les statuts" options={Object.entries(PROSPECT_STATUS_LABELS)} />
             <FilterSelect label="Pays" value={filters.country} onChange={(v) => setFilters((f) => ({ ...f, country: v }))} allLabel="Tous les pays" options={countryOptions} />
             <FilterSelect label="Priorité" value={filters.priority} onChange={(v) => setFilters((f) => ({ ...f, priority: v }))} allLabel="Toutes les priorités" options={Object.entries(PRIORITY_LABELS)} />

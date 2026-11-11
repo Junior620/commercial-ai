@@ -13,6 +13,7 @@ const ScrapingSchema = z.object({
   customKeywords: z.array(z.string().trim().min(1).max(120)).max(SCRAPING_LIMITS.maxKeywords).optional(),
   maxResults: z.coerce.number().int().min(5).max(SCRAPING_LIMITS.maxResultsPerSearch).optional(),
   maxKeywords: z.coerce.number().int().min(1).max(SCRAPING_LIMITS.maxKeywords).optional(),
+  includeOutOfScope: z.boolean().optional(),
 });
 
 export async function GET(req: NextRequest) {
@@ -91,7 +92,10 @@ export async function POST(req: NextRequest) {
         progress: { phase: "En file d'attente", percent: 1, updatedAt: new Date().toISOString() },
       },
     });
-    await inngest.send({ name: EVENTS.scrapingRequested, data: { jobId: job.id, keywords, countries, maxResults } });
+    await inngest.send({
+      name: EVENTS.scrapingRequested,
+      data: { jobId: job.id, keywords, countries, maxResults, includeOutOfScope: input.includeOutOfScope ?? false },
+    });
     return NextResponse.json(job, { status: 201 });
   } catch (err) {
     return serverError("scraping:create", err, "Erreur de lancement du scraping");

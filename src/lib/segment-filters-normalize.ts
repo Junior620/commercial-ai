@@ -1,5 +1,5 @@
 import type { Prisma } from "@/generated/prisma/client";
-import type { Priority, ProspectStatus } from "@/generated/prisma/enums";
+import type { Priority, ProspectStatus, TargetFit } from "@/generated/prisma/enums";
 import { normalizeCountryToIso2 } from "@/lib/prospect-language";
 
 /**
@@ -28,6 +28,8 @@ export function normalizeSegmentFilters(
   promote("language", "languages");
   promote("status", "statuses");
   promote("prospectType", "prospectTypes");
+  promote("targetFit", "targetFits");
+  promote("productNeed", "productNeeds");
 
   const arrayKeys = [
     "countries",
@@ -38,6 +40,8 @@ export function normalizeSegmentFilters(
     "languages",
     "statuses",
     "prospectTypes",
+    "targetFits",
+    "productNeeds",
   ] as const;
 
   for (const key of arrayKeys) {
@@ -67,6 +71,7 @@ export function normalizeSegmentFilters(
 
 const VALID_STATUSES = new Set(["NEW", "CONTACTED", "IN_DISCUSSION", "CONVERTED", "COLD", "UNSUBSCRIBED"]);
 const VALID_PRIORITIES = new Set(["HIGH", "MEDIUM", "LOW"]);
+const VALID_FITS = new Set(["CORE", "SECONDARY", "OUT_OF_SCOPE"]);
 
 /** true si le segment définit au moins un critère de ciblage. */
 export function hasTargetingCriteria(filters: Record<string, unknown>): boolean {
@@ -86,8 +91,12 @@ export function buildProspectWhereFromFilters(filters: Record<string, unknown>):
   if (countries.length) {
     where.country = { in: [...new Set([...countries, ...countries.map(normalizeCountryToIso2)])] };
   }
+  // Secteur Google Maps (« Chocolate factory »…) : « contient », insensible à la casse
+  const and: Prisma.ProspectWhereInput[] = [];
   const sectors = list("sectors");
-  if (sectors.length) where.sector = { in: sectors };
+  if (sectors.length) and.push({ OR: sectors.map((s) => ({ sector: { contains: s, mode: "insensitive" as const } })) });
+  const productNeeds = list("productNeeds");
+  if (productNeeds.length) and.push({ productNeeds: { hasSome: productNeeds } });
   const clientTypes = list("clientTypes");
   if (clientTypes.length) where.clientType = { in: clientTypes };
   const products = list("products");
@@ -99,6 +108,9 @@ export function buildProspectWhereFromFilters(filters: Record<string, unknown>):
   if (priorities.length) where.priority = { in: priorities as Priority[] };
   const statuses = list("statuses").filter((s) => VALID_STATUSES.has(s));
   if (statuses.length) where.status = { in: statuses as ProspectStatus[] };
+  const fits = list("targetFits").filter((f) => VALID_FITS.has(f));
+  if (fits.length) where.targetFit = { in: fits as TargetFit[] };
+  if (and.length) where.AND = and;
 
   if (filters.minScore != null) {
     const n = typeof filters.minScore === "number" ? filters.minScore : parseInt(String(filters.minScore), 10);

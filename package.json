@@ -10,7 +10,8 @@
     "lint": "eslint",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
-    "fix-prospect-languages": "tsx scripts/fix-prospect-languages.ts"
+    "fix-prospect-languages": "tsx scripts/fix-prospect-languages.ts",
+    "retarget-prospects": "tsx scripts/retarget-prospects.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.88.0",

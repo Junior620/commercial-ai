@@ -16,6 +16,22 @@ export const FILTER_KEY_LABELS: Record<string, string> = {
   statuses: "Statuts",
   status: "Statut",
   minScore: "Score minimum",
+  targetFits: "Adéquation",
+  targetFit: "Adéquation",
+  productNeeds: "Produits recherchés",
+};
+
+const FIT_LABELS: Record<string, string> = {
+  CORE: "Cœur de cible",
+  SECONDARY: "Secondaire",
+  OUT_OF_SCOPE: "Hors cible",
+};
+
+const NEED_LABELS: Record<string, string> = {
+  cocoa_beans: "Fèves",
+  cocoa_butter: "Beurre",
+  cocoa_mass: "Masse",
+  cocoa_powder: "Poudre",
 };
 
 const SECTOR_LABELS: Record<string, string> = {
@@ -46,6 +62,8 @@ function formatValueForFilterKey(key: string, value: string): string {
   const clientKeys = new Set(["clientType", "clientTypes"]);
   if (sectorKeys.has(key)) return SECTOR_LABELS[v] ?? v;
   if (clientKeys.has(key)) return CLIENT_TYPE_LABELS[v] ?? v;
+  if (key === "targetFits" || key === "targetFit") return FIT_LABELS[v] ?? v;
+  if (key === "productNeeds") return NEED_LABELS[v] ?? v;
   return v;
 }
 

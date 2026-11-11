@@ -89,6 +89,13 @@ enum ProspectType {
   FINANCIAL
 }
 
+/// Adéquation à l'offre fèves / beurre / masse / poudre (voir src/lib/targeting.ts)
+enum TargetFit {
+  CORE
+  SECONDARY
+  OUT_OF_SCOPE
+}
+
 enum ScrapingJobKind {
   COMMERCIAL
   FINANCIAL
@@ -136,6 +143,10 @@ model Prospect {
   prospectType    ProspectType   @default(COMMERCIAL)
   /// bank, dfi, impact_fund, commodity_fund, corporate, vc_pe, family_office, multilateral, agency
   financialCategory String?
+  /// Cœur de cible / secondaire / hors cible
+  targetFit       TargetFit      @default(SECONDARY)
+  /// Produits pertinents : cocoa_beans, cocoa_butter, cocoa_mass, cocoa_powder
+  productNeeds    String[]       @default([])
 
   emails          Email[]
   responses       Response[]
@@ -148,6 +159,7 @@ model Prospect {
   @@index([sector])
   @@index([prospectType])
   @@index([createdAt])
+  @@index([targetFit])
   @@map("prospects")
 }
 

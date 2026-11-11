@@ -9,6 +9,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { ProductOptions } from "@/components/shared/product-options";
 import { PageTitle } from "@/components/layout/page-title";
 import { AIBadge } from "@/components/ui/ai-badge";
 import { CAMPAIGN_PRODUCT_OPTIONS, PRODUCT_LABELS } from "@/lib/product-catalog";
@@ -42,6 +43,7 @@ export default function AIPage() {
         body: JSON.stringify({
           ...params,
           campaignProduct: PRODUCT_LABELS[params.campaignProduct] ?? params.campaignProduct,
+          campaignProductId: params.campaignProduct,
           customInstructions: params.customInstructions || undefined,
         }),
       });
@@ -102,11 +104,7 @@ export default function AIPage() {
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      {CAMPAIGN_PRODUCT_OPTIONS.map((p) => (
-                        <SelectItem key={p.id} value={p.id}>
-                          {p.label}
-                        </SelectItem>
-                      ))}
+                      <ProductOptions options={CAMPAIGN_PRODUCT_OPTIONS} />
                     </SelectContent>
                   </Select>
                 </div>

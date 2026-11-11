@@ -38,6 +38,7 @@ import {
 } from "@/components/ui/table";
 import { Search, Play, Loader2, Activity, StopCircle } from "lucide-react";
 import { toast } from "sonner";
+import { ProductOptions } from "@/components/shared/product-options";
 import { PageTitle } from "@/components/layout/page-title";
 import { Separator } from "@/components/ui/separator";
 import { Textarea } from "@/components/ui/textarea";
@@ -45,11 +46,15 @@ import { cn } from "@/lib/utils";
 import { SCRAPING_PRODUCT_OPTIONS } from "@/lib/product-catalog";
 import { ListPagination } from "@/components/shared/list-pagination";
 
+const CORE_CATEGORIES = [
+  { id: "focus", label: "Cœur de cible : acheteurs de fèves, beurre, masse et poudre" },
+  { id: "buyer", label: "Industriels utilisateurs (chocolat, cosmétique, agroalimentaire)" },
+  { id: "trader", label: "Négociants et importateurs" },
+];
+
 const KEYWORD_CATEGORIES = [
-  { id: "buyer", label: "Acheteurs (buyers)" },
-  { id: "trader", label: "Traders cacao/café" },
-  { id: "general", label: "Sociétés générales cacao/café" },
-  { id: "product", label: "Produits spécifiques" },
+  { id: "product", label: "Mots-clés produits (cacao)" },
+  { id: "general", label: "Sociétés généralistes cacao / café" },
   { id: "agri_tech", label: "Agri-Tech & télédétection" },
   { id: "finance_risk", label: "Finance, assurance & risque" },
   { id: "machinery_packaging", label: "Machines & emballage" },
@@ -144,10 +149,9 @@ function labelApifyStatus(status: string): string {
 
 export default function ScrapingPage() {
   const HISTORY_PAGE_SIZE = 10;
-  const [selectedCategories, setSelectedCategories] = useState<string[]>([
-    "buyer",
-    "general",
-  ]);
+  const [selectedCategories, setSelectedCategories] = useState<string[]>(["focus"]);
+  const [includeOutOfScope, setIncludeOutOfScope] = useState(false);
+  const [showOtherCategories, setShowOtherCategories] = useState(false);
   const [selectedCountries, setSelectedCountries] = useState<string[]>([]);
   const [selectedProduct, setSelectedProduct] = useState("all");
   const [customKeywords, setCustomKeywords] = useState("");
@@ -278,6 +282,7 @@ export default function ScrapingPage() {
             .split("\n")
             .filter((k) => k.trim()),
           maxResults: parseInt(maxResults),
+          includeOutOfScope,
           maxKeywords: parseInt(maxKeywords),
         }),
       });
@@ -336,22 +341,55 @@ export default function ScrapingPage() {
               <Label className="text-sm font-semibold">
                 Catégories de mots-clés
               </Label>
-              <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-                {KEYWORD_CATEGORIES.map((cat) => (
-                  <div key={cat.id} className="flex items-center gap-2">
+              <div className="space-y-2">
+                {CORE_CATEGORIES.map((cat) => (
+                  <div key={cat.id} className="flex items-start gap-2">
                     <Checkbox
                       id={cat.id}
                       checked={selectedCategories.includes(cat.id)}
                       onCheckedChange={() => toggleCategory(cat.id)}
+                      className="mt-0.5"
                     />
-                    <label
-                      htmlFor={cat.id}
-                      className="cursor-pointer text-sm leading-snug"
-                    >
+                    <label htmlFor={cat.id} className="cursor-pointer text-sm leading-snug">
                       {cat.label}
                     </label>
                   </div>
                 ))}
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowOtherCategories((v) => !v)}
+                aria-expanded={showOtherCategories}
+                className="text-xs font-medium text-primary underline-offset-4 hover:underline"
+              >
+                {showOtherCategories ? "Masquer les autres cibles" : "Autres cibles (secondaires)"}
+              </button>
+              {showOtherCategories ? (
+                <div className="grid grid-cols-1 gap-2 rounded-md border bg-muted/30 p-3 sm:grid-cols-2">
+                  {KEYWORD_CATEGORIES.map((cat) => (
+                    <div key={cat.id} className="flex items-center gap-2">
+                      <Checkbox
+                        id={cat.id}
+                        checked={selectedCategories.includes(cat.id)}
+                        onCheckedChange={() => toggleCategory(cat.id)}
+                      />
+                      <label htmlFor={cat.id} className="cursor-pointer text-sm leading-snug">
+                        {cat.label}
+                      </label>
+                    </div>
+                  ))}
+                </div>
+              ) : null}
+              <div className="flex items-start gap-2 pt-1">
+                <Checkbox
+                  id="include-out-of-scope"
+                  checked={includeOutOfScope}
+                  onCheckedChange={(v) => setIncludeOutOfScope(v === true)}
+                  className="mt-0.5"
+                />
+                <label htmlFor="include-out-of-scope" className="cursor-pointer text-sm leading-snug text-muted-foreground">
+                  Importer aussi les fiches hors cible (coffee shops, épiceries, boutiques, concurrents)
+                </label>
               </div>
             </div>
 
@@ -370,11 +408,7 @@ export default function ScrapingPage() {
                   alignItemWithTrigger={false}
                   className="min-w-[min(100%,18rem)]"
                 >
-                  {SCRAPING_PRODUCT_OPTIONS.map((p) => (
-                    <SelectItem key={p.id} value={p.id}>
-                      {p.label}
-                    </SelectItem>
-                  ))}
+                  <ProductOptions options={SCRAPING_PRODUCT_OPTIONS} />
                 </SelectContent>
               </Select>
             </div>
