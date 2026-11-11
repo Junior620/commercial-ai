@@ -61,7 +61,7 @@ Pays stockés de préférence en ISO2 (`normalizeCountryToIso2`).
 
 ## 6. Charte graphique « Terroir & Soleil »
 
-Dérivée du logo : olive `#4E5A1F` (primaire), soleil `#F7AD21` (accent), feuille `#94A538`, cacao `#3B2418` (sidebar),
+Dérivée du logo : olive `#4E5A1F` (primaire), soleil `#F7AD21` (accent), feuille `#94A538`, olive très foncé `#26300F` (menu),
 crème `#F8F3EA` (fond). Titres Fraunces, texte Inter. Tokens dans `src/app/globals.css` (`--primary`, `--sun`, `--success`…).
 Monogramme : `public/brand/mark.png` (favicon `src/app/icon.png`). L'IA reste discrète (`AIBadge`, un marqueur sobre).
 Textes en français accentué, vouvoiement.

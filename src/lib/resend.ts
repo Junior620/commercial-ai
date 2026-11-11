@@ -4,8 +4,8 @@ import { getAppUrl, oneClickUnsubscribeUrl, unsubscribeUrl } from "@/lib/unsubsc
 // Couleurs de marque SCPB (olive / soleil) pour les emails.
 const BRAND_PRIMARY = "#4E5A1F";
 const BRAND_ACCENT = "#F7AD21";
-const TEXT_COLOR = "#1C1410";
-const MUTED_COLOR = "#6E5646";
+const TEXT_COLOR = "#1F2510";
+const MUTED_COLOR = "#5F6650";
 
 let _resend: Resend | null = null;
 function getResendClient(): Resend | null {
