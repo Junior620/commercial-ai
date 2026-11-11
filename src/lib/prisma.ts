@@ -22,7 +22,7 @@ function getOrCreatePgPool(connectionString: string): Pool {
 
   // Serverless (Vercel) : chaque instance garde peu de connexions ; utiliser de préférence
   // le « Transaction pooler » Supabase (port 6543) dans DATABASE_URL.
-  const fallback = process.env.NODE_ENV === "production" ? 2 : 1;
+  const fallback = process.env.NODE_ENV === "production" ? 2 : 3;
   const raw = process.env.DATABASE_POOL_MAX?.trim();
   const parsed =
     raw && raw.length > 0 ? Number.parseInt(raw, 10) : Number.NaN;

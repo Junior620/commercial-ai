@@ -36,8 +36,19 @@ const ROLE_LABELS: Record<string, string> = {
   DIRECTION: "Direction (lecture)",
 };
 
+/** « christian.momo@ste-scpb.com » → « Christian Momo » si aucun nom n'est renseigné. */
+export function displayName(user: Pick<HeaderUser, "name" | "email">): string {
+  if (user.name?.trim()) return user.name.trim();
+  return user.email
+    .split("@")[0]
+    .split(/[._-]+/)
+    .filter(Boolean)
+    .map((p) => p.charAt(0).toUpperCase() + p.slice(1))
+    .join(" ");
+}
+
 function initials(user: HeaderUser): string {
-  const source = user.name?.trim() || user.email;
+  const source = displayName(user);
   const parts = source.split(/[\s.@_-]+/).filter(Boolean);
   return ((parts[0]?.[0] ?? "") + (parts[1]?.[0] ?? "")).toUpperCase() || "?";
 }
@@ -91,10 +102,10 @@ function SearchPalette() {
       <button
         type="button"
         onClick={() => setOpen(true)}
-        className="hidden h-9 w-72 items-center gap-2 rounded-md border bg-card px-3 text-sm text-muted-foreground transition-colors hover:border-ring/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring md:flex"
+        className="hidden h-9 w-80 items-center gap-2 whitespace-nowrap rounded-md border bg-card px-3 text-sm text-muted-foreground transition-colors hover:border-ring/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring md:flex"
       >
         <Search className="h-4 w-4" />
-        <span className="flex-1 text-left">Rechercher un prospect, une page…</span>
+        <span className="flex-1 truncate text-left">Rechercher un prospect…</span>
         <kbd className="rounded border bg-muted px-1.5 font-mono text-[11px]">Ctrl K</kbd>
       </button>
       <Button variant="ghost" size="icon" className="md:hidden" aria-label="Rechercher" onClick={() => setOpen(true)}>
@@ -172,13 +183,16 @@ export function Header({ user }: { user: HeaderUser }) {
             <Avatar className="h-8 w-8">
               <AvatarFallback className="bg-primary/15 text-xs font-semibold text-primary">{initials(user)}</AvatarFallback>
             </Avatar>
-            <span className="hidden max-w-40 truncate text-sm font-medium sm:block">{user.name || user.email}</span>
+            <span className="hidden max-w-48 text-left leading-tight sm:block">
+              <span className="block truncate text-sm font-medium">{displayName(user)}</span>
+              <span className="block truncate text-xs text-muted-foreground">{ROLE_LABELS[user.role] ?? user.role}</span>
+            </span>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="w-60">
             <DropdownMenuGroup>
               <DropdownMenuLabel className="font-normal">
-                <span className="block truncate text-sm font-medium text-foreground">{user.name || user.email}</span>
-                {user.name ? <span className="block truncate text-xs text-muted-foreground">{user.email}</span> : null}
+                <span className="block truncate text-sm font-medium text-foreground">{displayName(user)}</span>
+                <span className="block truncate text-xs text-muted-foreground">{user.email}</span>
                 <span className="mt-1 block text-xs text-muted-foreground">{ROLE_LABELS[user.role] ?? user.role}</span>
               </DropdownMenuLabel>
             </DropdownMenuGroup>

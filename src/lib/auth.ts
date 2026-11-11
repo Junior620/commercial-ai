@@ -1,3 +1,4 @@
+import { cache } from "react";
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { prisma } from "@/lib/prisma";
@@ -25,7 +26,7 @@ function parseList(value: string | undefined): string[] {
  * - sinon, l'email figure dans ADMIN_EMAILS (création automatique en ADMIN) ;
  * - sinon, son domaine figure dans ALLOWED_EMAIL_DOMAINS (création en COMMERCIAL).
  */
-export async function getCurrentUser(): Promise<
+export const getCurrentUser = cache(async function getCurrentUser(): Promise<
   { user: AppUser; reason?: never } | { user: null; reason: "unauthenticated" | "forbidden" }
 > {
   let email: string | undefined;
@@ -65,7 +66,7 @@ export async function getCurrentUser(): Promise<
   return {
     user: { id: created.id, email: created.email, name: created.name, role: created.role },
   };
-}
+});
 
 type AuthResult =
   | { ok: true; user: AppUser }

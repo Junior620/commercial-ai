@@ -1,6 +1,6 @@
 "use client";
 
-import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
+import { Bar, BarChart, LabelList, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 
 const COUNTRY_NAMES = new Intl.DisplayNames(["fr"], { type: "region" });
 
@@ -18,18 +18,25 @@ function countryLabel(code: string): string {
 /** Histogramme horizontal des prospects par pays (couleurs de la charte). */
 export function CountryChart({ data }: { data: { country: string; count: number }[] }) {
   if (data.length === 0) {
-    return <p className="flex h-[260px] items-center justify-center text-sm text-muted-foreground">Aucun prospect pour l&apos;instant</p>;
+    return <p className="flex h-[220px] items-center justify-center text-sm text-muted-foreground">Aucun prospect pour l&apos;instant</p>;
   }
-  const rows = data.map((d) => ({ name: countryLabel(d.country), count: d.count }));
+  const rows = data.map((d, i) => ({ name: countryLabel(d.country), count: d.count, rank: i }));
   return (
     <div role="img" aria-label={`Prospects par pays : ${rows.map((r) => `${r.name} ${r.count}`).join(", ")}`}>
-      <ResponsiveContainer width="100%" height={Math.max(180, rows.length * 34)}>
-        <BarChart data={rows} layout="vertical" margin={{ left: 8, right: 16, top: 4, bottom: 4 }}>
-          <CartesianGrid horizontal={false} stroke="var(--border)" />
-          <XAxis type="number" allowDecimals={false} fontSize={12} stroke="var(--muted-foreground)" />
-          <YAxis type="category" dataKey="name" width={110} fontSize={12} stroke="var(--muted-foreground)" />
+      <ResponsiveContainer width="100%" height={Math.max(180, rows.length * 36)}>
+        <BarChart data={rows} layout="vertical" margin={{ left: 4, right: 44, top: 2, bottom: 2 }} barCategoryGap={8}>
+          <XAxis type="number" hide allowDecimals={false} />
+          <YAxis
+            type="category"
+            dataKey="name"
+            width={112}
+            tickLine={false}
+            axisLine={false}
+            fontSize={13}
+            tick={{ fill: "var(--muted-foreground)" }}
+          />
           <Tooltip
-            cursor={{ fill: "var(--muted)" }}
+            cursor={{ fill: "var(--muted)", opacity: 0.6 }}
             contentStyle={{
               background: "var(--popover)",
               border: "1px solid var(--border)",
@@ -39,7 +46,9 @@ export function CountryChart({ data }: { data: { country: string; count: number 
             }}
             formatter={(value) => [value, "Prospects"]}
           />
-          <Bar dataKey="count" fill="var(--chart-1)" radius={[0, 4, 4, 0]} barSize={18} />
+          <Bar dataKey="count" fill="var(--chart-1)" radius={[0, 6, 6, 0]} background={{ fill: "var(--muted)", radius: 6 }}>
+            <LabelList dataKey="count" position="right" fontSize={12} fontWeight={600} fill="var(--foreground)" />
+          </Bar>
         </BarChart>
       </ResponsiveContainer>
     </div>
