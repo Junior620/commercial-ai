@@ -62,10 +62,7 @@ function SearchPalette() {
   }, []);
 
   useEffect(() => {
-    if (query.trim().length < 2) {
-      setHits([]);
-      return;
-    }
+    if (query.trim().length < 2) return;
     const controller = new AbortController();
     const timer = setTimeout(async () => {
       try {
@@ -112,7 +109,7 @@ function SearchPalette() {
         <CommandInput placeholder="Entreprise, email, page…" value={query} onValueChange={setQuery} />
         <CommandList>
           <CommandEmpty>Aucun résultat.</CommandEmpty>
-          {hits.length > 0 ? (
+          {hits.length > 0 && query.trim().length >= 2 ? (
             <CommandGroup heading="Prospects">
               {hits.map((p) => (
                 <CommandItem

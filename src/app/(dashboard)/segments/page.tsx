@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Button } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
   Card,
@@ -145,11 +145,7 @@ export default function SegmentsPage() {
     statuses: "",
   });
 
-  useEffect(() => {
-    fetchSegments();
-  }, []);
-
-  const fetchSegments = async () => {
+  async function fetchSegments() {
     setLoadingSegments(true);
     try {
       const res = await fetch("/api/segments");
@@ -182,7 +178,12 @@ export default function SegmentsPage() {
     } catch {
       // ignore
     }
-  };
+  }
+
+  useEffect(() => {
+    void fetchSegments();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const handleCreate = async () => {
     const filters: Record<string, unknown> = {};
@@ -251,7 +252,11 @@ export default function SegmentsPage() {
     if (!(await confirm({ title: `Supprimer le segment « ${segment.name} » ? Les campagnes liées ne seront plus associées à ce segment.`, confirmLabel: "Supprimer", destructive: true }))) return;
     try {
       const res = await fetch(`/api/segments/${segment.id}`, { method: "DELETE" });
-      if (!res.ok) throw new Error("Erreur");
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        toast.error(data.error || "Suppression impossible");
+        return;
+      }
       toast.success("Segment supprimé");
       setPage(1);
       fetchSegments();
@@ -343,7 +348,7 @@ export default function SegmentsPage() {
     link.click();
     document.body.removeChild(link);
     URL.revokeObjectURL(url);
-    toast.success("Export CSV lance");
+    toast.success("Export CSV lancé");
   };
 
   const totalPages = Math.max(1, Math.ceil(segments.length / PAGE_SIZE));
@@ -355,14 +360,14 @@ export default function SegmentsPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between gap-4">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
         <PageTitle
-          title="Segmentation"
-          description="Regroupez vos prospects pour cibler vos campagnes"
+          title="Segments"
+          description="Regroupez vos prospects par critères pour cibler vos campagnes."
           icon={Layers}
         />
         <Dialog open={addOpen} onOpenChange={setAddOpen}>
-          <DialogTrigger className="inline-flex h-8 items-center justify-center rounded-lg bg-primary px-2.5 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90 focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 outline-none">
+          <DialogTrigger className={buttonVariants()}>
             <span className="inline-flex items-center">
               <Plus className="mr-2 h-4 w-4" />
               Créer un segment

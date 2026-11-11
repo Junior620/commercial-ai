@@ -289,7 +289,6 @@ export default function ScrapingPage() {
             : "Erreur de lancement"
         );
       }
-      const job = payload;
       toast.success("Recherche lancée. Suivez sa progression dans l'historique.");
       setHistoryPage(1);
       await fetchJobs(1);
@@ -325,7 +324,7 @@ export default function ScrapingPage() {
       <div className="grid gap-6 lg:grid-cols-2 lg:items-start">
         <Card className="lg:sticky lg:top-4 lg:z-10 shadow-sm">
           <CardHeader>
-            <CardTitle>Configuration du scraping</CardTitle>
+            <CardTitle>Paramètres de la recherche</CardTitle>
             <CardDescription>
               Choisissez les catégories de mots-clés, le produit et
               éventuellement les pays. Les mots-clés viennent de votre jeu
@@ -476,12 +475,12 @@ export default function ScrapingPage() {
               {isRunning ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Scraping en cours...
+                  Recherche en cours…
                 </>
               ) : (
                 <>
                   <Play className="mr-2 h-4 w-4" />
-                  Lancer le scraping
+                  Lancer la recherche
                 </>
               )}
             </Button>
@@ -490,7 +489,7 @@ export default function ScrapingPage() {
 
         <Card className="shadow-sm">
           <CardHeader>
-            <CardTitle>Historique des scrapings</CardTitle>
+            <CardTitle>Historique des recherches</CardTitle>
             <CardDescription>
               Derniers lancements : cliquez une ligne pour voir la progression ou
               le message d&apos;erreur.
@@ -500,7 +499,7 @@ export default function ScrapingPage() {
             {jobs.length === 0 ? (
               <div className="py-8 text-center text-muted-foreground">
                 <Search className="mx-auto h-8 w-8 mb-2 opacity-50" />
-                <p>Aucun scraping effectué</p>
+                <p>Aucune recherche lancée</p>
               </div>
             ) : (
               <div className="space-y-3">
@@ -652,7 +651,7 @@ export default function ScrapingPage() {
                   page={historyPage}
                   totalPages={historyTotalPages}
                   totalItems={historyTotal}
-                  itemLabel="jobs scraping"
+                  itemLabel="recherches"
                   onPageChange={setHistoryPage}
                 />
               </div>
@@ -712,7 +711,7 @@ export default function ScrapingPage() {
               {liveDetail.job.status === "CANCELLED" && (
                 <p className="rounded-md border border-muted bg-muted/40 p-3 text-sm text-muted-foreground">
                   {liveDetail.job.progress?.detail ??
-                    "Ce scraping a été arrêté sur demande."}
+                    "Cette recherche a été arrêtée sur demande."}
                 </p>
               )}
               {liveDetail.job.status === "FAILED" &&
