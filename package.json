@@ -4,6 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
+    "dev:jobs": "pnpm dlx inngest-cli@latest dev -u http://localhost:3000/api/inngest",
     "postinstall": "prisma generate",
     "build": "prisma generate && next build",
     "start": "next start",
@@ -11,23 +12,25 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "fix-prospect-languages": "tsx scripts/fix-prospect-languages.ts",
-    "retarget-prospects": "tsx scripts/retarget-prospects.ts"
+    "retarget-prospects": "tsx scripts/retarget-prospects.ts",
+    "cleanup-legacy": "tsx scripts/cleanup-legacy.ts",
+    "check-deploy": "tsx scripts/check-deploy.ts"
   },
   "dependencies": {
-    "@anthropic-ai/sdk": "^0.88.0",
+    "@anthropic-ai/sdk": "^0.137.0",
     "@base-ui/react": "^1.4.0",
-    "@prisma/adapter-pg": "^7.7.0",
-    "@prisma/client": "^7.7.0",
-    "@supabase/ssr": "^0.10.2",
-    "@supabase/supabase-js": "^2.103.0",
-    "apify-client": "^2.22.3",
+    "@prisma/adapter-pg": "^7.10.1",
+    "@prisma/client": "^7.10.1",
+    "@supabase/ssr": "^0.12.7",
+    "@supabase/supabase-js": "^2.119.0",
+    "apify-client": "^2.26.0",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "cmdk": "^1.1.1",
     "date-fns": "^4.1.0",
-    "inngest": "^4.2.1",
+    "inngest": "^4.26.2",
     "lucide-react": "^1.8.0",
-    "next": "16.2.3",
+    "next": "16.4.6",
     "next-themes": "^0.4.6",
     "openai": "^6.34.0",
     "papaparse": "^5.5.3",
@@ -37,12 +40,11 @@
     "react-day-picker": "^9.14.0",
     "react-dom": "19.2.4",
     "recharts": "^3.8.1",
-    "resend": "^6.10.0",
-    "shadcn": "^4.2.0",
+    "resend": "^6.38.0",
     "sonner": "^2.0.7",
     "tailwind-merge": "^3.5.0",
     "tw-animate-css": "^1.4.0",
-    "zod": "^4.3.6"
+    "zod": "^4.6.7"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
@@ -53,12 +55,24 @@
     "@types/react-dom": "^19",
     "dotenv": "^17.4.2",
     "eslint": "^9",
-    "eslint-config-next": "16.2.3",
-    "prisma": "^7.7.0",
+    "eslint-config-next": "16.4.6",
+    "prisma": "^7.10.1",
+    "shadcn": "^4.23.0",
     "tailwindcss": "^4",
     "tsx": "^4.21.0",
     "typescript": "^5",
     "vitest": "^5.1.0"
   },
-  "packageManager": "pnpm@10.33.0"
+  "packageManager": "pnpm@10.33.0",
+  "pnpm": {
+    "overrides": {
+      "proxy-addr@<2.0.8": "^2.0.8",
+      "body-parser@>=2.0.0 <2.4.0": "^2.4.0",
+      "hono@<4.12.25": "^4.12.25",
+      "protobufjs@>=7.0.0 <7.6.1": "^7.6.1",
+      "protobufjs@>=8.0.0 <8.4.1": "^8.4.1",
+      "ws@>=8.0.0 <8.21.0": "^8.21.0",
+      "fast-uri@>=3.0.0 <3.1.7": "^3.1.7"
+    }
+  }
 }
