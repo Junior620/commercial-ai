@@ -69,7 +69,11 @@ function SelectField({
   return (
     <div className="space-y-1.5">
       <Label htmlFor={id}>{label}</Label>
-      <Select value={value || NONE} onValueChange={(v) => onChange(!v || v === NONE ? "" : v)}>
+      <Select
+        items={allowNone ? { [NONE]: allowNone, ...options } : options}
+        value={value || NONE}
+        onValueChange={(v) => onChange(!v || v === NONE ? "" : v)}
+      >
         <SelectTrigger id={id} className="w-full">
           <SelectValue />
         </SelectTrigger>

@@ -43,7 +43,7 @@ import { PageTitle } from "@/components/layout/page-title";
 import { Separator } from "@/components/ui/separator";
 import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
-import { SCRAPING_PRODUCT_OPTIONS } from "@/lib/product-catalog";
+import { SCRAPING_PRODUCT_OPTIONS, productItems } from "@/lib/product-catalog";
 import { ListPagination } from "@/components/shared/list-pagination";
 
 const CORE_CATEGORIES = [
@@ -398,6 +398,7 @@ export default function ScrapingPage() {
             <div className="space-y-3">
               <Label className="text-sm font-semibold">Produit cible</Label>
               <Select
+                items={productItems(SCRAPING_PRODUCT_OPTIONS)}
                 value={selectedProduct}
                 onValueChange={(v) => setSelectedProduct(v ?? "all")}
               >

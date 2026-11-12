@@ -19,6 +19,14 @@ import { countryName, downloadProspectsCsv, type Prospect } from "@/components/p
 const PAGE_SIZE = 25;
 const ALL = "all";
 
+const FIT_FILTER_LABELS: Record<string, string> = {
+  TARGETED: "Cœur de cible et secondaires",
+  CORE: "Cœur de cible uniquement",
+  SECONDARY: "Secondaires uniquement",
+  OUT_OF_SCOPE: "Hors cible",
+  [ALL]: "Tous les prospects",
+};
+
 function FilterSelect({
   label,
   value,
@@ -33,7 +41,7 @@ function FilterSelect({
   options: [string, string][];
 }) {
   return (
-    <Select value={value} onValueChange={(v) => onChange(v ?? ALL)}>
+    <Select items={{ [ALL]: allLabel, ...Object.fromEntries(options) }} value={value} onValueChange={(v) => onChange(v ?? ALL)}>
       <SelectTrigger aria-label={label} className="w-full">
         <SelectValue />
       </SelectTrigger>
@@ -311,16 +319,16 @@ export function ProspectsClient({ initialProspects, initialSearch = "" }: { init
             ) : null}
           </div>
           <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-5">
-            <Select value={filters.fit} onValueChange={(v) => v && setFilters((f) => ({ ...f, fit: v }))}>
+            <Select items={FIT_FILTER_LABELS} value={filters.fit} onValueChange={(v) => v && setFilters((f) => ({ ...f, fit: v }))}>
               <SelectTrigger aria-label="Adéquation à la cible" className="w-full">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="TARGETED">Cœur de cible et secondaires</SelectItem>
-                <SelectItem value="CORE">Cœur de cible uniquement</SelectItem>
-                <SelectItem value="SECONDARY">Secondaires uniquement</SelectItem>
-                <SelectItem value="OUT_OF_SCOPE">Hors cible</SelectItem>
-                <SelectItem value={ALL}>Tous les prospects</SelectItem>
+                {Object.entries(FIT_FILTER_LABELS).map(([v, l]) => (
+                  <SelectItem key={v} value={v}>
+                    {l}
+                  </SelectItem>
+                ))}
               </SelectContent>
             </Select>
             <FilterSelect label="Statut" value={filters.status} onChange={(v) => setFilters((f) => ({ ...f, status: v }))} allLabel="Tous les statuts" options={Object.entries(PROSPECT_STATUS_LABELS)} />
@@ -351,7 +359,7 @@ export function ProspectsClient({ initialProspects, initialSearch = "" }: { init
                 </Button>
               ) : null}
               <div className="flex flex-wrap items-center gap-2 sm:ml-auto">
-                <Select value={bulkStatus} onValueChange={(v) => v && setBulkStatus(v)}>
+                <Select items={PROSPECT_STATUS_LABELS} value={bulkStatus} onValueChange={(v) => v && setBulkStatus(v)}>
                   <SelectTrigger aria-label="Nouveau statut" className="h-8 w-44">
                     <SelectValue />
                   </SelectTrigger>

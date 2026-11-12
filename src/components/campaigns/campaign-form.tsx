@@ -8,7 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { CAMPAIGN_PRODUCT_OPTIONS } from "@/lib/product-catalog";
+import { CAMPAIGN_PRODUCT_OPTIONS, productItems } from "@/lib/product-catalog";
 import { LANGUAGE_LABELS } from "@/lib/labels";
 
 export type CampaignFormValues = {
@@ -41,6 +41,7 @@ const TONES = [
 ];
 
 const ALL = "__all__";
+const TONE_ITEMS = Object.fromEntries(TONES.map((t) => [t.value, t.label]));
 
 /** Convertit le formulaire en corps d'API (création ou modification). */
 export function toCampaignPayload(v: CampaignFormValues) {
@@ -125,7 +126,11 @@ export function CampaignForm({
 
           <div className="space-y-1.5">
             <Label htmlFor="campaign-segment">Segment ciblé</Label>
-            <Select value={values.segmentId || ALL} onValueChange={(v) => set("segmentId")(!v || v === ALL ? "" : v)}>
+            <Select
+              items={{ [ALL]: "Tous les prospects (nouveaux et contactés)", ...Object.fromEntries(segments.map((s) => [s.id, s.name])) }}
+              value={values.segmentId || ALL}
+              onValueChange={(v) => set("segmentId")(!v || v === ALL ? "" : v)}
+            >
               <SelectTrigger id="campaign-segment" className="w-full">
                 <SelectValue />
               </SelectTrigger>
@@ -146,7 +151,7 @@ export function CampaignForm({
           <div className="grid gap-4 sm:grid-cols-2">
             <div className="space-y-1.5">
               <Label htmlFor="campaign-product">Produit à proposer</Label>
-              <Select value={values.product || "all"} onValueChange={(v) => v && set("product")(v)}>
+              <Select items={productItems(CAMPAIGN_PRODUCT_OPTIONS)} value={values.product || "all"} onValueChange={(v) => v && set("product")(v)}>
                 <SelectTrigger id="campaign-product" className="w-full">
                   <SelectValue />
                 </SelectTrigger>
@@ -157,7 +162,7 @@ export function CampaignForm({
             </div>
             <div className="space-y-1.5">
               <Label htmlFor="campaign-language">Langue</Label>
-              <Select value={values.language} onValueChange={(v) => v && set("language")(v)}>
+              <Select items={LANGUAGE_LABELS} value={values.language} onValueChange={(v) => v && set("language")(v)}>
                 <SelectTrigger id="campaign-language" className="w-full">
                   <SelectValue />
                 </SelectTrigger>
@@ -204,7 +209,7 @@ export function CampaignForm({
 
           <div className="space-y-1.5">
             <Label htmlFor="campaign-tone">Ton</Label>
-            <Select value={values.tone} onValueChange={(v) => v && set("tone")(v)}>
+            <Select items={TONE_ITEMS} value={values.tone} onValueChange={(v) => v && set("tone")(v)}>
               <SelectTrigger id="campaign-tone" className="w-full">
                 <SelectValue />
               </SelectTrigger>

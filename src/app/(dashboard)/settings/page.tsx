@@ -34,6 +34,8 @@ const ROLE_OPTIONS = [
   { value: "DIRECTION", label: "Direction (lecture seule)" },
 ];
 
+const ROLE_LABELS = Object.fromEntries(ROLE_OPTIONS.map((r) => [r.value, r.label]));
+
 function toForm(data: Record<string, unknown>): SettingsForm {
   return {
     companyAddress: String(data.companyAddress ?? ""),
@@ -159,7 +161,7 @@ function MembersCard({ onAccess }: { onAccess: (isAdmin: boolean) => void }) {
           </div>
           <div className="space-y-1.5">
             <Label htmlFor="invite-role">Rôle</Label>
-            <Select value={invite.role} onValueChange={(v) => v && setInvite({ ...invite, role: v })}>
+            <Select items={ROLE_LABELS} value={invite.role} onValueChange={(v) => v && setInvite({ ...invite, role: v })}>
               <SelectTrigger id="invite-role" className="w-full">
                 <SelectValue />
               </SelectTrigger>
@@ -198,7 +200,7 @@ function MembersCard({ onAccess }: { onAccess: (isAdmin: boolean) => void }) {
                       {m.name ? <p className="text-xs text-muted-foreground">{m.email}</p> : null}
                     </TableCell>
                     <TableCell>
-                      <Select value={m.role} onValueChange={(v) => v && v !== m.role && update(m, { role: v })}>
+                      <Select items={ROLE_LABELS} value={m.role} onValueChange={(v) => v && v !== m.role && update(m, { role: v })}>
                         <SelectTrigger className="w-52" aria-label={`Rôle de ${m.email}`}>
                           <SelectValue />
                         </SelectTrigger>

@@ -5,6 +5,11 @@
 
 export type ProductOption = { id: string; label: string; group: "core" | "secondary" };
 
+/** Libellés par identifiant, pour l'affichage de la valeur choisie dans un sélecteur. */
+export function productItems(options: ProductOption[]): Record<string, string> {
+  return Object.fromEntries(options.map((o) => [o.id, o.label]));
+}
+
 export const CAMPAIGN_PRODUCT_OPTIONS: ProductOption[] = [
   { id: "all", label: "Fèves et dérivés (gamme complète)", group: "core" },
   { id: "cocoa_beans", label: "Fèves de cacao", group: "core" },

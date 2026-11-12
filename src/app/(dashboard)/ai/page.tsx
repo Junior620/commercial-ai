@@ -12,7 +12,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { ProductOptions } from "@/components/shared/product-options";
 import { PageTitle } from "@/components/layout/page-title";
 import { AIBadge } from "@/components/ui/ai-badge";
-import { CAMPAIGN_PRODUCT_OPTIONS, PRODUCT_LABELS } from "@/lib/product-catalog";
+import { CAMPAIGN_PRODUCT_OPTIONS, PRODUCT_LABELS, productItems } from "@/lib/product-catalog";
 import { LANGUAGE_LABELS, TONE_LABELS } from "@/lib/labels";
 
 const LANGUAGES = ["fr", "en", "es", "pt", "de"];
@@ -99,7 +99,7 @@ export default function AIPage() {
                 </div>
                 <div className="space-y-1.5">
                   <Label htmlFor="ai-product">Produit à proposer</Label>
-                  <Select value={params.campaignProduct} onValueChange={(v) => v && set("campaignProduct")(v)}>
+                  <Select items={productItems(CAMPAIGN_PRODUCT_OPTIONS)} value={params.campaignProduct} onValueChange={(v) => v && set("campaignProduct")(v)}>
                     <SelectTrigger id="ai-product" className="w-full">
                       <SelectValue />
                     </SelectTrigger>
@@ -110,7 +110,7 @@ export default function AIPage() {
                 </div>
                 <div className="space-y-1.5">
                   <Label htmlFor="ai-language">Langue de l&apos;email</Label>
-                  <Select value={params.language} onValueChange={(v) => v && set("language")(v)}>
+                  <Select items={LANGUAGE_LABELS} value={params.language} onValueChange={(v) => v && set("language")(v)}>
                     <SelectTrigger id="ai-language" className="w-full">
                       <SelectValue />
                     </SelectTrigger>
@@ -126,7 +126,7 @@ export default function AIPage() {
               </div>
               <div className="space-y-1.5">
                 <Label htmlFor="ai-tone">Ton</Label>
-                <Select value={params.tone} onValueChange={(v) => v && set("tone")(v)}>
+                <Select items={TONE_LABELS} value={params.tone} onValueChange={(v) => v && set("tone")(v)}>
                   <SelectTrigger id="ai-tone" className="w-full">
                     <SelectValue />
                   </SelectTrigger>

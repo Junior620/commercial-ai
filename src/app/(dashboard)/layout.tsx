@@ -12,7 +12,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
 
   return (
     <ConfirmProvider>
-      <div className="flex h-dvh overflow-hidden bg-background bg-app-mesh">
+      <div className="relative flex h-dvh overflow-hidden bg-background bg-app-mesh">
         <a
           href="#contenu"
           className="sr-only focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus:z-50 focus:rounded-md focus:bg-primary focus:px-3 focus:py-2 focus:text-primary-foreground"
@@ -22,7 +22,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
         <Sidebar className="hidden md:flex" />
         <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
           <Header user={{ name: user.name, email: user.email, role: user.role }} />
-          <main id="contenu" className="flex-1 overflow-y-auto px-3 py-5 sm:px-5 md:px-8 md:py-8">
+          <main id="contenu" className="relative flex-1 overflow-y-auto px-3 py-5 sm:px-5 md:px-8 md:py-8">
             <div className="mx-auto w-full max-w-[1400px]">{children}</div>
           </main>
         </div>
