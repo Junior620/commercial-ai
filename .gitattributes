@@ -1,0 +1,5 @@
+# Fichiers exécutés sur le serveur Linux : fins de ligne Unix
+*.sh text eol=lf
+Dockerfile text eol=lf
+*.yml text eol=lf
+*.conf text eol=lf

@@ -1,4 +1,5 @@
 import { promises as dns } from "node:dns";
+import { workerConfigured, workerHealth } from "@/lib/scraping/worker-client";
 
 /**
  * Contrôle de la configuration nécessaire pour envoyer des emails sans danger.
@@ -86,8 +87,41 @@ export function staticChecks(opts: { companyAddress?: string | null }): ConfigCh
       process.env.NODE_ENV === "production" ? "Clés configurées" : "En local : lancer « pnpm dev:jobs »",
       "INNGEST_EVENT_KEY et INNGEST_SIGNING_KEY manquantes : ni envoi ni rédaction en production."
     ),
-    check("apify", "Clé Apify (recherche)", !!env("APIFY_API_TOKEN"), false, "Configurée", "APIFY_API_TOKEN manquante : la recherche de prospects ne fonctionnera pas."),
+    check(
+      "apify",
+      "Apify (recherche Google Maps)",
+      !!env("APIFY_API_TOKEN"),
+      false,
+      "Configuré",
+      env("BRIGHTDATA_API_TOKEN")
+        ? "APIFY_API_TOKEN manquante : la recherche passera uniquement par Bright Data."
+        : "APIFY_API_TOKEN manquante : la recherche de prospects ne fonctionnera pas."
+    ),
+    check(
+      "brightdata",
+      "Bright Data (secours de la recherche)",
+      !!env("BRIGHTDATA_API_TOKEN"),
+      false,
+      "Configuré : prend le relais si Apify échoue",
+      "BRIGHTDATA_API_TOKEN absente : pas de secours si Apify échoue (facultatif)."
+    ),
   ];
+}
+
+/** Le service de lecture des sites (VPS) répond-il ? Non bloquant : sans lui, les passes Apify sont utilisées. */
+export async function workerCheck(): Promise<ConfigCheck> {
+  const base = { id: "worker", label: "Service de lecture des sites (VPS)", blocking: false };
+  if (!workerConfigured()) {
+    return { ...base, status: "warning", detail: "SCRAPER_WORKER_URL et SCRAPER_WORKER_TOKEN absents : les sites sont lus par Apify (payant)." };
+  }
+  const health = await workerHealth();
+  if (!health.ok) return { ...base, status: "warning", detail: `${health.detail} : la recherche utilisera les passes Apify en secours.` };
+  const extras = [
+    health.browser ? "navigateur disponible" : "sans navigateur",
+    health.unlocker ? "déblocage Bright Data actif" : "sans déblocage",
+    health.serp ? "recherche web active" : "sans recherche web",
+  ];
+  return { ...base, status: "ok", detail: `${health.detail} · ${extras.join(" · ")}` };
 }
 
 async function txt(name: string): Promise<string[] | null> {
@@ -178,9 +212,9 @@ export async function reachabilityCheck(): Promise<ConfigCheck | null> {
 export async function getConfigHealth(opts: { companyAddress?: string | null; deep?: boolean }): Promise<ConfigHealth> {
   const checks = staticChecks(opts);
   if (opts.deep) {
-    const [dnsResults, reach] = await Promise.all([dnsChecks(), reachabilityCheck()]);
+    const [dnsResults, reach, worker] = await Promise.all([dnsChecks(), reachabilityCheck(), workerCheck()]);
     if (reach) checks.splice(3, 0, reach);
-    checks.push(...dnsResults);
+    checks.push(worker, ...dnsResults);
   }
   const blockers = checks.filter((c) => c.blocking && c.status === "error");
   return { checks, blockers, ready: blockers.length === 0 };

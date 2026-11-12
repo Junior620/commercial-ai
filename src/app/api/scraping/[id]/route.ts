@@ -1,9 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { abortApifyRun, getApifyRunStatuses } from "@/lib/apify";
+import { abortRuns, liveRunStatuses, type RunEntry } from "@/lib/scraping/pipeline";
 import { requireUser, WRITE_ROLES } from "@/lib/auth";
 
-type ProgressRun = { runId: string; label: string };
+type ProgressRun = RunEntry;
 
 type StoredProgress = {
   phase: string;
@@ -30,19 +30,12 @@ export async function GET(
 
   let liveRuns: { runId: string; label: string; apifyStatus: string }[] = [];
 
-  if (
-    runs &&
-    runs.length > 0 &&
-    job.status === "RUNNING" &&
-    process.env.APIFY_API_TOKEN?.trim()
-  ) {
-    const statuses = await getApifyRunStatuses(runs.map((r) => r.runId));
-    const statusById = new Map(statuses.map((s) => [s.runId, s.status]));
-    liveRuns = runs.map((r) => ({
-      runId: r.runId,
-      label: r.label,
-      apifyStatus: statusById.get(r.runId) ?? "?",
-    }));
+  if (runs && runs.length > 0 && job.status === "RUNNING") {
+    try {
+      liveRuns = (await liveRunStatuses(runs)).map((r) => ({ runId: r.runId, label: r.label, apifyStatus: r.status }));
+    } catch {
+      liveRuns = runs.map((r) => ({ runId: r.runId, label: r.label, apifyStatus: "?" }));
+    }
   } else if (runs && runs.length > 0) {
     liveRuns = runs.map((r) => ({
       runId: r.runId,
@@ -85,14 +78,14 @@ export async function PATCH(
   const progress = job.progress as StoredProgress | null;
   const runs = progress?.runs;
   if (runs?.length) {
-    await Promise.allSettled(runs.map((r) => abortApifyRun(r.runId)));
+    await abortRuns(runs).catch(() => undefined);
   }
 
   const cancelledProgress: StoredProgress = {
     phase: "Annulé",
     percent: typeof progress?.percent === "number" ? progress.percent : 0,
     detail:
-      `Arrêt demandé par ${auth.user.email}. Les recherches Apify en cours sont interrompues.`,
+      `Arrêt demandé par ${auth.user.email}. Les recherches en cours sont interrompues.`,
     runs: progress?.runs,
     updatedAt: new Date().toISOString(),
   };

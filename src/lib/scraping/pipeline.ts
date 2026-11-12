@@ -5,11 +5,22 @@ import { prisma } from "@/lib/prisma";
 import type { Prisma } from "@/generated/prisma/client";
 import {
   abortApifyRun,
+  friendlyApifyError,
   getApifyRunStatuses,
   getScrapingResults,
   scrapeGoogleMaps,
   type ScrapedPlace,
 } from "@/lib/apify";
+import {
+  brightDataConfigured,
+  brightDataCountry,
+  cancelSnapshot,
+  fetchSnapshot,
+  getSnapshotStatus,
+  mapBrightDataPlace,
+  startMapsDiscovery,
+} from "@/lib/brightdata";
+import type { WorkerSiteResult } from "@/lib/scraping/worker-client";
 import { calculateLeadScore, inferClientType, inferProduct, priorityFromScore } from "@/lib/scoring";
 import { deduplicateItems, normalizeDomain } from "@/lib/dedup";
 import { classifyTarget } from "@/lib/targeting";
@@ -33,6 +44,10 @@ export const SCRAPING_LIMITS = {
   /** Interrogation d'un traitement d'enrichissement : 20 × 30 s = 10 minutes maximum */
   enrichPoll: { intervalSeconds: 30, maxAttempts: 20 },
   fallback: { maxSites: 150, chunk: 10 },
+  /** Service de lecture des sites (VPS) : un job par recherche, interrogé toutes les 20 s, 30 minutes au plus */
+  worker: { maxSites: 300, pollSeconds: 20, maxAttempts: 90, maxPagesPerSite: 5 },
+  /** Plafonds de dépense Bright Data par recherche (pages débloquées, recherches web) */
+  brightdata: { maxUnlocker: 100, maxSerp: 60 },
   mapsPoll: { intervalSeconds: 30, maxAttempts: 120 },
 } as const;
 
@@ -44,7 +59,9 @@ const CSV_PRODUCT_SUBCATEGORIES = new Set([
 
 // ─── Types sérialisables (stockés entre les étapes Inngest) ──────
 
-export type EmailSource = "maps" | "apify" | "deep-apify" | "google-search" | "web-crawler" | "fallback";
+export type EmailSource = "maps" | "apify" | "deep-apify" | "google-search" | "web-crawler" | "fallback" | "worker";
+
+export type MapsProvider = "apify" | "brightdata";
 
 export interface EnrichedPlace {
   place: ScrapedPlace;
@@ -57,6 +74,25 @@ export interface EnrichedPlace {
 export interface RunEntry {
   runId: string;
   label: string;
+  /** Fournisseur du traitement (absent sur les anciens jobs : Apify) */
+  provider?: MapsProvider;
+  /** Renseigné quand ce traitement est un secours (raison de la bascule) */
+  note?: string;
+}
+
+export const MAPS_PROVIDER_LABELS: Record<MapsProvider, string> = { apify: "Apify", brightdata: "Bright Data" };
+
+const providerOf = (run: RunEntry): MapsProvider => run.provider ?? "apify";
+
+/**
+ * Ordre des sources pour Google Maps : la principale, puis le secours.
+ * Bright Data exige un pays : une recherche sans pays reste sur Apify.
+ */
+export function chooseMapsProviders(opts: { apify: boolean; brightdata: boolean; hasCountry: boolean; primary?: string | null }): MapsProvider[] {
+  const available: MapsProvider[] = [];
+  if (opts.apify) available.push("apify");
+  if (opts.brightdata && opts.hasCountry) available.push("brightdata");
+  return opts.primary === "brightdata" ? available.reverse() : available;
 }
 
 // ─── Mots-clés ───────────────────────────────────────────────────
@@ -169,26 +205,91 @@ export async function failStaleJobs(): Promise<number> {
 }
 
 export async function abortRuns(runs: RunEntry[]) {
-  await Promise.all(runs.map((r) => abortApifyRun(r.runId)));
+  await Promise.all(runs.map((r) => (providerOf(r) === "brightdata" ? cancelSnapshot(r.runId) : abortApifyRun(r.runId))));
+}
+
+/** État en direct de chaque traitement (pour l'écran de suivi). */
+export async function liveRunStatuses(runs: RunEntry[]): Promise<{ runId: string; label: string; status: string }[]> {
+  const apifyRuns = runs.filter((r) => providerOf(r) === "apify");
+  const apify = apifyRuns.length && process.env.APIFY_API_TOKEN?.trim() ? await getApifyRunStatuses(apifyRuns.map((r) => r.runId)) : [];
+  const byId = new Map(apify.map((s) => [s.runId, s.status]));
+  return Promise.all(
+    runs.map(async (r) => ({
+      runId: r.runId,
+      label: `${r.label} · ${MAPS_PROVIDER_LABELS[providerOf(r)]}`,
+      status: providerOf(r) === "brightdata" ? (await getSnapshotStatus(r.runId)).toUpperCase() : byId.get(r.runId) ?? "?",
+    }))
+  );
 }
 
 // ─── Phase 1 : Google Maps ───────────────────────────────────────
 
-export async function startMapsRuns(keywords: string[], countries: string[], maxResults: number): Promise<RunEntry[]> {
+async function startWith(provider: MapsProvider, keywords: string[], country: string | undefined, maxResults: number): Promise<string> {
+  if (provider === "apify") return (await scrapeGoogleMaps({ keywords, country, maxResults })).runId;
+  const code = brightDataCountry(country);
+  if (!code) throw new Error(`Bright Data : pays non reconnu (${country ?? "aucun"})`);
+  return startMapsDiscovery(
+    keywords.map((keyword) => ({ keyword, country: code })),
+    maxResults
+  );
+}
+
+/**
+ * Lance la recherche Google Maps, un traitement par pays.
+ * Si la source principale refuse de démarrer (quota, mémoire, clé), le secours prend le relais.
+ * `only` force une source (seconde tentative après un échec complet de la première).
+ */
+export async function startMapsRuns(keywords: string[], countries: string[], maxResults: number, only?: MapsProvider): Promise<RunEntry[]> {
   const targets = countries.length ? countries.slice(0, SCRAPING_LIMITS.maxCountries) : [undefined];
   const runs: RunEntry[] = [];
   for (const country of targets) {
-    const { runId } = await scrapeGoogleMaps({ keywords, country, maxResults });
-    runs.push({ runId, label: country || "Recherche globale" });
+    const order = only
+      ? [only]
+      : chooseMapsProviders({
+          apify: !!process.env.APIFY_API_TOKEN?.trim(),
+          brightdata: brightDataConfigured(),
+          hasCountry: !!country,
+          primary: process.env.SCRAPING_MAPS_PRIMARY?.trim().toLowerCase(),
+        });
+    if (order.length === 0) throw new Error("Aucune source de recherche configurée (APIFY_API_TOKEN ou BRIGHTDATA_API_TOKEN).");
+
+    let failure: string | null = null;
+    let started = false;
+    for (const provider of order) {
+      try {
+        const runId = await startWith(provider, keywords, country, maxResults);
+        runs.push({
+          runId,
+          label: country || "Recherche globale",
+          provider,
+          ...(failure ? { note: `${failure} : recherche confiée à ${MAPS_PROVIDER_LABELS[provider]}` } : {}),
+        });
+        started = true;
+        break;
+      } catch (err) {
+        const message = friendlyApifyError(err instanceof Error ? err.message : String(err));
+        failure = `${MAPS_PROVIDER_LABELS[provider]} indisponible (${message})`;
+        console.error(`[scraping] ${failure}`);
+      }
+    }
+    if (!started) {
+      await abortRuns(runs);
+      throw new Error(failure ?? "Recherche Google Maps impossible");
+    }
   }
   return runs;
 }
 
-/** « done » quand plus aucun run n'est en cours. */
+/** « done » quand plus aucun traitement n'est en cours. */
 export async function pollMapsRuns(runs: RunEntry[]): Promise<{ done: boolean; statuses: string[] }> {
-  const statuses = await getApifyRunStatuses(runs.map((r) => r.runId));
-  const done = statuses.every((s) => !["READY", "RUNNING"].includes(s.status));
-  return { done, statuses: statuses.map((s) => s.status) };
+  const apifyRuns = runs.filter((r) => providerOf(r) === "apify");
+  const brightRuns = runs.filter((r) => providerOf(r) === "brightdata");
+  const [apify, bright] = await Promise.all([
+    apifyRuns.length ? getApifyRunStatuses(apifyRuns.map((r) => r.runId)) : [],
+    Promise.all(brightRuns.map((r) => getSnapshotStatus(r.runId))),
+  ]);
+  const running = apify.some((s) => ["READY", "RUNNING"].includes(s.status)) || bright.some((s) => ["starting", "running", "unknown"].includes(s));
+  return { done: !running, statuses: [...apify.map((s) => s.status), ...bright] };
 }
 
 export async function fetchMapsPlaces(runs: RunEntry[]): Promise<{ places: EnrichedPlace[]; errors: string[] }> {
@@ -196,7 +297,12 @@ export async function fetchMapsPlaces(runs: RunEntry[]): Promise<{ places: Enric
   let all: ScrapedPlace[] = [];
   for (const run of runs) {
     try {
-      all = all.concat(await getScrapingResults(run.runId));
+      if (providerOf(run) === "brightdata") {
+        const items = await fetchSnapshot(run.runId);
+        all = all.concat(items.map(mapBrightDataPlace).filter((p): p is ScrapedPlace => p !== null));
+      } else {
+        all = all.concat(await getScrapingResults(run.runId));
+      }
     } catch (e) {
       errors.push(e instanceof Error ? e.message : String(e));
     }
@@ -286,6 +392,46 @@ export function mergeGoogleResults(places: EnrichedPlace[], results: Record<stri
     entry.emails = matching;
     entry.emailSource = "google-search";
     added++;
+  }
+  return added;
+}
+
+/** Sites à confier au service de lecture : d'abord ceux sans email, puis ceux sans nom de contact. */
+export function workerTargets(places: EnrichedPlace[], max: number): string[] {
+  const withSite = places.filter((p) => p.place.website);
+  const ordered = [...withSite.filter((p) => p.emails.length === 0), ...withSite.filter((p) => p.emails.length > 0 && !p.contactName)];
+  return [...new Set(ordered.map((p) => p.place.website!))].slice(0, max);
+}
+
+/**
+ * Fusionne les résultats du service de lecture dans les fiches :
+ * emails (si la fiche n'en a pas), nom du contact, téléphone, et présentation de l'activité
+ * quand Google Maps n'en donnait pas (elle affine ensuite le ciblage).
+ */
+export function mergeWorkerResults(places: EnrichedPlace[], results: WorkerSiteResult[]): number {
+  const byDomain = new Map<string, WorkerSiteResult>();
+  for (const r of results) {
+    const domain = normalizeDomain(r.url) ?? r.domain;
+    if (domain && !byDomain.has(domain)) byDomain.set(domain, r);
+    if (r.domain && !byDomain.has(r.domain)) byDomain.set(r.domain, r);
+  }
+  let added = 0;
+  for (const entry of places) {
+    if (!entry.domain) continue;
+    const r = byDomain.get(entry.domain);
+    if (!r) continue;
+    if (!entry.contactName && r.contactName && r.contactName.toLowerCase() !== entry.place.title.toLowerCase()) {
+      entry.contactName = r.contactName;
+    }
+    if (!entry.place.phone && r.phone) entry.place.phone = r.phone;
+    if (!entry.place.description && r.description) entry.place.description = r.description.slice(0, 400);
+    if (entry.emails.length === 0 && r.emails.length) {
+      entry.emails = [...new Set(r.emails.flatMap((e) => extractEmails(e)))];
+      if (entry.emails.length) {
+        entry.emailSource = "worker";
+        added++;
+      }
+    }
   }
   return added;
 }

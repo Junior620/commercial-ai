@@ -159,6 +159,13 @@ export default function ScrapingPage() {
   const [maxKeywords, setMaxKeywords] = useState("25");
   const [isRunning, setIsRunning] = useState(false);
   const [jobs, setJobs] = useState<ScrapingJob[]>([]);
+  const [sources, setSources] = useState<{
+    apify: boolean;
+    brightdata: boolean;
+    worker: boolean;
+    maxUnlocker: number;
+    maxSerp: number;
+  } | null>(null);
   const [historyPage, setHistoryPage] = useState(1);
   const [historyTotal, setHistoryTotal] = useState(0);
   const [historyTotalPages, setHistoryTotalPages] = useState(1);
@@ -196,6 +203,13 @@ export default function ScrapingPage() {
         setRunningJobsCount(
           typeof data.runningCount === "number" ? data.runningCount : 0
         );
+        if (data.sources) {
+          setSources({
+            ...data.sources,
+            maxUnlocker: data.limits?.brightdata?.maxUnlocker ?? 0,
+            maxSerp: data.limits?.brightdata?.maxSerp ?? 0,
+          });
+        }
       } catch {
         // ignore
       }
@@ -501,6 +515,20 @@ export default function ScrapingPage() {
                 50 maximum (prédéfinis + personnalisés). Un seul scraping peut tourner à la fois.
               </p>
             </div>
+
+            {sources ? (
+              <p className="rounded-md border bg-muted/40 px-3 py-2 text-xs text-muted-foreground">
+                <span className="font-medium text-foreground">Sources : </span>
+                Google Maps par {sources.apify ? "Apify" : "Bright Data"}
+                {sources.apify && sources.brightdata ? " (secours : Bright Data, si un pays est choisi)" : ""}
+                {" · "}
+                sites lus par {sources.worker ? "le service du VPS" : "Apify"}
+                {sources.worker ? " (secours : Apify)" : ""}.
+                {sources.worker && sources.brightdata
+                  ? ` Dépense Bright Data plafonnée par recherche : ${sources.maxUnlocker} pages débloquées et ${sources.maxSerp} recherches web.`
+                  : ""}
+              </p>
+            ) : null}
 
             <Button
               className="w-full"

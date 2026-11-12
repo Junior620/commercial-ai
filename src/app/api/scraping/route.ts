@@ -5,6 +5,8 @@ import { inngest, EVENTS } from "@/lib/inngest";
 import { requireUser, WRITE_ROLES } from "@/lib/auth";
 import { parseJsonBody, serverError } from "@/lib/api";
 import { SCRAPING_LIMITS, buildKeywords, failStaleJobs, markJobFailed } from "@/lib/scraping/pipeline";
+import { brightDataConfigured } from "@/lib/brightdata";
+import { workerConfigured } from "@/lib/scraping/worker-client";
 
 const ScrapingSchema = z.object({
   categories: z.array(z.string().max(100)).max(50).optional(),
@@ -39,6 +41,12 @@ export async function GET(req: NextRequest) {
     totalPages: Math.max(1, Math.ceil(total / pageSize)),
     runningCount,
     limits: SCRAPING_LIMITS,
+    // Sources configurées (affichées sous le formulaire de recherche)
+    sources: {
+      apify: !!process.env.APIFY_API_TOKEN?.trim(),
+      brightdata: brightDataConfigured(),
+      worker: workerConfigured(),
+    },
   });
 }
 
@@ -50,8 +58,11 @@ export async function POST(req: NextRequest) {
   if (!parsed.ok) return parsed.response;
   const input = parsed.data;
 
-  if (!process.env.APIFY_API_TOKEN?.trim()) {
-    return NextResponse.json({ error: "APIFY_API_TOKEN n'est pas configuré sur le serveur." }, { status: 503 });
+  if (!process.env.APIFY_API_TOKEN?.trim() && !brightDataConfigured()) {
+    return NextResponse.json(
+      { error: "Aucune source de recherche n'est configurée sur le serveur (APIFY_API_TOKEN ou BRIGHTDATA_API_TOKEN)." },
+      { status: 503 }
+    );
   }
 
   await failStaleJobs().catch(() => 0);

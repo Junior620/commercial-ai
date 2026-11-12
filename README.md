@@ -5,8 +5,13 @@ industriels), rédaction assistée d'emails dans la langue de chaque prospect, e
 
 ## Fonctionnement
 
-1. **Recherche de prospects** : Google Maps via Apify, puis recherche des emails publics sur les sites
-   (pages contact, recherche web vérifiée par domaine, lecture directe). Score de 0 à 100, dédoublonnage.
+1. **Recherche de prospects** : Google Maps, puis lecture des sites pour trouver les emails publics.
+   Chaque étape a une source principale et un secours :
+   - Google Maps par Apify ; si Apify refuse de démarrer ou échoue, Bright Data prend le relais ;
+   - lecture des sites par le service installé sur le VPS (`worker/`), qui passe par Bright Data pour les
+     sites qui refusent les robots et pour une recherche web quand un site reste sans adresse ;
+   - si le VPS ne répond pas, les passes Apify d'origine s'exécutent.
+   Score de 0 à 100, dédoublonnage, adresses vérifiées. Le résumé de chaque recherche indique les sources utilisées.
 2. **Segments** : critères (pays, activité, produit, score…) évalués à la volée.
 3. **Campagne** : l'assistant (Claude) rédige un email par prospect. **Chaque email doit être approuvé**
    (un par un, par page ou en bloc) : activer une campagne n'approuve rien. Un email modifié doit être
@@ -33,7 +38,7 @@ industriels), rédaction assistée d'emails dans la langue de chaque prospect, e
 | Authentification | Supabase Auth, accès sur invitation, rôles |
 | Rédaction | Anthropic Claude (`claude-sonnet-5-5`), OpenAI en secours facultatif |
 | Emails | Resend (envoi + webhooks signés) |
-| Recherche | Apify (Google Maps, Contact Info, Google Search, Website Content Crawler) |
+| Recherche | Apify (Google Maps et passes de secours), Bright Data (secours Google Maps, déblocage, recherche web), service de lecture des sites sur VPS (`worker/`, Playwright) |
 | Tâches de fond | Inngest (envoi, rédaction, relances, recherche) |
 
 ## Démarrage local
@@ -58,6 +63,21 @@ Sans `RESEND_API_KEY`, les envois sont **simulés** en développement (refusés 
 En local, `NEXT_PUBLIC_APP_URL` vaut `http://localhost:3000` : la carte **Paramètres > État de la configuration**
 le signale comme bloquant et aucun email de prospection ne part, ce qui est voulu (les liens de désinscription
 seraient morts). Le bouton « M'envoyer un email d'essai » reste utilisable.
+
+## Service de lecture des sites (VPS)
+
+`worker/` est un petit service autonome : il lit les pages de coordonnées des sites d'entreprises et renvoie
+emails, contact et téléphone. Il refuse toute adresse interne, respecte `robots.txt` et espace ses requêtes.
+
+```bash
+WORKER_TOKEN=<24 caractères ou plus> BROWSER_CHANNEL=msedge pnpm worker:dev   # en local, port 8090
+bash scripts/vps/deploy-worker.sh           # empaquette, envoie et redémarre sur le VPS (lit .env.deploy)
+bash scripts/vps/deploy-worker.sh --check   # état du service, sans rien modifier
+```
+
+Sur le VPS, il vit dans `/opt/scpb-scraper` (conteneur isolé, 2 Go et 2 vCPU au plus, écoute locale), derrière
+nginx sur `scraper.<domaine>`. Fichiers : `deploy/vps/` (docker-compose, bloc nginx, modèle de `.env`).
+Côté application : `SCRAPER_WORKER_URL` et `SCRAPER_WORKER_TOKEN`. Sans elles, les sites sont lus par Apify.
 
 ## Accès et rôles
 

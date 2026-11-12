@@ -42,6 +42,8 @@ Principes :
 - **Scraping** : `src/lib/scraping/pipeline.ts`, découpé en étapes Inngest reprenables, plafonds dans `SCRAPING_LIMITS`.
   Tous les traitements Apify sont « lancés puis interrogés » (aucune étape n'attend la fin d'un traitement payant).
   Un job sans progression depuis 3 heures passe en échec (`failStaleJobs`).
+  Sources en cascade : Google Maps par Apify puis Bright Data (`src/lib/brightdata.ts`, `chooseMapsProviders`) ; sites lus par le
+  service du VPS (`worker/`, client `src/lib/scraping/worker-client.ts`), sinon passes Apify. Chaque `RunEntry` porte son `provider`.
 - **Accès** : `src/proxy.ts` (jeton de session, `getClaims`) + `requireUser(roles?)` dans chaque route + `getCurrentUser()` dans le
   layout (contrôle complet, adresse confirmée exigée). Invitations et mot de passe oublié : `src/lib/access-links.ts`
   (lien créé côté serveur, envoyé par Resend) → `/auth/confirm` → `POST /auth/confirm/verify` (`verifyOtp`).
@@ -58,6 +60,8 @@ Principes :
 | `src/lib/config-health.ts` | contrôles de configuration (variables, DNS, site joignable) |
 | `src/lib/alerts.ts` | alertes des tâches de fond (`JobAlert`) |
 | `src/lib/access-links.ts` | invitations et réinitialisation du mot de passe |
+| `src/lib/brightdata.ts` | Google Maps par Bright Data (lancer, suivre, lire) |
+| `worker/src/` | service de lecture des sites (VPS) : garde anti-adresses internes, lecture, navigateur, déblocage |
 | `src/lib/resend.ts` | HTML/texte, pied légal, en-têtes de désinscription |
 | `src/lib/email-events.ts` | machine d'états des webhooks (monotone, idempotente) |
 | `src/lib/campaign-generation.ts` | cibles, rédaction initiale et relances |
@@ -99,6 +103,8 @@ Textes en français accentué, vouvoiement.
 
 ## 9. Historique
 
+- [2026-11-12] Recherche robuste : service de lecture des sites sur VPS, Bright Data en secours (Google Maps, déblocage,
+  recherche web), sources en cascade avec plafonds de dépense.
 - [2026-11-12] Audit avant lancement : approbation de chaque email, vérification des adresses, pays à accord préalable,
   un contact par entreprise, contrôle de configuration bloquant, coupe-circuit de rebonds, alertes des tâches de fond,
   invitations par lien serveur, recherche Apify « lancer puis interroger », en-têtes de sécurité, dépendances à jour.
