@@ -65,6 +65,10 @@ export async function suppressEmail(
       where: { email: { equals: normalized, mode: "insensitive" } },
       data: { status: prospectStatus },
     }),
+    // Plus aucune donnée sur les personnes de cette entreprise.
+    prisma.prospectContact.deleteMany({
+      where: { prospect: { email: { equals: normalized, mode: "insensitive" } } },
+    }),
     // Les emails non encore partis vers cette adresse sont annulés.
     prisma.email.updateMany({
       where: {

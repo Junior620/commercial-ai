@@ -1,4 +1,7 @@
+import { parseSerpOrganic, type SerpResult } from "../../src/lib/serp";
 import { config } from "./config";
+
+export { parseSerpOrganic, type SerpResult };
 
 /**
  * Bright Data, utilisé en secours :
@@ -36,26 +39,6 @@ export async function unlock(url: string): Promise<string> {
   } catch {
     return "";
   }
-}
-
-export interface SerpResult {
-  title: string;
-  link: string;
-  description: string;
-}
-
-/** Lit les résultats naturels d'une réponse SERP (les noms de champs varient selon le format). */
-export function parseSerpOrganic(payload: unknown): SerpResult[] {
-  if (!payload || typeof payload !== "object") return [];
-  const data = payload as Record<string, unknown>;
-  const list = (Array.isArray(data.organic) ? data.organic : Array.isArray(data.results) ? data.results : []) as Record<string, unknown>[];
-  return list
-    .map((item) => ({
-      title: String(item.title ?? ""),
-      link: String(item.link ?? item.url ?? ""),
-      description: String(item.description ?? item.snippet ?? ""),
-    }))
-    .filter((r) => r.link || r.description);
 }
 
 /** Recherche Google. Renvoie [] si la recherche échoue. */

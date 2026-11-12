@@ -10,6 +10,7 @@ import { cn } from "@/lib/utils";
 import { CLIENT_TYPE_LABELS, SOURCE_LABELS, countryName, scoreTone, type Prospect } from "@/components/prospects/types";
 import { FitBadge, NeedChips } from "@/components/prospects/fit-badge";
 import { checkOutreachAllowed } from "@/lib/compliance";
+import { DecisionMakers } from "@/components/prospects/decision-makers";
 
 function DetailRow({
   icon: Icon,
@@ -101,6 +102,7 @@ export function ProspectSheet({
                 </div>
               ) : null}
               <DetailRow icon={User} label="Contact" value={prospect.contact} />
+              <DecisionMakers key={prospect.id} prospectId={prospect.id} company={prospect.company} />
               <DetailRow icon={Mail} label="Email" value={prospect.email} href={`mailto:${prospect.email}`} />
               <DetailRow icon={Phone} label="Téléphone" value={prospect.phone} href={prospect.phone ? `tel:${prospect.phone}` : undefined} />
               <DetailRow icon={MapPin} label="Pays" value={countryName(prospect.country)} />

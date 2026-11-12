@@ -156,6 +156,7 @@ model Prospect {
   emails          Email[]
   responses       Response[]
   prospectNotes   ProspectNote[]
+  contacts        ProspectContact[]
   segmentLinks    ProspectSegment[]
 
   @@index([country])
@@ -279,6 +280,23 @@ model Response {
   @@index([prospectId])
   @@index([emailId])
   @@map("responses")
+}
+
+/// Décideurs d'une entreprise prospect, trouvés à la demande (nom, poste, profil LinkedIn public).
+/// Aucune adresse email n'est stockée ici : jamais devinée ni fabriquée.
+model ProspectContact {
+  id          String   @id @default(cuid())
+  prospectId  String
+  prospect    Prospect @relation(fields: [prospectId], references: [id], onDelete: Cascade)
+  name        String
+  title       String?
+  linkedinUrl String
+  source      String   @default("serp_linkedin")
+  createdAt   DateTime @default(now())
+
+  @@unique([prospectId, linkedinUrl])
+  @@index([prospectId])
+  @@map("prospect_contacts")
 }
 
 model ProspectNote {
