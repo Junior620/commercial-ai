@@ -32,17 +32,32 @@ Principes :
 - **Un seul chemin d'envoi** : `deliverEmail()` (`src/lib/sending.ts`) appelée par la fonction Inngest `send-pending-emails`.
   Réservation atomique `PENDING → SENDING`, clé d'idempotence Resend = id de l'email, quota global du jour (fuseau `APP_TIMEZONE`),
   exclusion des prospects `UNSUBSCRIBED` / `COLD` et de la table `suppressions`.
-- **Validation humaine** : les emails générés restent `PENDING` ; seule une campagne `ACTIVE` envoie.
+- **Validation humaine** : un email ne part que s'il est approuvé (`Email.approvedAt`), relances comprises, et que sa campagne
+  est `ACTIVE`. Activer une campagne n'approuve rien ; modifier un email retire son approbation.
+- **Règles d'envoi** : `decideSend()` (`src/lib/send-rules.ts`, pur et testé) est réappliqué au dernier moment : exclusion,
+  prospect commercial et dans la cible, adresse valide, pays à accord préalable, délai entre campagnes.
+- **Garde-fous de lot** : `getConfigHealth()` puis `checkBounceCircuitBreaker()` avant chaque lot ; une erreur de configuration
+  arrête le lot et lève une `JobAlert` (affichée sur le tableau de bord) au lieu de boucler.
 - **Relances** : `computeDueFollowUps()` (`src/lib/followups.ts`) part du dernier email de la séquence.
 - **Scraping** : `src/lib/scraping/pipeline.ts`, découpé en étapes Inngest reprenables, plafonds dans `SCRAPING_LIMITS`.
-- **Accès** : `src/proxy.ts` (session) + `requireUser(roles?)` dans chaque route + `getCurrentUser()` dans le layout.
+  Tous les traitements Apify sont « lancés puis interrogés » (aucune étape n'attend la fin d'un traitement payant).
+  Un job sans progression depuis 3 heures passe en échec (`failStaleJobs`).
+- **Accès** : `src/proxy.ts` (jeton de session, `getClaims`) + `requireUser(roles?)` dans chaque route + `getCurrentUser()` dans le
+  layout (contrôle complet, adresse confirmée exigée). Invitations et mot de passe oublié : `src/lib/access-links.ts`
+  (lien créé côté serveur, envoyé par Resend) → `/auth/confirm` → `POST /auth/confirm/verify` (`verifyOtp`).
 
 ## 4. Fichiers clés
 
 | Fichier | Rôle |
 |---|---|
 | `src/lib/auth.ts` | membre actif, rôles, `ADMIN_EMAILS` / `ALLOWED_EMAIL_DOMAINS` |
-| `src/lib/sending.ts` | quota, suppression, réservation, envoi |
+| `src/lib/sending.ts` | quota, suppression, réservation, envoi, coupe-circuit de rebonds |
+| `src/lib/send-rules.ts` | décision d'envoi (pure) |
+| `src/lib/compliance.ts` | pays à accord préalable, adresses génériques |
+| `src/lib/email-validation.ts` | syntaxe + MX des adresses |
+| `src/lib/config-health.ts` | contrôles de configuration (variables, DNS, site joignable) |
+| `src/lib/alerts.ts` | alertes des tâches de fond (`JobAlert`) |
+| `src/lib/access-links.ts` | invitations et réinitialisation du mot de passe |
 | `src/lib/resend.ts` | HTML/texte, pied légal, en-têtes de désinscription |
 | `src/lib/email-events.ts` | machine d'états des webhooks (monotone, idempotente) |
 | `src/lib/campaign-generation.ts` | cibles, rédaction initiale et relances |
@@ -55,7 +70,9 @@ Principes :
 
 Modèles : `User` (rôle, `active`), `Prospect`, `Segment`, `ProspectSegment`, `Campaign`, `Email`
 (unicité `campaignId + prospectId + type`, statut `SENDING`), `Response`, `ScrapingJob`, `AppSettings`
-(dont `companyAddress`), `Suppression`, `WebhookEvent`, `EmailTemplate` (non utilisé), `ProspectNote`.
+(dont `companyAddress`, `minDaysBetweenCampaigns`), `Suppression`, `WebhookEvent`, `JobAlert`, `EmailTemplate` (non utilisé),
+`ProspectNote`. `Prospect` : `targetFitManual` (correction manuelle, jamais recalculée), `emailCheckedAt`, `emailInvalidReason`.
+`Email` : `approvedAt`, `approvedById`.
 RLS activée sur toutes les tables (l'API REST Supabase n'y a pas accès ; Prisma passe par le rôle propriétaire).
 Pays stockés de préférence en ISO2 (`normalizeCountryToIso2`).
 
@@ -82,6 +99,9 @@ Textes en français accentué, vouvoiement.
 
 ## 9. Historique
 
+- [2026-11-12] Audit avant lancement : approbation de chaque email, vérification des adresses, pays à accord préalable,
+  un contact par entreprise, contrôle de configuration bloquant, coupe-circuit de rebonds, alertes des tâches de fond,
+  invitations par lien serveur, recherche Apify « lancer puis interroger », en-têtes de sécurité, dépendances à jour.
 - [2026-11-11] Relance : sécurité (accès fermé, RLS, webhook signé), Claude Sonnet 5.5, envoi conforme et idempotent via Inngest,
   scraping reprenable et plafonné, qualité des données, refonte UI « Terroir & Soleil », retrait du module financier, tests et CI.
 - [2026-05] Module partenaires financiers (retiré depuis), robustesse Postgres.
