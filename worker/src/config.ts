@@ -10,6 +10,24 @@ const int = (value: string | undefined, fallback: number, min: number, max: numb
 
 const env = (name: string) => process.env[name]?.trim() || "";
 
+let blockedCache: { raw: string; set: Set<string> } | null = null;
+
+/** Liste d'adresses à ne jamais lire (relue si la variable change). */
+function blockedIpsFrom(raw: string): Set<string> {
+  if (blockedCache?.raw !== raw) {
+    blockedCache = {
+      raw,
+      set: new Set(
+        raw
+          .split(",")
+          .map((ip) => ip.trim().toLowerCase().replace(/^\[|\]$/g, ""))
+          .filter(Boolean)
+      ),
+    };
+  }
+  return blockedCache.set;
+}
+
 export const config = {
   port: int(process.env.PORT, 8090, 1, 65535),
   host: env("HOST") || "0.0.0.0",
@@ -28,6 +46,10 @@ export const config = {
   perHostDelayMs: int(process.env.PER_HOST_DELAY_MS, 1000, 0, 10_000),
   userAgent: "Mozilla/5.0 (compatible; SCPBProspectBot/1.0; +https://ste-scpb.com)",
   botName: "scpbprospectbot",
+  /** Adresses publiques du serveur lui-même (et autres adresses à ne jamais lire), séparées par des virgules */
+  get blockedIps(): Set<string> {
+    return blockedIpsFrom(env("BLOCKED_IPS"));
+  },
   brightdata: {
     token: env("BRIGHTDATA_API_TOKEN"),
     unlockerZone: env("BRIGHTDATA_UNLOCKER_ZONE"),

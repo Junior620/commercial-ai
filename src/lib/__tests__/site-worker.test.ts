@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+process.env.BLOCKED_IPS = "169.58.99.28, [2a02:c207:2347:5618::1]";
 import { checkUrlShape, GuardError, isPrivateAddress } from "../../../worker/src/guard";
 import { looksBlocked } from "../../../worker/src/fetcher";
 import { isPathAllowed, parseRobots } from "../../../worker/src/robots";
@@ -32,9 +33,15 @@ describe("garde anti-adresses internes", () => {
     for (const ip of ["127.0.0.1", "10.1.2.3", "172.20.0.2", "192.168.0.1", "169.254.169.254", "::1", "fd00::1", "fe80::1", "::ffff:10.0.0.1"]) {
       expect(isPrivateAddress(ip), ip).toBe(true);
     }
-    for (const ip of ["8.8.8.8", "169.58.99.28", "2a02:c207:2347:5618::1"]) {
+    for (const ip of ["8.8.8.8", "1.1.1.1", "2606:4700:4700::1111"]) {
       expect(isPrivateAddress(ip), ip).toBe(false);
     }
+  });
+
+  it("refuse les adresses publiques du serveur lui-même (BLOCKED_IPS)", () => {
+    expect(isPrivateAddress("169.58.99.28")).toBe(true);
+    expect(isPrivateAddress("2a02:c207:2347:5618::1")).toBe(true);
+    expect(() => checkUrlShape("http://169.58.99.28/")).toThrow(GuardError);
   });
 });
 

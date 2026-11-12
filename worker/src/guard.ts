@@ -1,6 +1,7 @@
 import { promises as dns } from "node:dns";
 import { isIP } from "node:net";
 import { isPrivateHost } from "../../src/lib/email-extractor";
+import { config } from "./config";
 
 /**
  * Garde anti-adresses internes : le service ne lit que des sites publics.
@@ -12,9 +13,10 @@ export class GuardError extends Error {}
 
 const ALLOWED_PORTS = new Set(["", "80", "443", "8080", "8443"]);
 
-/** true si l'adresse IP (v4 ou v6) n'est pas routable sur Internet. */
+/** true si l'adresse IP (v4 ou v6) n'est pas routable sur Internet, ou appartient au serveur lui-même. */
 export function isPrivateAddress(address: string): boolean {
   const ip = address.toLowerCase().replace(/^\[|\]$/g, "");
+  if (config.blockedIps.has(ip)) return true;
   if (isIP(ip) === 4) return isPrivateHost(ip);
   if (isIP(ip) === 6) {
     // Adresse IPv4 encapsulée (::ffff:10.0.0.1)
