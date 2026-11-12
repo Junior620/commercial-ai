@@ -46,3 +46,6 @@ next-env.d.ts
 # editor
 .vscode/
 .claude/
+
+# Sauvegardes locales de la base (données personnelles)
+backups/
