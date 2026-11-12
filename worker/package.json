@@ -1,0 +1,10 @@
+{
+  "name": "scpb-site-worker",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Service de lecture des sites d'entreprises (emails et coordonnées publiques). Le code est empaqueté dans dist/server.mjs par « pnpm worker:build ».",
+  "dependencies": {
+    "playwright-core": "1.65.0"
+  }
+}

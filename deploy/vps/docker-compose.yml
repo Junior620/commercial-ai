@@ -1,0 +1,39 @@
+# Service de lecture des sites, installé dans /opt/scpb-scraper sur le VPS.
+# Isolé des autres projets du serveur : son propre réseau, écoute locale uniquement,
+# mémoire et processeur plafonnés.
+name: scpb-scraper
+
+services:
+  worker:
+    build: ./worker
+    image: scpb-site-worker:latest
+    restart: unless-stopped
+    env_file: .env
+    ports:
+      - "127.0.0.1:8090:8090"
+    volumes:
+      - worker-data:/data
+    init: true
+    shm_size: 1gb
+    mem_limit: 2g
+    memswap_limit: 2g
+    cpus: 2
+    pids_limit: 512
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    networks:
+      - scraper
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+networks:
+  scraper:
+    driver: bridge
+
+volumes:
+  worker-data:

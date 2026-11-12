@@ -48,6 +48,8 @@ const BAD_PATTERNS = [
   /hubspot\.com$/i,
   /zendesk\.com$/i,
   /intercom\.io$/i,
+  /intercom-mail\.com$/i,
+  /(?:mailgun|sendgrid|amazonses|mandrillapp|mcsv|mailchimpapp)\.(?:net|com|org)$/i,
   /github\.com$/i,
   /gravatar\.com$/i,
   /@\d+\.\d+\.\d+/,

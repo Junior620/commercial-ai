@@ -49,3 +49,7 @@ next-env.d.ts
 
 # Sauvegardes locales de la base (données personnelles)
 backups/
+
+# Service de lecture des sites
+.worker-data/
+worker/dist/

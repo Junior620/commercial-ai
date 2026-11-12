@@ -14,7 +14,9 @@
     "fix-prospect-languages": "tsx scripts/fix-prospect-languages.ts",
     "retarget-prospects": "tsx scripts/retarget-prospects.ts",
     "cleanup-legacy": "tsx scripts/cleanup-legacy.ts",
-    "check-deploy": "tsx scripts/check-deploy.ts"
+    "check-deploy": "tsx scripts/check-deploy.ts",
+    "worker:dev": "tsx worker/src/server.ts",
+    "worker:build": "esbuild worker/src/server.ts --bundle --platform=node --target=node22 --format=esm --external:playwright-core --outfile=worker/dist/server.mjs"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.137.0",
@@ -54,8 +56,10 @@
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "dotenv": "^17.4.2",
+    "esbuild": "^0.28.2",
     "eslint": "^9",
     "eslint-config-next": "16.4.6",
+    "playwright-core": "1.65.0",
     "prisma": "^7.10.1",
     "shadcn": "^4.23.0",
     "tailwindcss": "^4",
