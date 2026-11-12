@@ -136,33 +136,53 @@ function senderInfo() {
   };
 }
 
+const FONT_STACK = "-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif";
+const BORDER_COLOR = "#EAE1D0";
+
 function buildSignatureHtml(): string {
   const s = senderInfo();
   if (!s.name && !s.company) return "";
 
-  const lines: string[] = [];
-  if (s.name) lines.push(`<strong style="color:${TEXT_COLOR};font-size:15px;">${escapeHtml(s.name)}</strong>`);
-  if (s.position) lines.push(`<span style="color:${MUTED_COLOR};font-size:13px;">${escapeHtml(s.position)}</span>`);
-  if (s.company) lines.push(`<span style="color:${BRAND_PRIMARY};font-weight:600;font-size:14px;">${escapeHtml(s.company)}</span>`);
+  const role = [s.position, s.company].filter(Boolean);
+  const roleHtml = role.length
+    ? `<div style="margin-top:2px;font-size:13px;line-height:1.5;color:${MUTED_COLOR};">${[
+        s.position ? escapeHtml(s.position) : "",
+        s.company ? `<span style="color:${BRAND_PRIMARY};font-weight:600;">${escapeHtml(s.company)}</span>` : "",
+      ]
+        .filter(Boolean)
+        .join(" &middot; ")}</div>`
+    : "";
 
+  // Une coordonnée par ligne, sans coupure au milieu d'un numéro ou d'une adresse.
+  const link = (href: string, label: string) =>
+    `<a href="${escapeHtml(href)}" style="color:${BRAND_PRIMARY};text-decoration:none;">${escapeHtml(label)}</a>`;
   const contacts: string[] = [];
-  if (s.phone) contacts.push(escapeHtml(s.phone));
-  if (s.email) contacts.push(`<a href="mailto:${escapeHtml(s.email)}" style="color:${BRAND_PRIMARY};text-decoration:none;">${escapeHtml(s.email)}</a>`);
-  if (s.website) {
-    contacts.push(
-      `<a href="${escapeHtml(s.website)}" style="color:${BRAND_PRIMARY};text-decoration:none;">${escapeHtml(s.website.replace(/^https?:\/\//, ""))}</a>`
-    );
-  }
+  if (s.phone) contacts.push(link(`tel:${s.phone.replace(/[^+\d]/g, "")}`, s.phone));
+  if (s.email) contacts.push(link(`mailto:${s.email}`, s.email));
+  if (s.website) contacts.push(link(s.website, s.website.replace(/^https?:\/\//, "").replace(/\/$/, "")));
+  const contactsHtml = contacts.length
+    ? `<div style="margin-top:8px;font-size:13px;line-height:1.6;">${contacts
+        .map((c) => `<div style="white-space:nowrap;">${c}</div>`)
+        .join("")}</div>`
+    : "";
 
   return `
-    <table role="presentation" cellpadding="0" cellspacing="0" border="0" style="margin-top:28px;border-top:2px solid ${BRAND_ACCENT};padding-top:16px;">
+    <table role="presentation" cellpadding="0" cellspacing="0" border="0" style="margin-top:28px;">
+      <tr><td style="padding-bottom:18px;"><div style="width:48px;height:2px;background:${BRAND_ACCENT};font-size:0;line-height:0;">&nbsp;</div></td></tr>
       <tr>
-        <td style="vertical-align:top;padding-right:14px;">
-          <img src="${escapeHtml(s.logoUrl)}" alt="${escapeHtml(s.company || "Logo")}" width="56" height="37" style="display:block;width:56px;height:auto;" />
-        </td>
-        <td style="vertical-align:top;font-family:Helvetica,Arial,sans-serif;line-height:1.5;">
-          ${lines.join("<br>")}
-          ${contacts.length ? `<div style="margin-top:6px;font-size:12px;color:${MUTED_COLOR};">${contacts.join("&nbsp;&middot;&nbsp;")}</div>` : ""}
+        <td>
+          <table role="presentation" cellpadding="0" cellspacing="0" border="0">
+            <tr>
+              <td style="vertical-align:top;padding-right:16px;">
+                <img src="${escapeHtml(s.logoUrl)}" alt="${escapeHtml(s.company || "Logo")}" width="72" height="48" style="display:block;width:72px;height:48px;border:0;" />
+              </td>
+              <td style="vertical-align:top;padding-left:16px;border-left:1px solid ${BORDER_COLOR};font-family:${FONT_STACK};">
+                ${s.name ? `<div style="font-size:15px;line-height:1.4;font-weight:700;color:${TEXT_COLOR};">${escapeHtml(s.name)}</div>` : ""}
+                ${roleHtml}
+                ${contactsHtml}
+              </td>
+            </tr>
+          </table>
         </td>
       </tr>
     </table>`;
@@ -182,35 +202,55 @@ export function buildEmailHtml(body: string, opts: EmailContentOptions): string 
   const paragraphs = body
     .split(/\n\s*\n|\n/)
     .filter((p) => p.trim().length > 0)
-    .map((p) => `<p style="margin:0 0 14px 0;line-height:1.65;">${escapeHtml(p.trim())}</p>`)
+    .map((p) => `<p class="body-text" style="margin:0 0 16px 0;font-size:15px;line-height:1.7;color:${TEXT_COLOR};">${escapeHtml(p.trim())}</p>`)
     .join("");
   const company = process.env.SENDER_COMPANY?.trim() || "";
   const address = opts.companyAddress?.trim() || process.env.COMPANY_ADDRESS?.trim() || "";
+  const footerText = `margin:0 0 6px 0;font-size:11px;line-height:1.6;color:${MUTED_COLOR};text-align:center;`;
 
   return `<!DOCTYPE html>
 <html lang="${escapeHtml(opts.language || "en")}">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="color-scheme" content="light">
+  <meta name="supported-color-schemes" content="light">
   <title>${escapeHtml(company || "Message")}</title>
+  <style>
+    @media only screen and (max-width: 620px) {
+      .outer-pad { padding: 12px 8px !important; }
+      .card-pad { padding: 28px 22px 26px 22px !important; }
+      .foot-pad { padding: 18px 22px 22px 22px !important; }
+      .body-text { font-size: 16px !important; }
+    }
+  </style>
 </head>
-<body style="margin:0;padding:0;background-color:#F8F3EA;font-family:Helvetica,Arial,sans-serif;">
-  <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="background-color:#F8F3EA;">
+<body style="margin:0;padding:0;background-color:#F6F1E7;font-family:${FONT_STACK};-webkit-text-size-adjust:100%;">
+  <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="background-color:#F6F1E7;">
     <tr>
-      <td align="center" style="padding:32px 16px;">
-        <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="600" style="max-width:600px;width:100%;background-color:#FFFDF8;border-radius:10px;overflow:hidden;border:1px solid #E4D9C6;">
-          <tr><td style="height:4px;background:${BRAND_PRIMARY};font-size:0;line-height:0;">&nbsp;</td></tr>
+      <td class="outer-pad" align="center" style="padding:32px 16px;">
+        <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="600" style="max-width:600px;width:100%;background-color:#FFFDF9;border-radius:12px;overflow:hidden;border:1px solid ${BORDER_COLOR};">
           <tr>
-            <td style="padding:36px 40px 24px 40px;font-size:15px;color:${TEXT_COLOR};line-height:1.65;">
+            <td style="font-size:0;line-height:0;">
+              <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%">
+                <tr>
+                  <td width="82%" style="height:4px;background:${BRAND_PRIMARY};font-size:0;line-height:0;">&nbsp;</td>
+                  <td width="18%" style="height:4px;background:${BRAND_ACCENT};font-size:0;line-height:0;">&nbsp;</td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+          <tr>
+            <td class="card-pad" style="padding:40px 44px 32px 44px;font-family:${FONT_STACK};">
               ${paragraphs}
               ${buildSignatureHtml()}
             </td>
           </tr>
           <tr>
-            <td style="padding:16px 40px 24px 40px;border-top:1px solid #E4D9C6;">
-              <p style="margin:0 0 6px 0;font-size:11px;color:${MUTED_COLOR};line-height:1.5;text-align:center;">${escapeHtml(copy.why)}</p>
-              ${address ? `<p style="margin:0 0 6px 0;font-size:11px;color:${MUTED_COLOR};line-height:1.5;text-align:center;">${escapeHtml([company, address].filter(Boolean).join(" · "))}</p>` : ""}
-              <p style="margin:0;font-size:11px;line-height:1.5;text-align:center;">
+            <td class="foot-pad" style="padding:20px 44px 26px 44px;background-color:#FAF6EE;border-top:1px solid ${BORDER_COLOR};font-family:${FONT_STACK};">
+              <p style="${footerText}">${escapeHtml(copy.why)}</p>
+              ${address ? `<p style="${footerText}">${escapeHtml([company, address].filter(Boolean).join(" · "))}</p>` : ""}
+              <p style="margin:8px 0 0 0;font-size:11px;line-height:1.6;text-align:center;">
                 <a href="${escapeHtml(unsubscribeUrl(opts.to))}" style="color:${MUTED_COLOR};text-decoration:underline;">${escapeHtml(copy.unsubscribe)}</a>
               </p>
             </td>
