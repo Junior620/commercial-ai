@@ -6,6 +6,7 @@ import { serverError } from "@/lib/api";
 import { inferProspectLanguageFromCountry, normalizeCountryToIso2, normalizeLanguage } from "@/lib/prospect-language";
 import { calculateLeadScore, priorityFromScore } from "@/lib/scoring";
 import { deduplicateItems } from "@/lib/dedup";
+import { validateEmailAddresses } from "@/lib/email-validation";
 
 const MAX_FILE_BYTES = 5 * 1024 * 1024;
 const MAX_ROWS = 5000;
@@ -81,10 +82,28 @@ export async function POST(req: NextRequest) {
       prisma.suppression.findMany({ where: { email: { in: emails } }, select: { email: true } }),
     ]);
     const known = new Set([...existing, ...suppressed].map((r) => r.email.toLowerCase()));
-    const toCreate = unique.filter((r) => !known.has(r.email));
+    const fresh = unique.filter((r) => !known.has(r.email));
+
+    // Adresses vérifiées (syntaxe + domaine capable de recevoir du courrier).
+    const checks = await validateEmailAddresses(fresh.map((r) => r.email));
+    const checkedAt = new Date();
+    let unreachable = 0;
+    const toCreate = fresh.flatMap((r) => {
+      const verdict = checks.get(r.email);
+      if (verdict && !verdict.valid && !verdict.transient) {
+        unreachable++;
+        return [];
+      }
+      return [{ ...r, emailCheckedAt: verdict?.valid ? checkedAt : null }];
+    });
 
     const { count: imported } = await prisma.prospect.createMany({ data: toCreate, skipDuplicates: true });
-    return NextResponse.json({ imported, duplicates: rows.length - imported, invalid });
+    return NextResponse.json({
+      imported,
+      duplicates: rows.length - unreachable - imported,
+      invalid: invalid + unreachable,
+      unreachable,
+    });
   } catch (err) {
     return serverError("prospects:import", err, "Erreur d'import");
   }

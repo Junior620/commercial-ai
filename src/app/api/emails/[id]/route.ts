@@ -25,7 +25,11 @@ export async function PATCH(req: NextRequest, { params }: Params) {
   }
 
   try {
-    const { count } = await prisma.email.updateMany({ where: { id, status: "PENDING" }, data: parsed.data });
+    // Un email modifié doit être approuvé à nouveau.
+    const { count } = await prisma.email.updateMany({
+      where: { id, status: "PENDING" },
+      data: { ...parsed.data, approvedAt: null, approvedById: null },
+    });
     if (count === 0) {
       const exists = await prisma.email.findUnique({ where: { id }, select: { id: true } });
       return exists
@@ -34,7 +38,7 @@ export async function PATCH(req: NextRequest, { params }: Params) {
     }
     const updated = await prisma.email.findUnique({
       where: { id },
-      include: { prospect: { select: { company: true, email: true, contact: true } } },
+      include: { prospect: { select: { company: true, email: true, contact: true, country: true } } },
     });
     return NextResponse.json(updated);
   } catch (err) {

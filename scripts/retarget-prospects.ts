@@ -32,7 +32,8 @@ async function main() {
 
   try {
     const prospects = await prisma.prospect.findMany({
-      where: { prospectType: "COMMERCIAL" },
+      // Les prospects dont l'adéquation a été corrigée à la main ne sont pas recalculés.
+      where: { prospectType: "COMMERCIAL", targetFitManual: false },
       select: {
         id: true, company: true, sector: true, notes: true, country: true, email: true, website: true,
         product: true, clientType: true, score: true, priority: true, status: true,

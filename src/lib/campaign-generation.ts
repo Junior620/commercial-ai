@@ -5,6 +5,9 @@ import { DO_NOT_CONTACT_STATUSES, TARGETABLE_STATUSES } from "@/lib/sending";
 import { FOLLOW_UP_TYPES, SEQUENCE, computeDueFollowUps, type DueFollowUp } from "@/lib/followups";
 import { CORE_PRODUCT_IDS, PRODUCT_LABELS } from "@/lib/product-catalog";
 import { classifyTarget } from "@/lib/targeting";
+import { checkOutreachAllowed, strictOptInCountries } from "@/lib/compliance";
+import { validateEmailAddress } from "@/lib/email-validation";
+import { companyKey } from "@/lib/dedup";
 import {
   buildProspectWhereFromFilters,
   hasTargetingCriteria,
@@ -50,6 +53,9 @@ export function buildCampaignTargetWhere(opts: {
   segmentId?: string | null;
   segmentFilters?: unknown;
   product?: string | null;
+  /** Campagne en cours (absente pour un simple aperçu) */
+  campaignId?: string | null;
+  minDaysBetweenCampaigns?: number;
 }): Prisma.ProspectWhereInput {
   let segmentWhere: Prisma.ProspectWhereInput = {};
   if (opts.segmentId) {
@@ -75,6 +81,9 @@ export function buildCampaignTargetWhere(opts: {
     };
   }
 
+  const cutoff = new Date(Date.now() - (opts.minDaysBetweenCampaigns ?? 30) * 24 * 60 * 60 * 1000);
+  const otherCampaign = opts.campaignId ? { campaignId: { not: opts.campaignId } } : {};
+
   return {
     AND: [
       segmentWhere,
@@ -83,53 +92,104 @@ export function buildCampaignTargetWhere(opts: {
         prospectType: "COMMERCIAL",
         targetFit: { not: "OUT_OF_SCOPE" },
         status: { in: TARGETABLE_STATUSES },
+        emailInvalidReason: null,
+        // Pas de sollicitation récente par une autre campagne…
+        OR: [{ lastContactedAt: null }, { lastContactedAt: { lt: cutoff } }],
+        // …ni de séquence en cours ou prête à partir ailleurs.
+        emails: {
+          none: {
+            ...otherCampaign,
+            OR: [{ campaign: { status: "ACTIVE" } }, { status: { in: ["PENDING", "SENDING"] }, approvedAt: { not: null } }],
+          },
+        },
       },
     ],
   };
 }
 
-/** Nombre de prospects qu'une campagne ciblerait (aperçu dans le formulaire). */
-export async function countCampaignTargets(opts: { segmentId?: string | null; product?: string | null }) {
-  const segment = opts.segmentId
-    ? await prisma.segment.findUnique({ where: { id: opts.segmentId }, select: { filters: true } })
-    : null;
-  const where = buildCampaignTargetWhere({ segmentId: opts.segmentId, segmentFilters: segment?.filters, product: opts.product });
-  const [total, core] = await Promise.all([
-    prisma.prospect.count({ where }),
-    prisma.prospect.count({ where: { AND: [where, { targetFit: "CORE" }] } }),
-  ]);
-  return { total, core };
+export interface TargetResolution {
+  ids: string[];
+  total: number;
+  core: number;
+  excluded: { strictCountry: number; duplicateDomain: number; suppressed: number };
 }
 
-/** Prospects à qui générer un premier email pour cette campagne. */
-export async function listGenerationTargets(campaignId: string): Promise<string[]> {
-  const campaign = await prisma.campaign.findUnique({
-    where: { id: campaignId },
-    select: { segmentId: true, product: true, segment: { select: { filters: true } } },
+/**
+ * Résout la liste finale des prospects ciblés par une campagne :
+ * critères en base, puis liste d'exclusion, pays à accord préalable (adresses génériques
+ * uniquement) et un seul prospect par entreprise (domaine), le mieux noté.
+ */
+export async function resolveCampaignTargets(opts: {
+  segmentId?: string | null;
+  product?: string | null;
+  campaignId?: string | null;
+}): Promise<TargetResolution> {
+  const [segment, settings] = await Promise.all([
+    opts.segmentId ? prisma.segment.findUnique({ where: { id: opts.segmentId }, select: { filters: true } }) : null,
+    prisma.appSettings.findUnique({ where: { id: "default" }, select: { minDaysBetweenCampaigns: true } }),
+  ]);
+  const where = buildCampaignTargetWhere({
+    segmentId: opts.segmentId,
+    segmentFilters: segment?.filters,
+    product: opts.product,
+    campaignId: opts.campaignId,
+    minDaysBetweenCampaigns: settings?.minDaysBetweenCampaigns ?? 30,
   });
-  if (!campaign) return [];
 
   const prospects = await prisma.prospect.findMany({
-    where: {
-      AND: [
-        buildCampaignTargetWhere({ segmentId: campaign.segmentId, segmentFilters: campaign.segment?.filters, product: campaign.product }),
-        { emails: { none: { campaignId, type: "INITIAL" } } },
-      ],
-    },
-    select: { id: true, email: true },
+    where: opts.campaignId ? { AND: [where, { emails: { none: { campaignId: opts.campaignId, type: "INITIAL" } } }] } : where,
+    select: { id: true, email: true, country: true, website: true, targetFit: true },
     orderBy: [{ score: "desc" }, { createdAt: "asc" }],
     take: MAX_TARGETS_PER_GENERATION,
   });
 
-  const suppressed = new Set(
-    (
-      await prisma.suppression.findMany({
-        where: { email: { in: prospects.map((p) => p.email.toLowerCase()) } },
-        select: { email: true },
-      })
-    ).map((s) => s.email)
-  );
-  return prospects.filter((p) => !suppressed.has(p.email.toLowerCase())).map((p) => p.id);
+  const [suppressedRows, alreadyInCampaign] = await Promise.all([
+    prisma.suppression.findMany({ where: { email: { in: prospects.map((p) => p.email.toLowerCase()) } }, select: { email: true } }),
+    opts.campaignId
+      ? prisma.prospect.findMany({
+          where: { emails: { some: { campaignId: opts.campaignId } } },
+          select: { email: true, website: true },
+        })
+      : [],
+  ]);
+  const suppressed = new Set(suppressedRows.map((s) => s.email));
+  // Entreprises déjà présentes dans la campagne : on n'y ajoute pas un second contact.
+  const seenCompanies = new Set(alreadyInCampaign.map((p) => companyKey(p)).filter(Boolean) as string[]);
+
+  const excluded = { strictCountry: 0, duplicateDomain: 0, suppressed: 0 };
+  const kept: typeof prospects = [];
+  for (const p of prospects) {
+    if (suppressed.has(p.email.toLowerCase())) {
+      excluded.suppressed++;
+      continue;
+    }
+    if (!checkOutreachAllowed(p.email, p.country).allowed) {
+      excluded.strictCountry++;
+      continue;
+    }
+    const key = companyKey(p);
+    if (key && seenCompanies.has(key)) {
+      excluded.duplicateDomain++;
+      continue;
+    }
+    if (key) seenCompanies.add(key);
+    kept.push(p);
+  }
+
+  return { ids: kept.map((p) => p.id), total: kept.length, core: kept.filter((p) => p.targetFit === "CORE").length, excluded };
+}
+
+/** Nombre de prospects qu'une campagne ciblerait (aperçu dans le formulaire). */
+export async function countCampaignTargets(opts: { segmentId?: string | null; product?: string | null }) {
+  const { total, core, excluded } = await resolveCampaignTargets(opts);
+  return { total, core, excluded };
+}
+
+/** Prospects à qui générer un premier email pour cette campagne. */
+export async function listGenerationTargets(campaignId: string): Promise<string[]> {
+  const campaign = await prisma.campaign.findUnique({ where: { id: campaignId }, select: { segmentId: true, product: true } });
+  if (!campaign) return [];
+  return (await resolveCampaignTargets({ segmentId: campaign.segmentId, product: campaign.product, campaignId })).ids;
 }
 
 /** Génère et enregistre (PENDING) le premier email d'un prospect. Idempotent. */
@@ -139,7 +199,23 @@ export async function generateInitialEmail(campaignId: string, prospectId: strin
     prisma.prospect.findUnique({ where: { id: prospectId } }),
   ]);
   if (!campaign || !prospect || DO_NOT_CONTACT_STATUSES.includes(prospect.status)) return "skipped";
-  if (prospect.targetFit === "OUT_OF_SCOPE") return "skipped";
+  if (prospect.targetFit === "OUT_OF_SCOPE" || prospect.prospectType !== "COMMERCIAL") return "skipped";
+  if (prospect.emailInvalidReason) return "skipped";
+  const compliance = checkOutreachAllowed(prospect.email, prospect.country);
+  if (!compliance.allowed) return "skipped";
+
+  // Adresse vérifiée (syntaxe + MX) avant de dépenser une rédaction.
+  if (!prospect.emailCheckedAt) {
+    const verdict = await validateEmailAddress(prospect.email);
+    if (!verdict.valid && !verdict.transient) {
+      await prisma.prospect.update({
+        where: { id: prospectId },
+        data: { emailCheckedAt: new Date(), emailInvalidReason: verdict.reason },
+      });
+      return "skipped";
+    }
+    if (verdict.valid) await prisma.prospect.update({ where: { id: prospectId }, data: { emailCheckedAt: new Date() } });
+  }
 
   const existing = await prisma.email.findFirst({
     where: { campaignId, prospectId, type: "INITIAL" },
@@ -159,6 +235,7 @@ export async function generateInitialEmail(campaignId: string, prospectId: strin
     campaignProductId: campaign.product || "all",
     productNeeds: prospect.productNeeds,
     buyerType: classifyTarget({ title: prospect.company, categoryName: prospect.sector }).buyerType,
+    sober: compliance.strict,
   });
 
   try {
@@ -192,14 +269,27 @@ export async function listDueFollowUps(campaignId: string): Promise<DueFollowUp[
     select: { prospectId: true, type: true, status: true, sentAt: true, repliedAt: true },
   });
   const prospectIds = [...new Set(emails.map((e) => e.prospectId))];
-  const [blocked, replied] = await Promise.all([
+  const [blocked, replied, strictCandidates] = await Promise.all([
     prisma.prospect.findMany({
-      where: { id: { in: prospectIds }, status: { in: [...DO_NOT_CONTACT_STATUSES, "IN_DISCUSSION", "CONVERTED"] } },
+      where: {
+        id: { in: prospectIds },
+        OR: [
+          { status: { in: [...DO_NOT_CONTACT_STATUSES, "IN_DISCUSSION", "CONVERTED"] } },
+          { targetFit: "OUT_OF_SCOPE" },
+          { prospectType: { not: "COMMERCIAL" } },
+          { emailInvalidReason: { not: null } },
+        ],
+      },
       select: { id: true },
     }),
     prisma.response.findMany({ where: { prospectId: { in: prospectIds } }, select: { prospectId: true } }),
+    // Pays à accord préalable : un seul message, pas de relance.
+    prisma.prospect.findMany({
+      where: { id: { in: prospectIds }, country: { in: strictOptInCountries() } },
+      select: { id: true },
+    }),
   ]);
-  const excluded = new Set([...blocked.map((p) => p.id), ...replied.map((r) => r.prospectId)]);
+  const excluded = new Set([...blocked.map((p) => p.id), ...replied.map((r) => r.prospectId), ...strictCandidates.map((p) => p.id)]);
 
   return computeDueFollowUps(emails, {
     delayDays: campaign.followUpDelayDays,

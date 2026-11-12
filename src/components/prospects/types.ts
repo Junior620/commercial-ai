@@ -18,6 +18,8 @@ export interface Prospect {
   source: string | null;
   notes: string | null;
   targetFit?: "CORE" | "SECONDARY" | "OUT_OF_SCOPE";
+  targetFitManual?: boolean;
+  emailInvalidReason?: string | null;
   productNeeds?: string[];
   createdAt?: string;
 }

@@ -147,6 +147,11 @@ model Prospect {
   targetFit       TargetFit      @default(SECONDARY)
   /// Produits pertinents : cocoa_beans, cocoa_butter, cocoa_mass, cocoa_powder
   productNeeds    String[]       @default([])
+  /// Adéquation corrigée à la main : le recalcul automatique n'y touche plus
+  targetFitManual Boolean        @default(false)
+  /// Dernière vérification de l'adresse (syntaxe + MX) et raison du rejet éventuel
+  emailCheckedAt  DateTime?
+  emailInvalidReason String?
 
   emails          Email[]
   responses       Response[]
@@ -239,6 +244,9 @@ model Email {
   clickedAt    DateTime?
   repliedAt    DateTime?
   scheduledFor DateTime?
+  /// Validation humaine : seul un email approuvé peut être envoyé
+  approvedAt   DateTime?
+  approvedById String?
   createdAt    DateTime    @default(now())
   updatedAt    DateTime    @updatedAt
 
@@ -249,6 +257,7 @@ model Email {
   @@index([prospectId])
   @@index([status])
   @@index([status, sentAt])
+  @@index([status, approvedAt])
   @@index([resendId])
   @@index([scheduledFor])
   @@map("emails")
@@ -339,6 +348,8 @@ model AppSettings {
   alertBouncePctThreshold Int @default(5)
   /// Adresse postale affichée en pied d'email (obligation légale prospection B2B)
   companyAddress      String?
+  /// Délai minimal (jours) avant de recontacter un prospect dans une autre campagne
+  minDaysBetweenCampaigns Int @default(30)
 
   @@map("app_settings")
 }
@@ -360,4 +371,16 @@ model WebhookEvent {
 
   @@index([createdAt])
   @@map("webhook_events")
+}
+
+/// Alerte levée par une tâche de fond (envoi, rédaction, recherche) ou un garde-fou
+model JobAlert {
+  id         String    @id @default(cuid())
+  kind       String
+  message    String
+  createdAt  DateTime  @default(now())
+  resolvedAt DateTime?
+
+  @@index([resolvedAt, createdAt])
+  @@map("job_alerts")
 }

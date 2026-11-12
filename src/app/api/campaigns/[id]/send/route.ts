@@ -17,15 +17,18 @@ export async function POST(_req: NextRequest, { params }: { params: Promise<{ id
   if (!campaign) return NextResponse.json({ error: "Campagne introuvable" }, { status: 404 });
   if (campaign.status !== "ACTIVE") {
     return NextResponse.json(
-      { error: "Activez la campagne (après relecture des emails) avant de lancer l'envoi." },
+      { error: "Activez la campagne (après approbation des emails) avant de lancer l'envoi." },
       { status: 409 }
     );
   }
 
   const [quota, pending] = await Promise.all([
     getDailyQuota(),
-    prisma.email.count({ where: { campaignId: id, status: "PENDING" } }),
+    prisma.email.count({ where: { campaignId: id, status: "PENDING", approvedAt: { not: null } } }),
   ]);
+  if (pending === 0) {
+    return NextResponse.json({ queued: false, message: "Aucun email approuvé en attente d'envoi.", quota });
+  }
   if (quota.remaining <= 0) {
     return NextResponse.json({ queued: false, message: "Limite quotidienne atteinte", quota });
   }

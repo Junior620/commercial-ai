@@ -14,7 +14,6 @@ const CampaignCreateSchema = z
     maxFollowUps: z.number().int().min(0).max(3).optional(),
     followUpDelayDays: z.number().int().min(1).max(60).optional(),
     dailyLimit: z.number().int().min(1).max(500).optional(),
-    signature: z.string().max(2000).optional(),
   })
   .strict();
 
@@ -48,7 +47,6 @@ export async function POST(req: NextRequest) {
         maxFollowUps: data.maxFollowUps ?? 2,
         followUpDelayDays: data.followUpDelayDays ?? 4,
         dailyLimit: data.dailyLimit ?? 50,
-        signature: data.signature || null,
         createdById: auth.user.id,
       },
     });

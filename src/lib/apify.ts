@@ -37,14 +37,6 @@ interface GoogleMapsSearchParams {
   maxResults?: number;
 }
 
-/** Levee quand l utilisateur a annule le job (statut CANCELLED en base). */
-export class ScrapingCancelledError extends Error {
-  constructor() {
-    super("Scraping annule par l utilisateur");
-    this.name = "ScrapingCancelledError";
-  }
-}
-
 export interface ScrapedPlace {
   title: string;
   website?: string;
@@ -140,252 +132,84 @@ export async function abortApifyRun(runId: string): Promise<void> {
   }
 }
 
-export async function waitForRunAndFetchPlaces(
-  runId: string,
-  opts?: {
-    maxWaitMs?: number;
-    pollMs?: number;
-    shouldCancel?: () => Promise<boolean>;
-  }
-): Promise<ScrapedPlace[]> {
-  const maxWaitMs = opts?.maxWaitMs ?? 55 * 60 * 1000;
-  const pollMs = opts?.pollMs ?? 8000;
-  const deadline = Date.now() + maxWaitMs;
-  const shouldCancel = opts?.shouldCancel;
+// ─────────────────────────────────────────────────────────────
+// Enrichissement : traitements lancés sans attendre leur fin.
+// Inngest interroge ensuite leur état (aucune étape ne dépend de la durée d'un traitement Apify).
+// ─────────────────────────────────────────────────────────────
 
-  while (Date.now() < deadline) {
-    if (shouldCancel && (await shouldCancel())) {
-      throw new ScrapingCancelledError();
-    }
-    const run = await client.run(runId).get();
-    if (!run) throw new Error(`Run ${runId} not found`);
+export type EnrichmentKind = "contact" | "deep-contact" | "search" | "content";
 
-    if (run.status === "RUNNING" || run.status === "READY") {
-      await new Promise((r) => setTimeout(r, pollMs));
-      continue;
-    }
+const withProtocol = (url: string) => (url.startsWith("http") ? url : `https://${url}`);
 
-    if (
-      run.status === "FAILED" ||
-      run.status === "ABORTED" ||
-      run.status === "TIMED-OUT"
-    ) {
-      throw new Error(`Apify run ${runId}: ${run.status}`);
-    }
-
-    if (run.status === "SUCCEEDED") {
-      const { items } = await client
-        .dataset(run.defaultDatasetId)
-        .listItems({ limit: 5000 });
-      return items.map((item) =>
-        mapDatasetItemToPlace(item as Record<string, unknown>)
-      );
-    }
-
-    await new Promise((r) => setTimeout(r, pollMs));
-  }
-
-  throw new Error(
-    `Delai depasse (~${Math.round(maxWaitMs / 60000)} min) pour le run Apify ${runId}.`
-  );
+/** Lance un traitement d'enrichissement et renvoie son identifiant. */
+export async function startEnrichmentRun(kind: EnrichmentKind, payload: string[]): Promise<string> {
+  const startUrls = payload.map((url) => ({ url: withProtocol(url) }));
+  const run =
+    kind === "search"
+      ? await client.actor("apify/google-search-scraper").start({
+          queries: payload.join("\n"),
+          maxPagesPerQuery: 1,
+          resultsPerPage: 10,
+          languageCode: "en",
+          mobileResults: false,
+        })
+      : kind === "content"
+        ? await client.actor("apify/website-content-crawler").start({ startUrls, maxCrawlDepth: 2, maxCrawlPages: 8, crawlerType: "cheerio" })
+        : await client.actor("apify/contact-info-scraper").start({ startUrls, maxRequestsPerStartUrl: kind === "deep-contact" ? 6 : 2 });
+  return run.id;
 }
 
-function sleep(ms: number): Promise<void> {
-  return new Promise((r) => setTimeout(r, ms));
+export async function getRunState(runId: string): Promise<{ done: boolean; ok: boolean; status: string }> {
+  const run = await client.run(runId).get();
+  const status = run?.status ?? "UNKNOWN";
+  const done = !["READY", "RUNNING"].includes(status);
+  return { done, ok: status === "SUCCEEDED", status };
 }
 
-// ─────────────────────────────────────────────────────────────
-// Source 2 : Contact Info Scraper (standard + deep)
-// ─────────────────────────────────────────────────────────────
+const EMAIL_IN_TEXT = /[A-Za-z0-9._%+\-]+@[A-Za-z0-9.\-]+\.[A-Za-z]{2,}/g;
 
-export async function scrapeContactInfo(
-  websites: string[],
-  opts?: {
-    shouldCancel?: () => Promise<boolean>;
-    chunkSize?: number;
-    maxRequestsPerStartUrl?: number;
-  }
-): Promise<Map<string, { emails: string[]; phones: string[] }>> {
-  const shouldCancel = opts?.shouldCancel;
-  const chunkSize = opts?.chunkSize ?? 40;
-  const maxReqs = opts?.maxRequestsPerStartUrl ?? 3;
-  const contactMap = new Map<string, { emails: string[]; phones: string[] }>();
+/**
+ * Lit le résultat d'un traitement terminé.
+ * - contact / deep-contact / content : emails bruts par domaine
+ * - search : emails par requête (en minuscules)
+ */
+export async function readEnrichmentRun(kind: EnrichmentKind, runId: string): Promise<Record<string, string[]>> {
+  const run = await client.run(runId).get();
+  if (!run?.defaultDatasetId) return {};
+  const { items } = await client.dataset(run.defaultDatasetId).listItems({ limit: 5000 });
+  const out: Record<string, string[]> = {};
+  const add = (key: string, values: string[]) => {
+    if (!key || values.length === 0) return;
+    out[key] = [...new Set([...(out[key] ?? []), ...values])].slice(0, 30);
+  };
 
-  for (let i = 0; i < websites.length; i += chunkSize) {
-    if (shouldCancel && (await shouldCancel())) {
-      throw new ScrapingCancelledError();
-    }
-    const chunk = websites.slice(i, i + chunkSize);
-    const run = await client.actor("apify/contact-info-scraper").call({
-      startUrls: chunk.map((url) => ({
-        url: url.startsWith("http") ? url : `https://${url}`,
-      })),
-      maxRequestsPerStartUrl: maxReqs,
-    });
-
-    const { items } = await client
-      .dataset(run.defaultDatasetId)
-      .listItems({ limit: 5000 });
-
-    for (const item of items) {
-      const url = (item.url as string) || "";
-      const emails = (item.emails as string[]) || [];
-      const phones = (item.phones as string[]) || [];
-      const domain = extractDomain(url);
-      if (domain) {
-        const existing = contactMap.get(domain);
-        if (existing) {
-          const mergedEmails = [...new Set([...existing.emails, ...emails])];
-          const mergedPhones = [...new Set([...existing.phones, ...phones])];
-          contactMap.set(domain, { emails: mergedEmails, phones: mergedPhones });
-        } else {
-          contactMap.set(domain, { emails, phones });
-        }
-      }
-    }
-
-    if (i + chunkSize < websites.length) {
-      await sleep(400);
+  for (const item of items) {
+    if (kind === "search") {
+      const query = ((item.searchQuery as { term?: string })?.term || "").toLowerCase();
+      const results = (item.organicResults as { description?: string; url?: string }[]) || [];
+      const found = results
+        .flatMap((r) => `${r.description || ""} ${r.url || ""}`.match(EMAIL_IN_TEXT) || [])
+        .map((e) => e.toLowerCase())
+        .filter((e) => e.length < 80 && !/example\.com|domain\.com|sentry\.io|google/.test(e));
+      add(query, found);
+    } else if (kind === "content") {
+      const domain = extractDomain((item.url as string) || "");
+      const text = ((item.text as string) || "").slice(0, 200_000);
+      if (domain) add(domain, text.match(EMAIL_IN_TEXT) || []);
+    } else {
+      const domain = extractDomain((item.url as string) || "");
+      if (domain) add(domain, (item.emails as string[]) || []);
     }
   }
-
-  return contactMap;
+  return out;
 }
 
-// ─────────────────────────────────────────────────────────────
-// Source 4 : Google Search Scraper — recherche "company email"
-// dans annuaires, directories, reseaux sociaux...
-// ─────────────────────────────────────────────────────────────
-
-export interface GoogleSearchEmailResult {
-  query: string;
-  emails: string[];
-  sources: string[];
-}
-
-export async function searchGoogleForEmails(
-  queries: string[],
-  opts?: {
-    shouldCancel?: () => Promise<boolean>;
-    chunkSize?: number;
-  }
-): Promise<Map<string, string[]>> {
-  const shouldCancel = opts?.shouldCancel;
-  const chunkSize = opts?.chunkSize ?? 20;
-  const resultMap = new Map<string, string[]>();
-
-  for (let i = 0; i < queries.length; i += chunkSize) {
-    if (shouldCancel && (await shouldCancel())) {
-      throw new ScrapingCancelledError();
-    }
-    const chunk = queries.slice(i, i + chunkSize);
-
-    const run = await client.actor("apify/google-search-scraper").call({
-      queries: chunk.join("\n"),
-      maxPagesPerQuery: 1,
-      resultsPerPage: 10,
-      languageCode: "en",
-      mobileResults: false,
-    });
-
-    const { items } = await client
-      .dataset(run.defaultDatasetId)
-      .listItems({ limit: 5000 });
-
-    for (const item of items) {
-      const searchQuery = (item.searchQuery as { term?: string })?.term || "";
-      const organicResults =
-        (item.organicResults as { description?: string; url?: string }[]) || [];
-
-      const emails: string[] = [];
-      for (const result of organicResults) {
-        const text = [result.description || "", result.url || ""].join(" ");
-        const emailRegex = /[A-Za-z0-9._%+\-]+@[A-Za-z0-9.\-]+\.[A-Za-z]{2,}/g;
-        const found = text.match(emailRegex) || [];
-        for (const e of found) {
-          const lower = e.toLowerCase();
-          if (
-            !lower.includes("example.com") &&
-            !lower.includes("domain.com") &&
-            !lower.includes("sentry.io") &&
-            !lower.includes("google") &&
-            lower.length < 80
-          ) {
-            emails.push(lower);
-          }
-        }
-      }
-
-      if (emails.length > 0) {
-        resultMap.set(
-          searchQuery.toLowerCase(),
-          [...new Set(emails)]
-        );
-      }
-    }
-
-    if (i + chunkSize < queries.length) {
-      await sleep(500);
-    }
-  }
-
-  return resultMap;
-}
-
-// ─────────────────────────────────────────────────────────────
-// Source 5 : Website Content Crawler — crawl profond
-// ─────────────────────────────────────────────────────────────
-
-export async function scrapeWebsiteContent(
-  websites: string[],
-  opts?: {
-    shouldCancel?: () => Promise<boolean>;
-    chunkSize?: number;
-  }
-): Promise<Map<string, { texts: string[] }>> {
-  const shouldCancel = opts?.shouldCancel;
-  const chunkSize = opts?.chunkSize ?? 25;
-  const resultMap = new Map<string, { texts: string[] }>();
-
-  for (let i = 0; i < websites.length; i += chunkSize) {
-    if (shouldCancel && (await shouldCancel())) {
-      throw new ScrapingCancelledError();
-    }
-    const chunk = websites.slice(i, i + chunkSize);
-
-    const run = await client.actor("apify/website-content-crawler").call({
-      startUrls: chunk.map((url) => ({
-        url: url.startsWith("http") ? url : `https://${url}`,
-      })),
-      maxCrawlDepth: 2,
-      maxCrawlPages: 8,
-      crawlerType: "cheerio",
-    });
-
-    const { items } = await client
-      .dataset(run.defaultDatasetId)
-      .listItems({ limit: 5000 });
-
-    for (const item of items) {
-      const pageUrl = (item.url as string) || "";
-      const text = (item.text as string) || "";
-      const domain = extractDomain(pageUrl);
-      if (domain && text) {
-        const existing = resultMap.get(domain);
-        if (existing) {
-          existing.texts.push(text);
-        } else {
-          resultMap.set(domain, { texts: [text] });
-        }
-      }
-    }
-
-    if (i + chunkSize < websites.length) {
-      await sleep(400);
-    }
-  }
-
-  return resultMap;
+/** Message lisible pour les erreurs Apify les plus courantes. */
+export function friendlyApifyError(message: string): string {
+  if (/monthly usage hard limit/i.test(message)) return "Quota mensuel Apify atteint. Augmentez la limite dans votre compte Apify ou attendez le mois prochain.";
+  if (/memory limit/i.test(message)) return "Trop de traitements Apify en parallèle pour votre compte (limite de mémoire). Réessayez dans quelques minutes avec moins de pays ou de mots-clés.";
+  if (/token|unauthorized|401/i.test(message)) return "Clé Apify refusée : vérifiez APIFY_API_TOKEN.";
+  return message;
 }
 
 /** Statuts Apify en direct (pour la progression dans l UI). */

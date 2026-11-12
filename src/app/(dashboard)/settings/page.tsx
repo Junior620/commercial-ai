@@ -12,6 +12,7 @@ import { Switch } from "@/components/ui/switch";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { PageTitle } from "@/components/layout/page-title";
+import { ConfigHealthCard } from "@/components/settings/config-health-card";
 
 type SettingsForm = {
   companyAddress: string;
@@ -21,6 +22,7 @@ type SettingsForm = {
   weeklyNewProspectTarget: string;
   weeklyReplyTarget: string;
   alertBouncePctThreshold: string;
+  minDaysBetweenCampaigns: string;
 };
 
 type Member = { id: string; email: string; name: string | null; role: string; active: boolean };
@@ -41,6 +43,7 @@ function toForm(data: Record<string, unknown>): SettingsForm {
     weeklyNewProspectTarget: String(data.weeklyNewProspectTarget ?? 30),
     weeklyReplyTarget: String(data.weeklyReplyTarget ?? 5),
     alertBouncePctThreshold: String(data.alertBouncePctThreshold ?? 5),
+    minDaysBetweenCampaigns: String(data.minDaysBetweenCampaigns ?? 30),
   };
 }
 
@@ -70,7 +73,7 @@ function NumberField({
   );
 }
 
-function MembersCard() {
+function MembersCard({ onAccess }: { onAccess: (isAdmin: boolean) => void }) {
   const [members, setMembers] = useState<Member[] | null>(null);
   const [forbidden, setForbidden] = useState(false);
   const [invite, setInvite] = useState({ email: "", name: "", role: "COMMERCIAL" });
@@ -79,8 +82,11 @@ function MembersCard() {
   const load = useCallback(async () => {
     const res = await fetch("/api/members");
     if (res.status === 403) return setForbidden(true);
-    if (res.ok) setMembers(await res.json());
-  }, []);
+    if (res.ok) {
+      setMembers(await res.json());
+      onAccess(true);
+    }
+  }, [onAccess]);
 
   useEffect(() => {
     load();
@@ -99,7 +105,11 @@ function MembersCard() {
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(data.error || "Invitation impossible");
-      toast.success(`Invitation envoyée à ${invite.email}`);
+      toast.success(
+        data.invitationSimulated
+          ? `Membre ajouté. Resend n'est pas configuré ici : le lien d'invitation est affiché dans la console du serveur.`
+          : `Invitation envoyée à ${invite.email}`
+      );
       setInvite({ email: "", name: "", role: "COMMERCIAL" });
       load();
     } catch (err) {
@@ -126,7 +136,8 @@ function MembersCard() {
       <CardHeader>
         <CardTitle>Équipe</CardTitle>
         <CardDescription>
-          L&apos;accès est réservé aux membres invités. Un membre désactivé ne peut plus se connecter.
+          L&apos;accès est réservé aux membres invités. Chaque invité reçoit un email avec un lien personnel pour définir
+          son mot de passe. Un membre désactivé ne peut plus se connecter.
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-5">
@@ -221,6 +232,7 @@ function MembersCard() {
 export default function SettingsPage() {
   const [form, setForm] = useState<SettingsForm | null>(null);
   const [saving, setSaving] = useState(false);
+  const [isAdmin, setIsAdmin] = useState(false);
   const set = (key: keyof SettingsForm) => (value: string) => setForm((f) => (f ? { ...f, [key]: value } : f));
 
   useEffect(() => {
@@ -252,6 +264,7 @@ export default function SettingsPage() {
           weeklyNewProspectTarget: Number(form.weeklyNewProspectTarget),
           weeklyReplyTarget: Number(form.weeklyReplyTarget),
           alertBouncePctThreshold: Number(form.alertBouncePctThreshold),
+          minDaysBetweenCampaigns: Number(form.minDaysBetweenCampaigns),
         }),
       });
       const data = await res.json().catch(() => ({}));
@@ -269,6 +282,8 @@ export default function SettingsPage() {
     <div className="mx-auto max-w-4xl space-y-6">
       <PageTitle title="Paramètres" description="Règles d'envoi, mentions légales, objectifs et équipe." icon={Settings} />
 
+      <ConfigHealthCard isAdmin={isAdmin} />
+
       {!form ? (
         <div className="space-y-4" aria-busy="true">
           <Skeleton className="h-48 rounded-xl" />
@@ -280,7 +295,8 @@ export default function SettingsPage() {
             <CardHeader>
               <CardTitle>Envoi et délivrabilité</CardTitle>
               <CardDescription>
-                Un rythme modéré protège la réputation du domaine expéditeur. Commencez bas (20 à 50 par jour) puis augmentez progressivement.
+                Un rythme modéré protège la réputation du domaine expéditeur. Pour une reprise : 20 emails par jour et 60 secondes
+                d&apos;espacement, puis augmentez par paliers si les rebonds restent sous 2 %.
               </CardDescription>
             </CardHeader>
             <CardContent className="grid gap-4 sm:grid-cols-2">
@@ -288,7 +304,7 @@ export default function SettingsPage() {
               <NumberField
                 id="spacing"
                 label="Espacement entre deux emails (secondes)"
-                hint="30 à 120 secondes recommandées."
+                hint="60 à 120 secondes recommandées."
                 value={form.emailSpacingSeconds}
                 onChange={set("emailSpacingSeconds")}
                 min={0}
@@ -296,11 +312,21 @@ export default function SettingsPage() {
               />
               <NumberField
                 id="bounce-alert"
-                label="Seuil d'alerte rebonds sur 30 jours (%)"
+                label="Seuil de rebonds (%)"
+                hint="Au-delà sur 7 jours (20 envois minimum), toutes les campagnes passent en pause automatiquement."
                 value={form.alertBouncePctThreshold}
                 onChange={set("alertBouncePctThreshold")}
                 min={1}
                 max={100}
+              />
+              <NumberField
+                id="campaign-gap"
+                label="Délai entre deux campagnes pour un même prospect (jours)"
+                hint="Un prospect contacté récemment n'est pas repris dans une autre campagne avant ce délai."
+                value={form.minDaysBetweenCampaigns}
+                onChange={set("minDaysBetweenCampaigns")}
+                min={0}
+                max={365}
               />
             </CardContent>
           </Card>
@@ -348,7 +374,7 @@ export default function SettingsPage() {
         </form>
       )}
 
-      <MembersCard />
+      <MembersCard onAccess={setIsAdmin} />
     </div>
   );
 }

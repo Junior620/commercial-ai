@@ -142,7 +142,7 @@ export default function SendingPage() {
           </Card>
 
           <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-            <Stat label="Prêts à partir" value={stats.pendingReady} hint={`${stats.pendingEmails} en attente au total`} icon={Clock} />
+            <Stat label="Prêts à partir" value={stats.pendingReady} hint={`Approuvés, campagne active · ${stats.pendingEmails} en attente au total`} icon={Clock} />
             <Stat label="Délivrés aujourd'hui" value={stats.deliveredToday} icon={MailCheck} tone="text-success" />
             <Stat label="Ouverts aujourd'hui" value={stats.openedToday} hint={`Taux d'ouverture : ${stats.openRate} %`} icon={MailOpen} tone="text-primary" />
             <Stat label="Campagnes actives" value={stats.activeCampaigns} icon={Send} />

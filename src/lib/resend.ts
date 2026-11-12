@@ -56,7 +56,7 @@ export async function sendEmail(params: SendEmailParams): Promise<SendEmailResul
   const resend = getResendClient();
   if (!resend) {
     if (process.env.NODE_ENV === "production") {
-      throw new EmailSendError("RESEND_API_KEY non configurée : envoi impossible", false);
+      throw new Error("RESEND_API_KEY non configurée : envoi impossible");
     }
     console.warn(`[resend] RESEND_API_KEY absente : envoi simulé vers ${params.to}`);
     return { id: `simulated-${params.idempotencyKey}`, simulated: true };
@@ -251,9 +251,4 @@ export function buildUnsubscribeHeaders(to: string): Record<string, string> {
     "List-Unsubscribe": links.join(", "),
     "List-Unsubscribe-Post": "List-Unsubscribe=One-Click",
   };
-}
-
-/** Aperçu HTML (UI) sans lien de désinscription personnalisé. */
-export function emailBodyToHtml(body: string, language = "fr"): string {
-  return buildEmailHtml(body, { to: "apercu@example.com", language });
 }

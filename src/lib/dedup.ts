@@ -77,3 +77,15 @@ export function deduplicateItems<T extends DedupCandidate>(items: T[]): T[] {
   }
   return result;
 }
+
+/**
+ * Identifiant d'entreprise pour éviter d'écrire à deux contacts de la même société :
+ * domaine du site s'il lui est propre, sinon domaine de l'adresse (hors webmails).
+ */
+export function companyKey(p: { website?: string | null; email?: string | null }): string | null {
+  const site = normalizeDomain(p.website);
+  if (site && !isSharedDomain(site)) return site;
+  const mailDomain = p.email?.split("@")[1]?.toLowerCase();
+  if (mailDomain && !isSharedDomain(mailDomain)) return mailDomain;
+  return null;
+}

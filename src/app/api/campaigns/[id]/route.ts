@@ -3,6 +3,8 @@ import { z } from "zod";
 import { prisma } from "@/lib/prisma";
 import { requireUser, WRITE_ROLES } from "@/lib/auth";
 import { parseJsonBody, prismaErrorCode, serverError } from "@/lib/api";
+import { getConfigHealth } from "@/lib/config-health";
+import { strictOptInCountries } from "@/lib/compliance";
 
 const CampaignUpdateSchema = z
   .object({
@@ -15,9 +17,6 @@ const CampaignUpdateSchema = z
     maxFollowUps: z.number().int().min(0).max(3).optional(),
     followUpDelayDays: z.number().int().min(1).max(60).optional(),
     dailyLimit: z.number().int().min(1).max(500).optional(),
-    signature: z.string().max(2000).nullable().optional(),
-    subjectTemplate: z.string().max(500).nullable().optional(),
-    bodyTemplate: z.string().max(10000).nullable().optional(),
   })
   .strict();
 
@@ -33,7 +32,7 @@ export async function GET(_req: NextRequest, { params }: Params) {
     include: {
       segment: { select: { name: true, id: true } },
       emails: {
-        include: { prospect: { select: { company: true, email: true, contact: true } } },
+        include: { prospect: { select: { company: true, email: true, contact: true, country: true } } },
         orderBy: { createdAt: "desc" },
         take: 1000,
       },
@@ -41,11 +40,19 @@ export async function GET(_req: NextRequest, { params }: Params) {
   });
   if (!campaign) return NextResponse.json({ error: "Campagne introuvable" }, { status: 404 });
 
-  const [failedCount, pendingCount] = await Promise.all([
+  const [failedCount, pendingCount, approvedCount] = await Promise.all([
     prisma.email.count({ where: { campaignId: id, status: "FAILED" } }),
     prisma.email.count({ where: { campaignId: id, status: "PENDING" } }),
+    prisma.email.count({ where: { campaignId: id, status: "PENDING", approvedAt: { not: null } } }),
   ]);
-  return NextResponse.json({ ...campaign, failedCount, pendingCount });
+  return NextResponse.json({
+    ...campaign,
+    failedCount,
+    pendingCount,
+    approvedCount,
+    toApproveCount: pendingCount - approvedCount,
+    strictCountries: strictOptInCountries(),
+  });
 }
 
 export async function PATCH(req: NextRequest, { params }: Params) {
@@ -61,12 +68,23 @@ export async function PATCH(req: NextRequest, { params }: Params) {
     return NextResponse.json({ error: "Aucun champ à mettre à jour" }, { status: 400 });
   }
 
-  // Activer = approuver le lot : il faut au moins un email relu et prêt à partir.
+  // Activer une campagne n'approuve rien : seuls les emails approuvés un à un partiront.
   if (data.status === "ACTIVE") {
-    const ready = await prisma.email.count({ where: { campaignId: id, status: { in: ["PENDING", "SENT", "DELIVERED", "OPENED", "CLICKED"] } } });
-    if (ready === 0) {
+    const [approved, sent, settings] = await Promise.all([
+      prisma.email.count({ where: { campaignId: id, status: "PENDING", approvedAt: { not: null } } }),
+      prisma.email.count({ where: { campaignId: id, sentAt: { not: null } } }),
+      prisma.appSettings.findUnique({ where: { id: "default" }, select: { companyAddress: true } }),
+    ]);
+    if (approved + sent === 0) {
+      return NextResponse.json({ error: "Approuvez au moins un email avant d'activer la campagne." }, { status: 409 });
+    }
+    const health = await getConfigHealth({ companyAddress: settings?.companyAddress, deep: true });
+    if (!health.ready) {
       return NextResponse.json(
-        { error: "Générez et relisez les emails avant d'activer la campagne." },
+        {
+          error: `Activation impossible tant que la configuration est incomplète : ${health.blockers.map((b) => b.detail).join(" ")}`,
+          blockers: health.blockers,
+        },
         { status: 409 }
       );
     }

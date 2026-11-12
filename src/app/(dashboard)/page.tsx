@@ -21,6 +21,7 @@ import { buttonVariants } from "@/components/ui/button";
 import { PageTitle } from "@/components/layout/page-title";
 import { StatusBadge } from "@/components/shared/status-badge";
 import { CountryChart } from "@/components/dashboard/charts";
+import { DismissAlertButton } from "@/components/dashboard/dismiss-alert-button";
 import { loadDashboard } from "@/lib/dashboard";
 import { getCurrentUser } from "@/lib/auth";
 import { PROSPECT_STATUS_LABELS } from "@/lib/labels";
@@ -200,6 +201,7 @@ export default async function DashboardPage() {
                     <ArrowRight className="h-3.5 w-3.5" />
                   </Link>
                 ) : null}
+                {a.alertId ? <DismissAlertButton alertId={a.alertId} /> : null}
               </li>
             );
           })}
@@ -218,7 +220,7 @@ export default async function DashboardPage() {
         <Kpi
           label="Emails envoyés (7 j)"
           value={kpis.sent7d}
-          hint={kpis.sentTrend === null ? `${data.pendingReviewTotal} prêt(s) à relire` : `${kpis.sentTrend >= 0 ? "+" : ""}${kpis.sentTrend} % vs semaine précédente`}
+          hint={kpis.sentTrend === null ? `${data.pendingReviewTotal} à approuver` : `${kpis.sentTrend >= 0 ? "+" : ""}${kpis.sentTrend} % vs semaine précédente`}
           icon={Send}
           tone="sun"
           href="/sending"
@@ -375,7 +377,7 @@ export default async function DashboardPage() {
               action={
                 data.campaignsToReview[0] ? (
                   <Link href={`/campaigns/${data.campaignsToReview[0].id}`} className={buttonVariants()}>
-                    Relire et activer « {data.campaignsToReview[0].name} »
+                    Relire et approuver « {data.campaignsToReview[0].name} »
                   </Link>
                 ) : (
                   <Link href="/campaigns/new" className={buttonVariants()}>
@@ -395,7 +397,7 @@ export default async function DashboardPage() {
             <div>
               <CardTitle>Campagnes</CardTitle>
               <CardDescription>
-                {data.activeCampaigns.length} active(s) · {data.campaignsToReview.length} en attente de relecture
+                {data.activeCampaigns.length} active(s) · {data.campaignsToReview.length} avec des emails à approuver
               </CardDescription>
             </div>
             <CardLink href="/campaigns">Toutes</CardLink>

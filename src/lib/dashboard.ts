@@ -56,9 +56,10 @@ export async function loadDashboard() {
       FROM "emails"
       WHERE "sentAt" >= ${weekAgo}
       GROUP BY 1`,
+    // Emails rédigés qui attendent une approbation (premiers contacts et relances, toutes campagnes)
     prisma.email.groupBy({
       by: ["campaignId"],
-      where: { status: "PENDING", campaign: { status: { in: ["DRAFT", "PAUSED"] } } },
+      where: { status: "PENDING", approvedAt: null, campaign: { status: { not: "COMPLETED" } } },
       _count: { _all: true },
     }),
     prisma.prospect.groupBy({
@@ -77,7 +78,7 @@ export async function loadDashboard() {
   ]);
 
   // Lot 2 : listes
-  const [reviewCampaigns, activeCampaigns, hotNotContacted, inDiscussion, lastScrape, failedScrapes7d, suppressed] = await Promise.all([
+  const [reviewCampaigns, activeCampaigns, hotNotContacted, inDiscussion, lastScrape, failedScrapes7d, suppressed, jobAlerts, followUpsToApprove] = await Promise.all([
     pendingReview.length
       ? prisma.campaign.findMany({
           where: { id: { in: pendingReview.map((r) => r.campaignId) } },
@@ -109,6 +110,8 @@ export async function loadDashboard() {
     }),
     prisma.scrapingJob.count({ where: { status: "FAILED", createdAt: { gte: weekAgo } } }),
     prisma.suppression.count(),
+    prisma.jobAlert.findMany({ where: { resolvedAt: null }, orderBy: { createdAt: "desc" }, take: 5 }),
+    prisma.email.count({ where: { status: "PENDING", approvedAt: null, type: { not: "INITIAL" }, campaign: { status: { not: "COMPLETED" } } } }),
   ]);
 
   const statusCount = (st: string) => prospectStatus.find((p) => p.status === st)?._count._all ?? 0;
@@ -155,16 +158,29 @@ export async function loadDashboard() {
   const bounceThreshold = settings?.alertBouncePctThreshold ?? 5;
   const bounceRate = pct(bounced30, sent30);
 
-  const alerts: { level: "warning" | "danger" | "info"; message: string; href?: string; cta?: string }[] = [];
+  const alerts: { level: "warning" | "danger" | "info"; message: string; href?: string; cta?: string; alertId?: string }[] = [];
+  const ALERT_LINKS: Record<string, { href: string; cta: string }> = {
+    config: { href: "/settings", cta: "Voir la configuration" },
+    bounce: { href: "/sending", cta: "Voir l'envoi" },
+    send: { href: "/settings", cta: "Voir la configuration" },
+    generate: { href: "/campaigns", cta: "Voir les campagnes" },
+    scraping: { href: "/scraping", cta: "Voir les recherches" },
+  };
+  for (const a of jobAlerts) {
+    alerts.push({ level: "danger", message: a.message, alertId: a.id, ...(ALERT_LINKS[a.kind] ?? {}) });
+  }
   if (pendingReviewTotal > 0) {
     alerts.push({
       level: "info",
-      message: `${pendingReviewTotal} email(s) rédigé(s) attendent votre relecture. Une fois relus, activez la campagne pour lancer l'envoi.`,
+      message: `${pendingReviewTotal} email(s) attendent votre approbation${
+        followUpsToApprove > 0 ? `, dont ${followUpsToApprove} relance(s)` : ""
+      }. Aucun email ne part sans avoir été approuvé.`,
       href: campaignsToReview[0] ? `/campaigns/${campaignsToReview[0].id}` : "/campaigns",
-      cta: "Relire les emails",
+      cta: "Relire et approuver",
     });
   }
-  if (bounceRate !== null && bounceRate >= bounceThreshold) {
+  const bounceAlertOpen = jobAlerts.some((a) => a.kind === "bounce");
+  if (!bounceAlertOpen && bounceRate !== null && bounceRate >= bounceThreshold) {
     alerts.push({
       level: "danger",
       message: `Taux de rebond sur 30 jours de ${bounceRate} % (seuil ${bounceThreshold} %). Réduisez le volume et vérifiez la qualité des listes.`,
@@ -172,7 +188,7 @@ export async function loadDashboard() {
       cta: "Voir l'envoi",
     });
   }
-  if (failedScrapes7d > 0) {
+  if (failedScrapes7d > 0 && !jobAlerts.some((a) => a.kind === "scraping")) {
     alerts.push({ level: "warning", message: `${failedScrapes7d} recherche(s) de prospects en échec cette semaine.`, href: "/scraping", cta: "Voir les recherches" });
   }
 

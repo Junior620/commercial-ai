@@ -13,7 +13,8 @@ export async function GET() {
     await Promise.all([
       getDailyQuota(),
       prisma.email.count({ where: { status: "PENDING" } }),
-      prisma.email.count({ where: { status: "PENDING", campaign: { status: "ACTIVE" } } }),
+      // Prêts à partir : approuvés, dans une campagne active
+      prisma.email.count({ where: { status: "PENDING", approvedAt: { not: null }, campaign: { status: "ACTIVE" } } }),
       prisma.email.count({ where: { deliveredAt: { gte: today } } }),
       prisma.email.count({ where: { openedAt: { gte: today } } }),
       prisma.email.count({ where: { status: "BOUNCED", sentAt: { gte: today } } }),

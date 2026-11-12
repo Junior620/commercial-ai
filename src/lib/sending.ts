@@ -1,14 +1,12 @@
 import { prisma } from "@/lib/prisma";
 import { startOfTodayInTimeZone } from "@/lib/time";
 import { resolveCampaignLanguage } from "@/lib/prospect-language";
-import {
-  EmailSendError,
-  buildEmailHtml,
-  buildEmailText,
-  buildUnsubscribeHeaders,
-  sendEmail,
-} from "@/lib/resend";
+import { EmailSendError, buildEmailHtml, buildEmailText, buildUnsubscribeHeaders, sendEmail } from "@/lib/resend";
+import { decideSend } from "@/lib/send-rules";
+import { validateEmailAddress } from "@/lib/email-validation";
+import { raiseAlert } from "@/lib/alerts";
 import type { EmailStatus, ProspectStatus } from "@/generated/prisma/enums";
+import type { Prisma } from "@/generated/prisma/client";
 
 /** Statuts d'un email effectivement parti. */
 export const SENT_STATUSES: EmailStatus[] = ["SENT", "DELIVERED", "OPENED", "CLICKED", "REPLIED", "BOUNCED"];
@@ -21,6 +19,9 @@ export const TARGETABLE_STATUSES: ProspectStatus[] = ["NEW", "CONTACTED"];
 
 /** Un email réservé depuis plus longtemps est considéré comme bloqué (crash du worker). */
 const STALE_SENDING_MS = 30 * 60 * 1000;
+/** Une adresse est revérifiée (MX) au-delà de ce délai. */
+const EMAIL_CHECK_TTL_MS = 30 * 24 * 60 * 60 * 1000;
+const DAY = 24 * 60 * 60 * 1000;
 
 export async function getSendingSettings() {
   const settings = await prisma.appSettings.findUnique({ where: { id: "default" } });
@@ -28,6 +29,8 @@ export async function getSendingSettings() {
     dailyLimit: Math.max(0, settings?.dailyEmailLimit ?? 50),
     spacingSeconds: Math.max(0, settings?.emailSpacingSeconds ?? 30),
     companyAddress: settings?.companyAddress ?? null,
+    minDaysBetweenCampaigns: Math.max(0, settings?.minDaysBetweenCampaigns ?? 30),
+    bounceThresholdPct: settings?.alertBouncePctThreshold ?? 5,
   };
 }
 
@@ -83,20 +86,58 @@ export async function releaseStaleReservations(): Promise<number> {
 }
 
 /**
- * Sélectionne les prochains emails envoyables :
- * campagne ACTIVE, prospect joignable, hors liste de suppression,
- * dans la limite du quota global et du quota journalier de chaque campagne.
+ * Coupe-circuit : si trop d'emails rebondissent sur 7 jours, toutes les campagnes
+ * actives passent en pause, le temps de nettoyer les listes.
+ */
+export async function checkBounceCircuitBreaker(): Promise<{ tripped: boolean; rate: number }> {
+  const since = new Date(Date.now() - 7 * DAY);
+  const [sent, bounced, { bounceThresholdPct }] = await Promise.all([
+    prisma.email.count({ where: { sentAt: { gte: since }, status: { in: SENT_STATUSES } } }),
+    prisma.email.count({ where: { sentAt: { gte: since }, status: "BOUNCED" } }),
+    getSendingSettings(),
+  ]);
+  const rate = sent > 0 ? (bounced / sent) * 100 : 0;
+  if (sent < 20 || rate < bounceThresholdPct) return { tripped: false, rate };
+
+  const { count } = await prisma.campaign.updateMany({ where: { status: "ACTIVE" }, data: { status: "PAUSED" } });
+  await raiseAlert(
+    "bounce",
+    `Envois suspendus : ${rate.toFixed(1)} % de rebonds sur 7 jours (seuil ${bounceThresholdPct} %). ${count} campagne(s) mise(s) en pause. Vérifiez la qualité des adresses avant de reprendre.`
+  );
+  return { tripped: true, rate };
+}
+
+/** Clause commune : emails qui peuvent partir (approuvés, campagne active, prospect joignable et dans la cible). */
+function sendableWhere(minDaysBetweenCampaigns: number): Prisma.EmailWhereInput {
+  const cutoff = new Date(Date.now() - minDaysBetweenCampaigns * DAY);
+  return {
+    status: "PENDING",
+    approvedAt: { not: null },
+    campaign: { status: "ACTIVE" },
+    prospect: {
+      status: { notIn: DO_NOT_CONTACT_STATUSES },
+      prospectType: "COMMERCIAL",
+      targetFit: { not: "OUT_OF_SCOPE" },
+      emailInvalidReason: null,
+    },
+    AND: [
+      { OR: [{ scheduledFor: null }, { scheduledFor: { lte: new Date() } }] },
+      // Premier contact : pas si le prospect vient d'être sollicité (par une autre campagne).
+      { OR: [{ type: { not: "INITIAL" } }, { prospect: { OR: [{ lastContactedAt: null }, { lastContactedAt: { lt: cutoff } }] } }] },
+    ],
+  };
+}
+
+/**
+ * Sélectionne les prochains emails envoyables, dans la limite du quota global
+ * et du quota journalier de chaque campagne. Un seul email par destinataire.
  */
 export async function pickSendableEmailIds(max: number): Promise<string[]> {
   if (max <= 0) return [];
+  const { minDaysBetweenCampaigns } = await getSendingSettings();
 
   const candidates = await prisma.email.findMany({
-    where: {
-      status: "PENDING",
-      campaign: { status: "ACTIVE" },
-      prospect: { status: { notIn: DO_NOT_CONTACT_STATUSES } },
-      OR: [{ scheduledFor: null }, { scheduledFor: { lte: new Date() } }],
-    },
+    where: sendableWhere(minDaysBetweenCampaigns),
     select: {
       id: true,
       campaignId: true,
@@ -110,9 +151,7 @@ export async function pickSendableEmailIds(max: number): Promise<string[]> {
 
   const emails = [...new Set(candidates.map((c) => c.prospect.email.toLowerCase()))];
   const suppressed = new Set(
-    (await prisma.suppression.findMany({ where: { email: { in: emails } }, select: { email: true } })).map(
-      (s) => s.email
-    )
+    (await prisma.suppression.findMany({ where: { email: { in: emails } }, select: { email: true } })).map((s) => s.email)
   );
 
   const sentTodayByCampaign = new Map<string, number>();
@@ -142,16 +181,17 @@ export async function pickSendableEmailIds(max: number): Promise<string[]> {
   return picked;
 }
 
-export type DeliveryOutcome = "sent" | "skipped" | "failed" | "retry";
+export type DeliveryOutcome = "sent" | "skipped" | "failed" | "retry" | "blocked";
 
 /**
  * Réserve puis envoie un email. Sûr en cas d'appels concurrents ou rejoués :
  * la réservation atomique PENDING → SENDING garantit un seul envoi,
  * et la clé d'idempotence Resend couvre les reprises après crash.
+ * Toutes les règles d'envoi sont revérifiées au dernier moment (voir send-rules.ts).
  */
 export async function deliverEmail(emailId: string): Promise<DeliveryOutcome> {
   const reserved = await prisma.email.updateMany({
-    where: { id: emailId, status: "PENDING" },
+    where: { id: emailId, status: "PENDING", approvedAt: { not: null } },
     data: { status: "SENDING" },
   });
   if (reserved.count !== 1) return "skipped";
@@ -162,22 +202,47 @@ export async function deliverEmail(emailId: string): Promise<DeliveryOutcome> {
   });
   if (!email) return "skipped";
 
-  const release = (status: EmailStatus) =>
-    prisma.email.update({ where: { id: emailId }, data: { status } });
+  const release = (status: EmailStatus) => prisma.email.update({ where: { id: emailId }, data: { status } });
+  const settings = await getSendingSettings();
 
-  // Dernières vérifications, au plus près de l'envoi.
-  if (
-    email.campaign.status !== "ACTIVE" ||
-    DO_NOT_CONTACT_STATUSES.includes(email.prospect.status) ||
-    (await isSuppressed(email.prospect.email))
-  ) {
-    await release(email.campaign.status !== "ACTIVE" ? "PENDING" : "FAILED");
+  const [suppressed, previousInCampaign] = await Promise.all([
+    isSuppressed(email.prospect.email),
+    prisma.email.count({ where: { campaignId: email.campaignId, prospectId: email.prospectId, sentAt: { not: null } } }),
+  ]);
+  const decision = decideSend({
+    emailType: email.type,
+    approvedAt: email.approvedAt,
+    campaignStatus: email.campaign.status,
+    prospect: email.prospect,
+    suppressed,
+    contactedByThisCampaign: previousInCampaign > 0,
+    minDaysBetweenCampaigns: settings.minDaysBetweenCampaigns,
+  });
+  if (!decision.send) {
+    await release(decision.action === "hold" ? "PENDING" : "FAILED");
     return "skipped";
   }
 
-  const { companyAddress } = await getSendingSettings();
+  // Vérification de l'adresse (MX) si elle n'a pas été contrôlée récemment.
+  const checkedAt = email.prospect.emailCheckedAt?.getTime() ?? 0;
+  if (Date.now() - checkedAt > EMAIL_CHECK_TTL_MS) {
+    const verdict = await validateEmailAddress(email.prospect.email);
+    if (!verdict.valid && verdict.transient) {
+      await release("PENDING");
+      return "retry";
+    }
+    await prisma.prospect.update({
+      where: { id: email.prospectId },
+      data: { emailCheckedAt: new Date(), emailInvalidReason: verdict.valid ? null : verdict.reason },
+    });
+    if (!verdict.valid) {
+      await release("FAILED");
+      return "failed";
+    }
+  }
+
   const language = resolveCampaignLanguage(email.campaign.language, email.prospect.language, email.prospect.country);
-  const contentOptions = { to: email.prospect.email, language, companyAddress };
+  const contentOptions = { to: email.prospect.email, language, companyAddress: settings.companyAddress };
 
   try {
     const result = await sendEmail({
@@ -213,9 +278,16 @@ export async function deliverEmail(emailId: string): Promise<DeliveryOutcome> {
     ]);
     return "sent";
   } catch (err) {
-    const retryable = err instanceof EmailSendError ? err.retryable : true;
-    console.error(`[sending] échec de l'email ${email.id} :`, err instanceof Error ? err.message : err);
-    await release(retryable ? "PENDING" : "FAILED");
-    return retryable ? "retry" : "failed";
+    const message = err instanceof Error ? err.message : String(err);
+    console.error(`[sending] échec de l'email ${email.id} :`, message);
+    if (err instanceof EmailSendError) {
+      // Refus de Resend : temporaire (429, 5xx) → on réessaiera ; définitif → cet email est abandonné.
+      await release(err.retryable ? "PENDING" : "FAILED");
+      return err.retryable ? "retry" : "failed";
+    }
+    // Autre erreur (configuration incomplète…) : l'email reste en attente et le lot s'arrête.
+    await release("PENDING");
+    await raiseAlert("send", `Envoi interrompu : ${message}`);
+    return "blocked";
   }
 }

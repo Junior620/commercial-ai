@@ -1,9 +1,11 @@
 "use client";
 
-import { use, useCallback, useEffect, useState } from "react";
+import { use, useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
+  Check,
+  CheckCheck,
   CheckCircle2,
   Download,
   Eye,
@@ -14,9 +16,11 @@ import {
   Pause,
   Pencil,
   Play,
+  RefreshCw,
   Send,
   Sparkles,
   Trash2,
+  Undo2,
 } from "lucide-react";
 import { toast } from "sonner";
 import { Button, buttonVariants } from "@/components/ui/button";
@@ -50,8 +54,21 @@ type CampaignEmail = {
   status: string;
   type: string;
   sentAt: string | null;
-  prospect: { company: string; email: string; contact: string | null };
+  approvedAt: string | null;
+  prospect: { company: string; email: string; contact: string | null; country: string | null };
 };
+
+type EmailFilter = "all" | "toApprove" | "approved" | "sent";
+
+const FILTERS: { id: EmailFilter; label: string }[] = [
+  { id: "all", label: "Tous" },
+  { id: "toApprove", label: "À approuver" },
+  { id: "approved", label: "Approuvés" },
+  { id: "sent", label: "Envoyés" },
+];
+
+const isSent = (email: CampaignEmail) => !["PENDING", "SENDING", "FAILED"].includes(email.status);
+const needsApproval = (email: CampaignEmail) => email.status === "PENDING" && !email.approvedAt;
 
 interface CampaignDetail {
   id: string;
@@ -70,6 +87,9 @@ interface CampaignDetail {
   bounceCount: number;
   failedCount: number;
   pendingCount: number;
+  approvedCount: number;
+  toApproveCount: number;
+  strictCountries: string[];
   segment: { name: string; id: string } | null;
   emails: CampaignEmail[];
 }
@@ -105,7 +125,8 @@ export default function CampaignDetailPage({ params }: { params: Promise<{ id: s
   const confirm = useConfirm();
   const [campaign, setCampaign] = useState<CampaignDetail | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
-  const [busy, setBusy] = useState<"generate" | "send" | "status" | null>(null);
+  const [busy, setBusy] = useState<"generate" | "send" | "status" | "approve" | "regenerate" | null>(null);
+  const [filter, setFilter] = useState<EmailFilter>("all");
   const [generatingQueued, setGeneratingQueued] = useState(false);
   const [viewEmail, setViewEmail] = useState<CampaignEmail | null>(null);
   const [editEmail, setEditEmail] = useState<CampaignEmail | null>(null);
@@ -170,13 +191,96 @@ export default function CampaignDetailPage({ params }: { params: Promise<{ id: s
     }
   };
 
+  /** Approuve (ou retire l'approbation) : `ids` absent = tous les emails en attente. */
+  const approve = async (emails: CampaignEmail[] | null, approved: boolean) => {
+    if (!campaign) return;
+    const scope = emails ?? campaign.emails.filter(needsApproval);
+    if (approved) {
+      const followUps = scope.filter((e) => e.type !== "INITIAL").length;
+      if (!emails || followUps > 0) {
+        const ok = await confirm({
+          title: emails ? `Approuver ${scope.length > 1 ? `ces ${scope.length} emails` : "cette relance"} ?` : `Approuver les ${campaign.toApproveCount} emails en attente ?`,
+          description: [
+            emails ? "" : "Chaque email approuvé partira tel quel. Assurez-vous de les avoir relus.",
+            followUps > 0
+              ? `${followUps} relance(s) : vérifiez d'abord dans votre boîte de réception que ces prospects n'ont pas répondu, les réponses ne remontent pas automatiquement.`
+              : "",
+          ]
+            .filter(Boolean)
+            .join(" "),
+          confirmLabel: "Approuver",
+        });
+        if (!ok) return;
+      }
+    }
+    setBusy("approve");
+    try {
+      const res = await fetch(`/api/campaigns/${id}/approve`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ approved, ...(emails ? { emailIds: emails.map((e) => e.id) } : {}) }),
+      });
+      if (!res.ok) throw new Error(await readError(res, "Approbation impossible"));
+      const result = await res.json();
+      toast.success(
+        approved
+          ? `${result.updated} email(s) approuvé(s).${campaign.status === "ACTIVE" ? " Ils partiront au prochain lot d'envoi." : " Activez la campagne pour lancer l'envoi."}`
+          : "Approbation retirée : l'email ne partira pas."
+      );
+      setViewEmail(null);
+      fetchCampaign();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Erreur");
+    } finally {
+      setBusy(null);
+    }
+  };
+
+  /** Fait rédiger à nouveau des brouillons non approuvés. `emails` absent = tous. */
+  const regenerate = async (emails: CampaignEmail[] | null) => {
+    if (!campaign) return;
+    const count = emails ? emails.length : campaign.toApproveCount;
+    const ok = await confirm({
+      title: count > 1 ? `Rédiger à nouveau ${count} brouillons ?` : "Rédiger à nouveau cet email ?",
+      description:
+        "Le texte actuel sera remplacé par une nouvelle rédaction, avec l'argumentaire et le ciblage en vigueur. Les emails approuvés ou déjà envoyés ne sont pas concernés.",
+      confirmLabel: "Rédiger à nouveau",
+    });
+    if (!ok) return;
+    setBusy("regenerate");
+    try {
+      const res = await fetch(`/api/campaigns/${id}/regenerate`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(emails ? { emailIds: emails.map((e) => e.id) } : {}),
+      });
+      if (!res.ok) throw new Error(await readError(res, "La rédaction n'a pas pu être relancée"));
+      const result = await res.json();
+      if (result.queued > 0) {
+        setGeneratingQueued(true);
+        setTimeout(() => setGeneratingQueued(false), 5 * 60 * 1000);
+        toast.success(`Nouvelle rédaction lancée pour ${result.queued} email(s).`);
+      } else {
+        toast.info(result.message || "Aucun brouillon à rédiger à nouveau.");
+      }
+      setViewEmail(null);
+      fetchCampaign();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Erreur");
+    } finally {
+      setBusy(null);
+    }
+  };
+
   const setStatus = async (status: "ACTIVE" | "PAUSED" | "COMPLETED") => {
     if (!campaign) return;
     if (status === "ACTIVE" && campaign.status !== "PAUSED") {
       const ok = await confirm({
-        title: "Approuver et activer la campagne ?",
-        description: `${campaign.pendingCount} email(s) relu(s) partiront automatiquement en heures ouvrées, dans la limite du quota quotidien. Les relances suivront le calendrier prévu.`,
-        confirmLabel: "Approuver et activer",
+        title: "Activer la campagne ?",
+        description: `${campaign.approvedCount} email(s) approuvé(s) partiront en heures ouvrées, dans la limite du quota quotidien.${
+          campaign.toApproveCount > 0 ? ` Les ${campaign.toApproveCount} email(s) non approuvé(s) resteront en attente.` : ""
+        } Les relances seront rédigées selon le calendrier prévu et attendront elles aussi votre approbation.`,
+        confirmLabel: "Activer",
       });
       if (!ok) return;
     }
@@ -228,7 +332,7 @@ export default function CampaignDetailPage({ params }: { params: Promise<{ id: s
         body: JSON.stringify({ subject: editSubject, body: editBody }),
       });
       if (!res.ok) throw new Error(await readError(res, "Enregistrement impossible"));
-      toast.success("Email mis à jour");
+      toast.success(editEmail.approvedAt ? "Email mis à jour. Il doit être approuvé à nouveau." : "Email mis à jour");
       setEditEmail(null);
       fetchCampaign();
     } catch (e) {
@@ -267,6 +371,14 @@ export default function CampaignDetailPage({ params }: { params: Promise<{ id: s
     fetchCampaign();
   };
 
+  const filteredEmails = useMemo(() => {
+    const emails = campaign?.emails ?? [];
+    if (filter === "toApprove") return emails.filter(needsApproval);
+    if (filter === "approved") return emails.filter((e) => e.status === "PENDING" && !!e.approvedAt);
+    if (filter === "sent") return emails.filter(isSent);
+    return emails;
+  }, [campaign, filter]);
+
   if (!campaign) {
     return loadError ? (
       <div role="alert" className="py-16 text-center">
@@ -288,17 +400,29 @@ export default function CampaignDetailPage({ params }: { params: Promise<{ id: s
     );
   }
 
-  const totalEmailPages = Math.max(1, Math.ceil(campaign.emails.length / EMAILS_PER_PAGE));
+  const totalEmailPages = Math.max(1, Math.ceil(filteredEmails.length / EMAILS_PER_PAGE));
   const safeEmailPage = Math.min(emailPage, totalEmailPages);
-  const paginatedEmails = campaign.emails.slice((safeEmailPage - 1) * EMAILS_PER_PAGE, safeEmailPage * EMAILS_PER_PAGE);
+  const paginatedEmails = filteredEmails.slice((safeEmailPage - 1) * EMAILS_PER_PAGE, safeEmailPage * EMAILS_PER_PAGE);
+  const pageToApprove = paginatedEmails.filter(needsApproval);
   const isActive = campaign.status === "ACTIVE";
-  const canApprove = campaign.status !== "ACTIVE" && campaign.status !== "COMPLETED" && campaign.pendingCount > 0;
+  const canActivate = campaign.status !== "COMPLETED" && (campaign.approvedCount > 0 || campaign.sentCount > 0);
+  const strict = new Set(campaign.strictCountries ?? []);
+  const filterCount: Record<EmailFilter, number> = {
+    all: campaign.emails.length,
+    toApprove: campaign.emails.filter(needsApproval).length,
+    approved: campaign.emails.filter((e) => e.status === "PENDING" && !!e.approvedAt).length,
+    sent: campaign.emails.filter(isSent).length,
+  };
   const productLabel = campaign.product ? PRODUCT_LABELS[campaign.product] ?? campaign.product : "Tous produits";
 
   const steps = [
     { label: "Rédiger", done: campaign.emails.length > 0, hint: "Génération par l'assistant" },
-    { label: "Relire", done: campaign.pendingCount === 0 && campaign.emails.length > 0, hint: `${campaign.pendingCount} à relire` },
-    { label: "Activer", done: isActive || campaign.sentCount > 0, hint: "Approbation du lot" },
+    {
+      label: "Relire et approuver",
+      done: campaign.toApproveCount === 0 && campaign.emails.length > 0,
+      hint: campaign.toApproveCount > 0 ? `${campaign.toApproveCount} à approuver` : `${campaign.approvedCount} prêt(s) à partir`,
+    },
+    { label: "Activer", done: isActive || campaign.sentCount > 0, hint: "Lance l'envoi des emails approuvés" },
     { label: "Envoi", done: campaign.sentCount > 0, hint: `${campaign.sentCount} envoyé(s)` },
   ];
 
@@ -331,11 +455,11 @@ export default function CampaignDetailPage({ params }: { params: Promise<{ id: s
             ) : (
               <Button
                 onClick={() => setStatus("ACTIVE")}
-                disabled={busy !== null || (!canApprove && campaign.status !== "PAUSED")}
-                title={!canApprove && campaign.status !== "PAUSED" ? "Rédigez et relisez des emails d'abord" : undefined}
+                disabled={busy !== null || !canActivate}
+                title={!canActivate ? "Approuvez au moins un email d'abord" : undefined}
               >
                 <Play className="h-4 w-4" />
-                {campaign.status === "PAUSED" ? "Reprendre" : "Approuver et activer"}
+                {campaign.status === "PAUSED" ? "Reprendre" : "Activer"}
               </Button>
             )}
             <DropdownMenu>
@@ -347,6 +471,12 @@ export default function CampaignDetailPage({ params }: { params: Promise<{ id: s
                   <Pencil className="h-4 w-4" />
                   Modifier les paramètres
                 </DropdownMenuItem>
+                {campaign.toApproveCount > 0 ? (
+                  <DropdownMenuItem onClick={() => regenerate(null)}>
+                    <RefreshCw className="h-4 w-4" />
+                    Rédiger à nouveau les brouillons
+                  </DropdownMenuItem>
+                ) : null}
                 <DropdownMenuItem onClick={() => (window.location.href = `/api/export?type=campaign_emails&campaignId=${id}`)}>
                   <Download className="h-4 w-4" />
                   Exporter en CSV
@@ -401,7 +531,7 @@ export default function CampaignDetailPage({ params }: { params: Promise<{ id: s
       ) : null}
 
       <div className="grid gap-4 sm:grid-cols-3 xl:grid-cols-6">
-        <Kpi label="À relire" value={campaign.pendingCount} />
+        <Kpi label="À approuver" value={campaign.toApproveCount} hint={`${campaign.approvedCount} approuvé(s) en attente d'envoi`} />
         <Kpi label="Envoyés" value={campaign.sentCount} />
         <Kpi label="Délivrés" value={campaign.deliveredCount ?? 0} hint={rate(campaign.deliveredCount, campaign.sentCount)} />
         <Kpi label="Ouverts" value={campaign.openCount} hint={rate(campaign.openCount, campaign.deliveredCount)} />
@@ -422,8 +552,8 @@ export default function CampaignDetailPage({ params }: { params: Promise<{ id: s
               <Sparkles className="mb-3 h-8 w-8 text-primary" />
               <p className="font-medium">Aucun email pour l&apos;instant</p>
               <p className="mt-1 max-w-md text-sm text-muted-foreground">
-                L&apos;assistant rédige un email personnalisé pour chaque prospect du segment, dans sa langue. Vous
-                pourrez tout relire et corriger avant d&apos;activer la campagne.
+                L&apos;assistant rédige un email personnalisé pour chaque prospect du segment, dans sa langue. Aucun
+                email ne part sans votre approbation.
               </p>
               <Button className="mt-5" onClick={handleGenerate} disabled={busy !== null}>
                 <Sparkles className="h-4 w-4" />
@@ -432,7 +562,41 @@ export default function CampaignDetailPage({ params }: { params: Promise<{ id: s
             </div>
           ) : (
             <div className="space-y-3">
-              <div className="overflow-x-auto rounded-md border">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <div className="flex flex-wrap gap-1.5" role="group" aria-label="Filtrer les emails">
+                  {FILTERS.map((f) => (
+                    <Button
+                      key={f.id}
+                      size="sm"
+                      variant={filter === f.id ? "default" : "outline"}
+                      aria-pressed={filter === f.id}
+                      onClick={() => {
+                        setFilter(f.id);
+                        setEmailPage(1);
+                      }}
+                    >
+                      {f.label}
+                      <span className="tabular-nums opacity-70">{filterCount[f.id]}</span>
+                    </Button>
+                  ))}
+                </div>
+                {campaign.toApproveCount > 0 ? (
+                  <div className="flex flex-wrap gap-1.5">
+                    <Button size="sm" variant="outline" disabled={busy !== null || pageToApprove.length === 0} onClick={() => approve(pageToApprove, true)}>
+                      <Check className="h-4 w-4" />
+                      Approuver la page ({pageToApprove.length})
+                    </Button>
+                    <Button size="sm" disabled={busy !== null} onClick={() => approve(null, true)}>
+                      <CheckCheck className="h-4 w-4" />
+                      Tout approuver ({campaign.toApproveCount})
+                    </Button>
+                  </div>
+                ) : null}
+              </div>
+              {filteredEmails.length === 0 ? (
+                <p className="rounded-md border border-dashed py-8 text-center text-sm text-muted-foreground">Aucun email dans cette vue.</p>
+              ) : null}
+              <div className={cn("overflow-x-auto rounded-md border", filteredEmails.length === 0 && "hidden")}>
                 <Table className="min-w-[900px]">
                   <TableHeader>
                     <TableRow>
@@ -441,17 +605,23 @@ export default function CampaignDetailPage({ params }: { params: Promise<{ id: s
                       <TableHead>Étape</TableHead>
                       <TableHead>Statut</TableHead>
                       <TableHead>Envoyé le</TableHead>
-                      <TableHead className="w-[150px] text-right">Actions</TableHead>
+                      <TableHead className="w-[190px] text-right">Actions</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {paginatedEmails.map((email) => {
-                      const sent = !["PENDING", "SENDING", "FAILED"].includes(email.status);
+                      const sent = isSent(email);
+                      const pending = email.status === "PENDING";
                       return (
                         <TableRow key={email.id}>
                           <TableCell>
                             <p className="font-medium">{email.prospect.company}</p>
                             <p className="text-xs text-muted-foreground">{email.prospect.email}</p>
+                            {email.prospect.country && strict.has(email.prospect.country) ? (
+                              <p className="text-xs text-warning-foreground" title="Adresse générique uniquement, message sobre, aucune relance">
+                                Pays à accord préalable ({email.prospect.country})
+                              </p>
+                            ) : null}
                           </TableCell>
                           <TableCell className="max-w-xs">
                             <button
@@ -466,7 +636,15 @@ export default function CampaignDetailPage({ params }: { params: Promise<{ id: s
                             {EMAIL_TYPE_LABELS[email.type] ?? email.type}
                           </TableCell>
                           <TableCell>
-                            <StatusBadge kind="email" value={email.status} />
+                            {pending ? (
+                              <StatusBadge
+                                kind="email"
+                                value={email.approvedAt ? "APPROVED" : "TO_APPROVE"}
+                                tone={email.approvedAt ? "success" : "warning"}
+                              />
+                            ) : (
+                              <StatusBadge kind="email" value={email.status} />
+                            )}
                           </TableCell>
                           <TableCell className="text-sm">
                             {email.sentAt ? new Date(email.sentAt).toLocaleString("fr-FR", { dateStyle: "short", timeStyle: "short" }) : "—"}
@@ -476,9 +654,46 @@ export default function CampaignDetailPage({ params }: { params: Promise<{ id: s
                               <Button variant="ghost" size="icon-sm" aria-label="Lire l'email" title="Lire" onClick={() => setViewEmail(email)}>
                                 <Eye className="h-4 w-4" />
                               </Button>
-                              {email.status === "PENDING" ? (
+                              {pending && !email.approvedAt ? (
+                                <Button
+                                  variant="ghost"
+                                  size="icon-sm"
+                                  className="text-success"
+                                  disabled={busy !== null}
+                                  aria-label="Approuver l'email"
+                                  title="Approuver"
+                                  onClick={() => approve([email], true)}
+                                >
+                                  <Check className="h-4 w-4" />
+                                </Button>
+                              ) : null}
+                              {pending && email.approvedAt ? (
+                                <Button
+                                  variant="ghost"
+                                  size="icon-sm"
+                                  disabled={busy !== null}
+                                  aria-label="Retirer l'approbation"
+                                  title="Retirer l'approbation"
+                                  onClick={() => approve([email], false)}
+                                >
+                                  <Undo2 className="h-4 w-4" />
+                                </Button>
+                              ) : null}
+                              {pending ? (
                                 <Button variant="ghost" size="icon-sm" aria-label="Modifier l'email" title="Modifier" onClick={() => openEditEmail(email)}>
                                   <Pencil className="h-4 w-4" />
+                                </Button>
+                              ) : null}
+                              {pending && !email.approvedAt ? (
+                                <Button
+                                  variant="ghost"
+                                  size="icon-sm"
+                                  disabled={busy !== null}
+                                  aria-label="Rédiger à nouveau"
+                                  title="Rédiger à nouveau"
+                                  onClick={() => regenerate([email])}
+                                >
+                                  <RefreshCw className="h-4 w-4" />
                                 </Button>
                               ) : null}
                               {sent && email.status !== "REPLIED" && email.status !== "BOUNCED" ? (
@@ -517,7 +732,7 @@ export default function CampaignDetailPage({ params }: { params: Promise<{ id: s
               <ListPagination
                 page={safeEmailPage}
                 totalPages={totalEmailPages}
-                totalItems={campaign.emails.length}
+                totalItems={filteredEmails.length}
                 itemLabel="emails"
                 onPageChange={setEmailPage}
               />
@@ -539,7 +754,15 @@ export default function CampaignDetailPage({ params }: { params: Promise<{ id: s
               </SheetHeader>
               <div className="min-h-0 flex-1 overflow-y-auto border-y px-4 py-4">
                 <div className="mb-3 flex items-center gap-2">
-                  <StatusBadge kind="email" value={viewEmail.status} />
+                  {viewEmail.status === "PENDING" ? (
+                    <StatusBadge
+                      kind="email"
+                      value={viewEmail.approvedAt ? "APPROVED" : "TO_APPROVE"}
+                      tone={viewEmail.approvedAt ? "success" : "warning"}
+                    />
+                  ) : (
+                    <StatusBadge kind="email" value={viewEmail.status} />
+                  )}
                   <span className="text-xs text-muted-foreground">{EMAIL_TYPE_LABELS[viewEmail.type] ?? viewEmail.type}</span>
                 </div>
                 <div className="whitespace-pre-wrap rounded-md border bg-muted/40 p-4 text-sm leading-relaxed">{viewEmail.body}</div>
@@ -552,16 +775,30 @@ export default function CampaignDetailPage({ params }: { params: Promise<{ id: s
                   Fermer
                 </Button>
                 {viewEmail.status === "PENDING" ? (
-                  <Button
-                    onClick={() => {
-                      const e = viewEmail;
-                      setViewEmail(null);
-                      openEditEmail(e);
-                    }}
-                  >
-                    <Pencil className="h-4 w-4" />
-                    Modifier
-                  </Button>
+                  <div className="flex flex-wrap gap-2">
+                    <Button
+                      variant="outline"
+                      onClick={() => {
+                        const e = viewEmail;
+                        setViewEmail(null);
+                        openEditEmail(e);
+                      }}
+                    >
+                      <Pencil className="h-4 w-4" />
+                      Modifier
+                    </Button>
+                    {viewEmail.approvedAt ? (
+                      <Button variant="outline" disabled={busy !== null} onClick={() => approve([viewEmail], false)}>
+                        <Undo2 className="h-4 w-4" />
+                        Retirer l&apos;approbation
+                      </Button>
+                    ) : (
+                      <Button disabled={busy !== null} onClick={() => approve([viewEmail], true)}>
+                        <Check className="h-4 w-4" />
+                        Approuver
+                      </Button>
+                    )}
+                  </div>
                 ) : null}
               </SheetFooter>
             </>

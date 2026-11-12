@@ -9,6 +9,7 @@ import { PRODUCT_LABELS } from "@/lib/product-catalog";
 import { cn } from "@/lib/utils";
 import { CLIENT_TYPE_LABELS, SOURCE_LABELS, countryName, scoreTone, type Prospect } from "@/components/prospects/types";
 import { FitBadge, NeedChips } from "@/components/prospects/fit-badge";
+import { checkOutreachAllowed } from "@/lib/compliance";
 
 function DetailRow({
   icon: Icon,
@@ -57,6 +58,7 @@ export function ProspectSheet({
   onEdit: (p: Prospect) => void;
   onDelete: (p: Prospect) => void;
 }) {
+  const compliance = prospect ? checkOutreachAllowed(prospect.email, prospect.country) : null;
   const website = prospect?.website ? (prospect.website.startsWith("http") ? prospect.website : `https://${prospect.website}`) : undefined;
   return (
     <Sheet open={prospect !== null} onOpenChange={(open) => !open && onClose()}>
@@ -76,6 +78,22 @@ export function ProspectSheet({
               </SheetDescription>
             </SheetHeader>
             <div className="space-y-4 border-y px-4 py-5">
+              {prospect.emailInvalidReason ? (
+                <p role="alert" className="rounded-md border border-destructive/30 bg-destructive/10 p-3 text-sm text-destructive">
+                  Adresse inutilisable : {prospect.emailInvalidReason}. Aucun email ne sera envoyé tant qu&apos;elle n&apos;est pas corrigée.
+                </p>
+              ) : null}
+              {compliance?.strict ? (
+                <p className="rounded-md border border-warning/40 bg-warning/10 p-3 text-sm">
+                  <span className="font-medium">Pays à accord préalable.</span>{" "}
+                  {compliance.allowed
+                    ? "Adresse générique d'entreprise : un seul message, court et sans relance."
+                    : "Adresse nominative : ce prospect n'est repris dans aucune campagne. Remplacez-la par une adresse générique (contact@, info@, achats@…) pour pouvoir lui écrire."}
+                </p>
+              ) : null}
+              {prospect.targetFitManual ? (
+                <p className="text-xs text-muted-foreground">Adéquation corrigée à la main : elle n&apos;est plus recalculée automatiquement.</p>
+              ) : null}
               {prospect.productNeeds?.length ? (
                 <div className="rounded-md border border-primary/20 bg-primary/5 p-3">
                   <p className="mb-1.5 text-xs font-medium text-muted-foreground">Produits pertinents</p>

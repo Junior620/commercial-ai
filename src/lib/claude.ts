@@ -22,6 +22,8 @@ export interface GenerateEmailParams {
   productNeeds?: string[];
   /** Type d'acheteur détecté (industrial, artisan, cosmetics, distributor, coffee…) */
   buyerType?: string;
+  /** Pays à accord préalable : message plus court et plus sobre, adressé à l'entreprise */
+  sober?: boolean;
   senderName?: string;
   senderCompany?: string;
   customInstructions?: string;
@@ -373,7 +375,11 @@ RÈGLES :
 2. Accroche spécifique au prospect : relie son activité (ce qu'il fabrique ou distribue) à l'usage du produit proposé.
 3. 2 à 3 arguments de valeur maximum, tirés de l'argumentaire ci-dessus. N'invente aucun chiffre, prix, volume, certification ni délai.
 4. Un seul appel à l'action, simple à accepter : un échange de 15 minutes sur ses spécifications, l'envoi d'une fiche technique ou d'un échantillon.
-5. Corps de 120 à 180 mots. Objet de 50 caractères maximum, précis, sans cliché du type « Partnership Opportunity ».
+5. ${
+    params.sober
+      ? "Corps de 70 à 110 mots, factuel et sobre, adressé à l'entreprise (service achats) et non à une personne. Aucune formule insistante ni promesse de relance."
+      : "Corps de 120 à 180 mots."
+  } Objet de 50 caractères maximum, précis, sans cliché du type « Partnership Opportunity ».
 6. ${salutationRule(langCode)}
 7. Nom de l'entreprise du prospect cité au plus 2 fois.
 8. Aucun placeholder ([Your Name]…), aucune formule de politesse finale ni signature : elle est ajoutée automatiquement.

@@ -4,7 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { inngest, EVENTS } from "@/lib/inngest";
 import { requireUser, WRITE_ROLES } from "@/lib/auth";
 import { parseJsonBody, serverError } from "@/lib/api";
-import { SCRAPING_LIMITS, buildKeywords } from "@/lib/scraping/pipeline";
+import { SCRAPING_LIMITS, buildKeywords, failStaleJobs, markJobFailed } from "@/lib/scraping/pipeline";
 
 const ScrapingSchema = z.object({
   categories: z.array(z.string().max(100)).max(50).optional(),
@@ -20,6 +20,7 @@ export async function GET(req: NextRequest) {
   const auth = await requireUser();
   if (!auth.ok) return auth.response;
 
+  await failStaleJobs().catch(() => 0);
   const page = Math.max(1, Math.floor(Number(req.nextUrl.searchParams.get("page")) || 1));
   const pageSize = Math.min(50, Math.max(1, Math.floor(Number(req.nextUrl.searchParams.get("pageSize")) || 10)));
   const where = { kind: "COMMERCIAL" as const };
@@ -53,6 +54,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "APIFY_API_TOKEN n'est pas configuré sur le serveur." }, { status: 503 });
   }
 
+  await failStaleJobs().catch(() => 0);
   const running = await prisma.scrapingJob.count({ where: { status: "RUNNING" } });
   if (running > 0) {
     return NextResponse.json(
@@ -92,10 +94,20 @@ export async function POST(req: NextRequest) {
         progress: { phase: "En file d'attente", percent: 1, updatedAt: new Date().toISOString() },
       },
     });
-    await inngest.send({
-      name: EVENTS.scrapingRequested,
-      data: { jobId: job.id, keywords, countries, maxResults, includeOutOfScope: input.includeOutOfScope ?? false },
-    });
+    try {
+      await inngest.send({
+        name: EVENTS.scrapingRequested,
+        data: { jobId: job.id, keywords, countries, maxResults, includeOutOfScope: input.includeOutOfScope ?? false },
+      });
+    } catch (err) {
+      // La tâche de fond n'a pas pu être mise en file : le job ne doit pas rester « en cours ».
+      console.error("[scraping:create] mise en file impossible :", err);
+      await markJobFailed(job.id, "Les tâches de fond ne répondent pas (Inngest). En local, lancez « pnpm dev:jobs ».");
+      return NextResponse.json(
+        { error: "Les tâches de fond ne répondent pas. En local, lancez « pnpm dev:jobs » puis réessayez." },
+        { status: 503 }
+      );
+    }
     return NextResponse.json(job, { status: 201 });
   } catch (err) {
     return serverError("scraping:create", err, "Erreur de lancement du scraping");

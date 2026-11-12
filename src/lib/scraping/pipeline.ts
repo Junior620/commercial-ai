@@ -7,15 +7,13 @@ import {
   abortApifyRun,
   getApifyRunStatuses,
   getScrapingResults,
-  scrapeContactInfo,
   scrapeGoogleMaps,
-  scrapeWebsiteContent,
-  searchGoogleForEmails,
   type ScrapedPlace,
 } from "@/lib/apify";
 import { calculateLeadScore, inferClientType, inferProduct, priorityFromScore } from "@/lib/scoring";
 import { deduplicateItems, normalizeDomain } from "@/lib/dedup";
 import { classifyTarget } from "@/lib/targeting";
+import { validateEmailAddresses } from "@/lib/email-validation";
 import { inferProspectLanguageFromCountry, normalizeCountryToIso2 } from "@/lib/prospect-language";
 import { emailMatchesDomain, extractEmails, fetchAndExtractFromSite, getBestEmail } from "@/lib/email-extractor";
 
@@ -28,10 +26,12 @@ export const SCRAPING_LIMITS = {
   defaultResultsPerSearch: 60,
   maxCountries: 10,
   maxPlaces: 1500,
-  contact: { maxSites: 200, chunk: 20, requestsPerUrl: 2 },
-  deepContact: { maxSites: 100, chunk: 15, requestsPerUrl: 6 },
-  googleSearch: { maxQueries: 60, chunk: 10 },
-  websiteCrawler: { maxSites: 80, chunk: 12 },
+  contact: { maxSites: 200, chunk: 50 },
+  deepContact: { maxSites: 100, chunk: 50 },
+  googleSearch: { maxQueries: 60, chunk: 30 },
+  websiteCrawler: { maxSites: 80, chunk: 40 },
+  /** Interrogation d'un traitement d'enrichissement : 20 × 30 s = 10 minutes maximum */
+  enrichPoll: { intervalSeconds: 30, maxAttempts: 20 },
   fallback: { maxSites: 150, chunk: 10 },
   mapsPoll: { intervalSeconds: 30, maxAttempts: 120 },
 } as const;
@@ -142,6 +142,32 @@ export async function markJobFailed(jobId: string, message: string) {
   });
 }
 
+/** Un job sans progression depuis ce délai est considéré comme interrompu. */
+const STALE_JOB_MS = 3 * 60 * 60 * 1000;
+
+/** Passe en échec les jobs restés « en cours » sans progression (worker interrompu). */
+export async function failStaleJobs(): Promise<number> {
+  const running = await prisma.scrapingJob.findMany({
+    where: { status: "RUNNING" },
+    select: { id: true, startedAt: true, createdAt: true, progress: true },
+  });
+  const stale = running.filter((job) => {
+    const updatedAt = (job.progress as { updatedAt?: string } | null)?.updatedAt;
+    const last = updatedAt ? Date.parse(updatedAt) : (job.startedAt ?? job.createdAt).getTime();
+    return Date.now() - (Number.isNaN(last) ? job.createdAt.getTime() : last) > STALE_JOB_MS;
+  });
+  if (stale.length === 0) return 0;
+  const { count } = await prisma.scrapingJob.updateMany({
+    where: { id: { in: stale.map((j) => j.id) }, status: "RUNNING" },
+    data: {
+      status: "FAILED",
+      completedAt: new Date(),
+      errorMessage: "Recherche interrompue : aucune progression depuis plus de 3 heures.",
+    },
+  });
+  return count;
+}
+
 export async function abortRuns(runs: RunEntry[]) {
   await Promise.all(runs.map((r) => abortApifyRun(r.runId)));
 }
@@ -202,28 +228,18 @@ export function sitesWithoutEmail(places: EnrichedPlace[], max: number): string[
   return places.filter((p) => p.emails.length === 0 && p.place.website).map((p) => p.place.website!).slice(0, max);
 }
 
-/** Emails par domaine, issus du Contact Info Scraper (un appel Apify par lot). */
-export async function contactInfoBatch(urls: string[], requestsPerUrl: number): Promise<Record<string, string[]>> {
-  const map = await scrapeContactInfo(urls, { chunkSize: urls.length, maxRequestsPerStartUrl: requestsPerUrl });
+/** Normalise les emails bruts renvoyés par Apify (par domaine ou par requête). */
+export function cleanEnrichment(raw: Record<string, string[]>): Record<string, string[]> {
   const out: Record<string, string[]> = {};
-  for (const [domain, value] of map) out[domain] = value.emails.flatMap((e) => extractEmails(e));
-  return out;
-}
-
-export async function websiteCrawlerBatch(urls: string[]): Promise<Record<string, string[]>> {
-  const map = await scrapeWebsiteContent(urls, { chunkSize: urls.length });
-  const out: Record<string, string[]> = {};
-  for (const [domain, value] of map) out[domain] = extractEmails(value.texts.join(" "));
+  for (const [key, values] of Object.entries(raw)) {
+    const emails = [...new Set(values.flatMap((v) => extractEmails(v)))];
+    if (emails.length) out[key] = emails;
+  }
   return out;
 }
 
 export function googleSearchQuery(entry: EnrichedPlace): string {
   return entry.domain ? `"${entry.domain}" email contact` : `"${entry.place.title}" email contact`;
-}
-
-export async function googleSearchBatch(queries: string[]): Promise<Record<string, string[]>> {
-  const map = await searchGoogleForEmails(queries, { chunkSize: queries.length });
-  return Object.fromEntries(map);
 }
 
 export async function fallbackBatch(
@@ -300,7 +316,7 @@ export function mergeFallback(
 export async function importPlaces(
   places: EnrichedPlace[],
   opts: { includeOutOfScope?: boolean } = {}
-): Promise<{ created: number; withEmail: number; outOfScope: number }> {
+): Promise<{ created: number; withEmail: number; outOfScope: number; invalid: number }> {
   let outOfScope = 0;
   const candidates = places
     .filter((p) => p.emails.length > 0)
@@ -358,12 +374,25 @@ export async function importPlaces(
       })
     ).map((p) => p.email.toLowerCase())
   );
-  const toCreate = deduped.filter((d) => !suppressed.has(d.email) && !existing.has(d.email));
+  const fresh = deduped.filter((d) => !suppressed.has(d.email) && !existing.has(d.email));
+
+  // Adresses vérifiées (syntaxe + MX) : une adresse manifestement morte n'entre pas dans la base.
+  const checks = await validateEmailAddresses(fresh.map((d) => d.email));
+  const checkedAt = new Date();
+  let invalid = 0;
+  const toCreate = fresh.flatMap((d) => {
+    const verdict = checks.get(d.email);
+    if (verdict && !verdict.valid && !verdict.transient) {
+      invalid++;
+      return [];
+    }
+    return [{ ...d, emailCheckedAt: verdict?.valid ? checkedAt : null }];
+  });
 
   let created = 0;
   for (const batch of chunk(toCreate, 200)) {
     const result = await prisma.prospect.createMany({ data: batch, skipDuplicates: true });
     created += result.count;
   }
-  return { created, withEmail: candidates.length, outOfScope };
+  return { created, withEmail: candidates.length, outOfScope, invalid };
 }

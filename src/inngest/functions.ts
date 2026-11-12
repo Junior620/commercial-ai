@@ -3,12 +3,24 @@ import { inngest, EVENTS, type ScrapingRequestedData } from "@/lib/inngest";
 import { prisma } from "@/lib/prisma";
 import { APP_TIMEZONE } from "@/lib/time";
 import {
+  checkBounceCircuitBreaker,
   deliverEmail,
   getDailyQuota,
   getSendingSettings,
   pickSendableEmailIds,
   releaseStaleReservations,
+  type DeliveryOutcome,
 } from "@/lib/sending";
+import { getConfigHealth } from "@/lib/config-health";
+import { raiseAlert, resolveAlerts, type AlertKind } from "@/lib/alerts";
+import {
+  abortApifyRun,
+  friendlyApifyError,
+  getRunState,
+  readEnrichmentRun,
+  startEnrichmentRun,
+  type EnrichmentKind,
+} from "@/lib/apify";
 import {
   generateFollowUpEmail,
   generateInitialEmail,
@@ -19,10 +31,9 @@ import {
   SCRAPING_LIMITS,
   abortRuns,
   chunk,
-  contactInfoBatch,
+  cleanEnrichment,
   fallbackBatch,
   fetchMapsPlaces,
-  googleSearchBatch,
   googleSearchQuery,
   importPlaces,
   isJobCancelled,
@@ -34,10 +45,16 @@ import {
   pollMapsRuns,
   sitesWithoutEmail,
   startMapsRuns,
-  websiteCrawlerBatch,
 } from "@/lib/scraping/pipeline";
 
 const MAX_EMAILS_PER_BATCH = 20;
+
+/** Échec définitif d'une tâche de fond : alerte visible sur le tableau de bord. */
+function alertOnFailure(kind: AlertKind, label: string) {
+  return async ({ error }: { error: Error }) => {
+    await raiseAlert(kind, `${label} : ${error.message}`);
+  };
+}
 
 // ─── Envoi ───────────────────────────────────────────────────────
 
@@ -51,9 +68,26 @@ export const sendPendingEmails = inngest.createFunction(
     name: "Envoi des emails en attente",
     concurrency: { limit: 1 },
     triggers: [{ cron: `TZ=${APP_TIMEZONE} */15 8-18 * * 1-5` }, { event: EVENTS.sendRequested }],
+    onFailure: alertOnFailure("send", "L'envoi des emails a échoué"),
   },
   async ({ step }) => {
     await step.run("release-stale", () => releaseStaleReservations());
+
+    // Rien ne part tant que la configuration est incomplète (liens de désinscription, DMARC, webhook…).
+    const config = await step.run("config-check", async () => {
+      const { companyAddress } = await getSendingSettings();
+      const health = await getConfigHealth({ companyAddress, deep: true });
+      if (health.ready) {
+        await resolveAlerts("config");
+      } else {
+        await raiseAlert("config", `Envois bloqués : ${health.blockers.map((b) => b.detail).join(" · ")}`);
+      }
+      return { ready: health.ready, blockers: health.blockers.map((b) => b.label) };
+    });
+    if (!config.ready) return { sent: 0, reason: "Configuration incomplète", blockers: config.blockers };
+
+    const breaker = await step.run("bounce-check", () => checkBounceCircuitBreaker());
+    if (breaker.tripped) return { sent: 0, reason: `Taux de rebond trop élevé (${breaker.rate.toFixed(1)} %)` };
 
     const plan = await step.run("plan-batch", async () => {
       const quota = await getDailyQuota();
@@ -64,14 +98,17 @@ export const sendPendingEmails = inngest.createFunction(
 
     if (plan.remaining <= 0) return { sent: 0, reason: "Limite quotidienne atteinte" };
 
-    const outcomes: Record<string, number> = { sent: 0, skipped: 0, failed: 0, retry: 0 };
+    const outcomes: Record<DeliveryOutcome, number> = { sent: 0, skipped: 0, failed: 0, retry: 0, blocked: 0 };
     for (let i = 0; i < plan.ids.length; i++) {
       const outcome = await step.run(`deliver-${plan.ids[i]}`, () => deliverEmail(plan.ids[i]));
       outcomes[outcome]++;
+      // Erreur de configuration : inutile d'essayer les suivants, une alerte a été levée.
+      if (outcome === "blocked") break;
       if (outcome === "sent" && plan.spacingSeconds > 0 && i < plan.ids.length - 1) {
         await step.sleep(`spacing-${i}`, `${plan.spacingSeconds}s`);
       }
     }
+    if (outcomes.sent > 0 && outcomes.blocked === 0) await step.run("resolve-send-alert", () => resolveAlerts("send"));
     return outcomes;
   }
 );
@@ -84,6 +121,7 @@ export const generateCampaignEmails = inngest.createFunction(
     name: "Génération IA d'une campagne",
     concurrency: { limit: 1, key: "event.data.campaignId" },
     triggers: [{ event: EVENTS.generateRequested }],
+    onFailure: alertOnFailure("generate", "La préparation de la rédaction a échoué"),
   },
   async ({ event, step }) => {
     const campaignId = String(event.data?.campaignId || "");
@@ -107,6 +145,7 @@ export const generateProspectEmail = inngest.createFunction(
     concurrency: { limit: 5 },
     retries: 2,
     triggers: [{ event: EVENTS.generateProspect }],
+    onFailure: alertOnFailure("generate", "La rédaction d'un email a échoué"),
   },
   async ({ event, step }) => {
     const { campaignId, prospectId } = event.data as { campaignId: string; prospectId: string };
@@ -122,6 +161,7 @@ export const scheduleFollowUps = inngest.createFunction(
     name: "Planification des relances",
     concurrency: { limit: 1 },
     triggers: [{ cron: `TZ=${APP_TIMEZONE} 0 8 * * 1-5` }],
+    onFailure: alertOnFailure("generate", "La planification des relances a échoué"),
   },
   async ({ step }) => {
     const campaigns = await step.run("active-campaigns", () =>
@@ -150,6 +190,7 @@ export const generateFollowUp = inngest.createFunction(
     concurrency: { limit: 5 },
     retries: 2,
     triggers: [{ event: EVENTS.followUpRequested }],
+    onFailure: alertOnFailure("generate", "La rédaction d'une relance a échoué"),
   },
   async ({ event, step }) => {
     const { campaignId, prospectId, followUpNumber } = event.data as {
@@ -171,7 +212,9 @@ export const runScrapingJob = inngest.createFunction(
     retries: 1,
     triggers: [{ event: EVENTS.scrapingRequested }],
     onFailure: async ({ event, error }: { event: { data: { event: { data: ScrapingRequestedData } } }; error: Error }) => {
-      await markJobFailed(event.data.event.data.jobId, error.message);
+      const message = friendlyApifyError(error.message);
+      await markJobFailed(event.data.event.data.jobId, message);
+      await raiseAlert("scraping", `La recherche de prospects a échoué : ${message}`);
     },
   },
   async ({ event, step }) => {
@@ -230,24 +273,77 @@ export const runScrapingJob = inngest.createFunction(
     });
     const places = maps.places;
 
+    /**
+     * Enrichissement par un traitement Apify : lancé, interrogé toutes les 30 s, puis lu.
+     * Aucune étape n'attend la fin du traitement : une coupure ne relance donc rien de payant.
+     * Un échec d'enrichissement n'arrête pas la recherche (les fiches restent sans email).
+     */
+    const warnings: string[] = [];
+    const enrich = async (
+      kind: EnrichmentKind,
+      key: string,
+      payload: string[],
+      progress: { phase: string; percent: number; detail: string }
+    ): Promise<Record<string, string[]> | null> => {
+      const started = await step.run(`${key}-start`, async () => {
+        if (await isJobCancelled(jobId)) return { runId: null, error: null, cancelled: true };
+        await persistProgress(jobId, { ...progress, runs });
+        try {
+          return { runId: await startEnrichmentRun(kind, payload), error: null, cancelled: false };
+        } catch (e) {
+          const message = friendlyApifyError(e instanceof Error ? e.message : String(e));
+          console.error(`[scraping] ${key} :`, message);
+          return { runId: null, error: message, cancelled: false };
+        }
+      });
+      if (started.cancelled) return null;
+      if (!started.runId) {
+        if (started.error && !warnings.includes(started.error)) warnings.push(started.error);
+        return {};
+      }
+      const runId = started.runId;
+
+      for (let attempt = 0; attempt < L.enrichPoll.maxAttempts; attempt++) {
+        await step.sleep(`${key}-wait-${attempt}`, `${L.enrichPoll.intervalSeconds}s`);
+        const state = await step.run(`${key}-poll-${attempt}`, async () => {
+          if (await isJobCancelled(jobId)) {
+            await abortApifyRun(runId);
+            return { done: true, cancelled: true };
+          }
+          const last = attempt === L.enrichPoll.maxAttempts - 1;
+          const { done } = await getRunState(runId);
+          // Délai dépassé : on arrête le traitement et on garde ce qu'il a déjà trouvé.
+          if (!done && last) await abortApifyRun(runId);
+          return { done: done || last, cancelled: false };
+        });
+        if (state.cancelled) return null;
+        if (state.done) break;
+      }
+
+      return step.run(`${key}-read`, async () => {
+        try {
+          return cleanEnrichment(await readEnrichmentRun(kind, runId));
+        } catch (e) {
+          console.error(`[scraping] ${key} lecture :`, e);
+          return {};
+        }
+      });
+    };
+
     // Phases 2 et 3 : Contact Info Scraper (standard puis approfondi)
     const contactPhases = [
-      { key: "contact", source: "apify" as const, cfg: L.contact, percent: 40, label: "Pages contact des sites" },
-      { key: "deep", source: "deep-apify" as const, cfg: L.deepContact, percent: 50, label: "Exploration approfondie des sites" },
+      { key: "contact", kind: "contact" as const, source: "apify" as const, cfg: L.contact, percent: 40, label: "Pages contact des sites" },
+      { key: "deep", kind: "deep-contact" as const, source: "deep-apify" as const, cfg: L.deepContact, percent: 50, label: "Exploration approfondie des sites" },
     ];
     for (const phase of contactPhases) {
       const batches = chunk(sitesWithoutEmail(places, phase.cfg.maxSites), phase.cfg.chunk);
       for (const [i, urls] of batches.entries()) {
-        if (await stopIfCancelled(`${phase.key}-${i}`)) return { cancelled: true };
-        const found = await step.run(`${phase.key}-${i}`, async () => {
-          await persistProgress(jobId, { phase: phase.label, percent: phase.percent, detail: `Lot ${i + 1}/${batches.length}`, runs });
-          try {
-            return await contactInfoBatch(urls, phase.cfg.requestsPerUrl);
-          } catch (e) {
-            console.error(`[scraping] ${phase.key} lot ${i} :`, e);
-            return {};
-          }
+        const found = await enrich(phase.kind, `${phase.key}-${i}`, urls, {
+          phase: phase.label,
+          percent: phase.percent,
+          detail: `Lot ${i + 1}/${batches.length}`,
         });
+        if (!found) return { cancelled: true };
         mergeByDomain(places, found, phase.source);
       }
     }
@@ -255,31 +351,23 @@ export const runScrapingJob = inngest.createFunction(
     // Phase 4 : Google Search (emails vérifiés contre le domaine du site)
     const searchTargets = places.filter((p) => p.emails.length === 0 && p.domain).slice(0, L.googleSearch.maxQueries);
     for (const [i, batch] of chunk(searchTargets, L.googleSearch.chunk).entries()) {
-      if (await stopIfCancelled(`google-${i}`)) return { cancelled: true };
-      const results = await step.run(`google-${i}`, async () => {
-        await persistProgress(jobId, { phase: "Recherche web d'emails", percent: 60, detail: `Lot ${i + 1}`, runs });
-        try {
-          return await googleSearchBatch(batch.map(googleSearchQuery));
-        } catch (e) {
-          console.error(`[scraping] google lot ${i} :`, e);
-          return {};
-        }
+      const results = await enrich("search", `google-${i}`, batch.map(googleSearchQuery), {
+        phase: "Recherche web d'emails",
+        percent: 60,
+        detail: `Lot ${i + 1}`,
       });
+      if (!results) return { cancelled: true };
       mergeGoogleResults(places, results);
     }
 
     // Phase 5 : Website Content Crawler
     for (const [i, urls] of chunk(sitesWithoutEmail(places, L.websiteCrawler.maxSites), L.websiteCrawler.chunk).entries()) {
-      if (await stopIfCancelled(`crawler-${i}`)) return { cancelled: true };
-      const found = await step.run(`crawler-${i}`, async () => {
-        await persistProgress(jobId, { phase: "Lecture du contenu des sites", percent: 70, detail: `Lot ${i + 1}`, runs });
-        try {
-          return await websiteCrawlerBatch(urls);
-        } catch (e) {
-          console.error(`[scraping] crawler lot ${i} :`, e);
-          return {};
-        }
+      const found = await enrich("content", `crawler-${i}`, urls, {
+        phase: "Lecture du contenu des sites",
+        percent: 70,
+        detail: `Lot ${i + 1}`,
       });
+      if (!found) return { cancelled: true };
       mergeByDomain(places, found, "web-crawler");
     }
 
@@ -303,7 +391,7 @@ export const runScrapingJob = inngest.createFunction(
     // Phase 7 : import
     return step.run("import", async () => {
       if (await isJobCancelled(jobId)) return { cancelled: true };
-      const { created, withEmail, outOfScope } = await importPlaces(places, { includeOutOfScope });
+      const { created, withEmail, outOfScope, invalid } = await importPlaces(places, { includeOutOfScope });
       await prisma.scrapingJob.updateMany({
         where: { id: jobId, status: "RUNNING" },
         data: {
@@ -313,13 +401,14 @@ export const runScrapingJob = inngest.createFunction(
           progress: {
             phase: "Terminé",
             percent: 100,
-            detail: `${created} prospect(s) créé(s) sur ${places.length} fiche(s) · ${withEmail} retenu(s) avec email${outOfScope ? ` · ${outOfScope} écarté(s) car hors cible (commerces, cafés, concurrents)` : ""}`,
+            detail: `${created} prospect(s) créé(s) sur ${places.length} fiche(s) · ${withEmail} retenu(s) avec email${outOfScope ? ` · ${outOfScope} écarté(s) car hors cible (commerces, cafés, concurrents)` : ""}${invalid ? ` · ${invalid} adresse(s) invalide(s) écartée(s)` : ""}${warnings.length ? ` · Enrichissement incomplet : ${warnings.join(" ; ")}` : ""}`,
             runs,
             updatedAt: new Date().toISOString(),
           },
         },
       });
-      return { created, places: places.length, withEmail, outOfScope };
+      await resolveAlerts("scraping");
+      return { created, places: places.length, withEmail, outOfScope, invalid };
     });
   }
 );

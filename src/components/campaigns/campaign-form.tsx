@@ -72,7 +72,11 @@ export function CampaignForm({
   const [segments, setSegments] = useState<{ id: string; name: string }[]>([]);
   const set = (key: keyof CampaignFormValues) => (value: string) => setValues((v) => ({ ...v, [key]: value }));
 
-  const [preview, setPreview] = useState<{ total: number; core: number } | null>(null);
+  const [preview, setPreview] = useState<{
+    total: number;
+    core: number;
+    excluded?: { strictCountry: number; duplicateDomain: number; suppressed: number };
+  } | null>(null);
   useEffect(() => {
     const controller = new AbortController();
     const params = new URLSearchParams({ product: values.product || "all" });
@@ -103,7 +107,7 @@ export function CampaignForm({
         <CardHeader>
           <CardTitle>Ciblage et message</CardTitle>
           <CardDescription>
-            L&apos;assistant rédige un email par prospect selon ces réglages. Tout reste modifiable avant l&apos;envoi.
+            L&apos;assistant rédige un email par prospect selon ces réglages. Chaque email doit être approuvé avant de partir.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-5">
@@ -181,6 +185,19 @@ export function CampaignForm({
                 <span className="font-semibold">{preview.total}</span> prospect(s) ciblé(s), dont{" "}
                 <span className="font-semibold">{preview.core}</span> au cœur de cible. Les prospects hors cible (commerces,
                 cafés, concurrents) sont toujours exclus.
+                {preview.excluded && preview.excluded.strictCountry + preview.excluded.duplicateDomain + preview.excluded.suppressed > 0 ? (
+                  <span className="mt-1 block text-xs text-muted-foreground">
+                    Écartés :{" "}
+                    {[
+                      preview.excluded.strictCountry ? `${preview.excluded.strictCountry} adresse(s) nominative(s) dans un pays à accord préalable` : "",
+                      preview.excluded.duplicateDomain ? `${preview.excluded.duplicateDomain} second(s) contact(s) d'une même entreprise` : "",
+                      preview.excluded.suppressed ? `${preview.excluded.suppressed} adresse(s) en liste d'exclusion` : "",
+                    ]
+                      .filter(Boolean)
+                      .join(" · ")}
+                    . Les prospects sollicités récemment ou déjà engagés dans une autre campagne ne sont pas repris.
+                  </span>
+                ) : null}
               </>
             )}
           </p>

@@ -248,7 +248,7 @@ export function ProspectsClient({ initialProspects, initialSearch = "" }: { init
       const res = await fetch("/api/prospects/import", { method: "POST", body });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(data.error || "Import impossible");
-      toast.success(`${data.imported} prospect(s) importé(s) · ${data.duplicates} doublon(s) ignoré(s) · ${data.invalid} ligne(s) invalide(s)`);
+      toast.success(`${data.imported} prospect(s) importé(s) · ${data.duplicates} doublon(s) ignoré(s) · ${data.invalid} ligne(s) invalide(s)${data.unreachable ? `, dont ${data.unreachable} adresse(s) dont le domaine ne reçoit pas de courrier` : ""}`);
       const refreshed = await fetch("/api/prospects?limit=2000");
       if (refreshed.ok) setProspects(await refreshed.json());
     } catch (err) {

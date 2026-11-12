@@ -23,7 +23,9 @@ export const CAMPAIGN_STATUS_LABELS: Record<string, string> = {
 };
 
 export const EMAIL_STATUS_LABELS: Record<string, string> = {
-  PENDING: "À relire",
+  PENDING: "En attente",
+  TO_APPROVE: "À approuver",
+  APPROVED: "Approuvé",
   SENDING: "Envoi…",
   SENT: "Envoyé",
   DELIVERED: "Délivré",
