@@ -34,7 +34,8 @@ export const getCurrentUser = cache(async function getCurrentUser(): Promise<
   try {
     const supabase = await createClient();
     const { data } = await supabase.auth.getUser();
-    email = data.user?.email?.toLowerCase();
+    // Une adresse non confirmée ne donne aucun accès (inscription sauvage sur l'API Supabase).
+    email = data.user?.email_confirmed_at ? data.user.email?.toLowerCase() : undefined;
     fullName = (data.user?.user_metadata?.full_name as string | undefined) || undefined;
   } catch {
     email = undefined;

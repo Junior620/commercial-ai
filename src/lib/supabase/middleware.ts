@@ -2,7 +2,7 @@ import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 
 /** Routes accessibles sans session (pages d'auth, webhooks machine-à-machine, désinscription). */
-const PUBLIC_EXACT = new Set(["/login", "/auth/callback", "/auth/reset"]);
+const PUBLIC_EXACT = new Set(["/login", "/auth/callback", "/auth/reset", "/auth/confirm", "/auth/confirm/verify", "/api/auth/recover"]);
 const PUBLIC_PREFIXES = ["/api/inngest", "/api/webhooks/resend", "/api/unsubscribe", "/unsubscribe"];
 
 function isPublicPath(pathname: string): boolean {
@@ -48,10 +48,13 @@ export async function updateSession(request: NextRequest) {
     },
   });
 
+  // Lecture du jeton de session (rafraîchi si besoin, signature vérifiée localement quand
+  // le projet utilise des clés asymétriques). Le contrôle complet auprès de Supabase est fait
+  // une seule fois par requête, dans getCurrentUser().
   let hasUser = false;
   try {
-    const { data } = await supabase.auth.getUser();
-    hasUser = !!data.user;
+    const { data } = await supabase.auth.getClaims();
+    hasUser = !!data?.claims?.sub;
   } catch {
     hasUser = false;
   }

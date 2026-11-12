@@ -39,10 +39,12 @@ function LoginForm() {
     const supabase = createClient();
     try {
       if (mode === "reset") {
-        const { error } = await supabase.auth.resetPasswordForEmail(email, {
-          redirectTo: `${window.location.origin}/auth/callback?next=/auth/reset`,
+        const res = await fetch("/api/auth/recover", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ email }),
         });
-        if (error) throw error;
+        if (!res.ok) throw new Error("Demande impossible pour le moment. Réessayez dans quelques minutes.");
         toast.success("Si un compte existe pour cette adresse, un lien de réinitialisation vient d'être envoyé.");
         setMode("login");
       } else {
