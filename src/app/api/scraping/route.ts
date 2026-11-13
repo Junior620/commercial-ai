@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { prisma } from "@/lib/prisma";
-import { inngest, EVENTS } from "@/lib/inngest";
+import { inngest, EVENTS, queueErrorMessage } from "@/lib/inngest";
 import { requireUser, WRITE_ROLES } from "@/lib/auth";
 import { parseJsonBody, serverError } from "@/lib/api";
 import { SCRAPING_LIMITS, buildKeywords, failStaleJobs, markJobFailed } from "@/lib/scraping/pipeline";
@@ -113,11 +113,9 @@ export async function POST(req: NextRequest) {
     } catch (err) {
       // La tâche de fond n'a pas pu être mise en file : le job ne doit pas rester « en cours ».
       console.error("[scraping:create] mise en file impossible :", err);
-      await markJobFailed(job.id, "Les tâches de fond ne répondent pas (Inngest). En local, lancez « pnpm dev:jobs ».");
-      return NextResponse.json(
-        { error: "Les tâches de fond ne répondent pas. En local, lancez « pnpm dev:jobs » puis réessayez." },
-        { status: 503 }
-      );
+      const message = queueErrorMessage(err);
+      await markJobFailed(job.id, message);
+      return NextResponse.json({ error: message }, { status: 503 });
     }
     return NextResponse.json(job, { status: 201 });
   } catch (err) {

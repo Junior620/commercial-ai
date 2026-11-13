@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { inngest, EVENTS } from "@/lib/inngest";
+import { inngest, EVENTS, queueErrorMessage } from "@/lib/inngest";
 import { requireUser, WRITE_ROLES } from "@/lib/auth";
 import { getDailyQuota } from "@/lib/sending";
 
@@ -33,6 +33,11 @@ export async function POST(_req: NextRequest, { params }: { params: Promise<{ id
     return NextResponse.json({ queued: false, message: "Limite quotidienne atteinte", quota });
   }
 
-  await inngest.send({ name: EVENTS.sendRequested, data: { campaignId: id, requestedBy: auth.user.email } });
+  try {
+    await inngest.send({ name: EVENTS.sendRequested, data: { campaignId: id, requestedBy: auth.user.email } });
+  } catch (err) {
+    console.error("[send] mise en file impossible :", err);
+    return NextResponse.json({ error: queueErrorMessage(err) }, { status: 503 });
+  }
   return NextResponse.json({ queued: true, pending, quota });
 }
