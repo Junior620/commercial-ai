@@ -8,6 +8,7 @@ import { classifyTarget } from "@/lib/targeting";
 import { checkOutreachAllowed, strictOptInCountries } from "@/lib/compliance";
 import { validateEmailAddress } from "@/lib/email-validation";
 import { companyKey } from "@/lib/dedup";
+import { looksLikePersonName } from "@/lib/email-extractor";
 import {
   buildProspectWhereFromFilters,
   hasTargetingCriteria,
@@ -25,8 +26,9 @@ export function sanitizeContactName(contact: string | null | undefined, company:
   if (cleaned.includes("@") || /^\+?\d[\d\s\-().]{5,}$/.test(cleaned) || /^[\d@.]+$/.test(cleaned)) {
     return fallback;
   }
-  // Le scraping renvoie parfois le nom de l'entreprise comme contact.
+  // Le scraping renvoie parfois le nom de l'entreprise, un titre de page ou une devise comme contact.
   if (cleaned.toLowerCase() === company.trim().toLowerCase()) return fallback;
+  if (!looksLikePersonName(cleaned, company)) return fallback;
   return cleaned;
 }
 

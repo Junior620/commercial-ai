@@ -173,24 +173,81 @@ export function getBestEmail(
   return ranked.length > 0 ? ranked[0] : null;
 }
 
+/**
+ * Mots qui ne font jamais partie d'un nom de personne : titres de pages, boutons, devises,
+ * pays, types de commerce, formes juridiques. Un « nom » qui en contient un est écarté.
+ */
+const NOT_PERSON_WORDS = new Set(
+  [
+    // pages et boutons
+    "page", "pages", "fullscreen", "home", "accueil", "about", "story", "stories", "blog", "news", "contact", "contacts",
+    "info", "infos", "welcome", "menu", "shop", "store", "boutique", "order", "orders", "now", "buy", "cart", "checkout",
+    "shipping", "delivery", "standard", "express", "free", "gift", "gifts", "sale", "new", "more", "read", "view", "click",
+    "login", "account", "search", "privacy", "policy", "terms", "cookie", "cookies", "legal", "imprint", "impressum",
+    "who", "what", "we", "are", "our", "my", "your", "the", "us", "team", "équipe", "equipe",
+    // temps, devises, lieux
+    "time", "eastern", "western", "pacific", "central", "franc", "francs", "euro", "euros", "dollar", "dollars", "pound",
+    "united", "states", "kingdom", "america", "europe", "swiss", "suisse", "schweiz", "france", "germany", "deutschland",
+    "belgium", "netherlands", "spain", "italy", "canada", "usa",
+    // commerce et entreprise
+    "chocolate", "chocolates", "chocolat", "chocolaterie", "schokolade", "schoko", "cocoa", "cacao", "kakao", "coffee",
+    "cafe", "café", "bakery", "bagel", "bagels", "delight", "deli", "food", "foods", "fresh", "factory", "fabrik",
+    "fabrikladen", "laden", "manufaktur", "caterers", "catering", "rentals", "rental", "mailbox", "mail", "center",
+    "centre", "dive", "group", "gruppe", "groupe", "company", "international", "trading", "sa", "ag", "gmbh", "llc",
+    "inc", "ltd", "sarl", "bv", "nv", "srl", "spa",
+  ]
+);
+
+const NAME_PARTICLES = new Set(["de", "da", "di", "du", "del", "della", "van", "von", "der", "den", "le", "la", "el", "al", "bin", "ben", "dos", "das", "y"]);
+
+/**
+ * Vrai si la chaîne ressemble au nom d'une personne : 2 à 4 mots commençant par une majuscule
+ * (particules « de », « van »… acceptées), sans mot de page, de commerce ou de lieu,
+ * et différente du nom de l'entreprise.
+ */
+export function looksLikePersonName(name: string | null | undefined, company?: string | null): boolean {
+  const value = (name || "").replace(/\s+/g, " ").trim();
+  if (value.length < 4 || value.length > 60 || /[\d@/\\|:;!?()[\]{}<>=+*#&_]/.test(value)) return false;
+  const words = value.split(" ");
+  if (words.length < 2 || words.length > 4) return false;
+  for (const word of words) {
+    const lower = word.toLowerCase();
+    if (NAME_PARTICLES.has(lower)) continue;
+    // « Durand », « Marie-Claire », « O'Neil », ou une initiale « J. »
+    if (!/^\p{Lu}[\p{Ll}'’]+(?:-\p{Lu}?[\p{Ll}'’]+)*$/u.test(word) && !/^\p{Lu}\.$/u.test(word)) return false;
+    if (NOT_PERSON_WORDS.has(lower.replace(/[.'’]/g, ""))) return false;
+  }
+  if (company) {
+    const norm = (s: string) => s.toLowerCase().normalize("NFKD").replace(/[̀-ͯ]/g, "").replace(/[^a-z ]/g, " ").replace(/\s+/g, " ").trim();
+    const c = norm(company);
+    const n = norm(value);
+    if (n === c || (n.length >= 4 && c.includes(n))) return false;
+  }
+  return true;
+}
+
 export function extractContactName(html: string): string | null {
-  const schemaMatch = html.match(
-    /"(?:name|contactPoint|author)"\s*:\s*"([A-Z][a-zÀ-ÿ]+(?: [A-Z][a-zÀ-ÿ]+)+)"/
-  );
-  if (schemaMatch) return schemaMatch[1];
+  // Données structurées : seulement un objet « Person », jamais n'importe quel champ « name »
+  // (produits, devises, boutiques…).
+  const personBlocks = html.match(/\{[^{}]{0,400}"@type"\s*:\s*"Person"[^{}]{0,400}\}/g) || [];
+  for (const block of personBlocks) {
+    const name = block.match(/"name"\s*:\s*"([^"]{4,60})"/)?.[1]?.trim();
+    if (looksLikePersonName(name)) return name!;
+  }
 
   const metaAuthor = html.match(
     /<meta[^>]+name=["']author["'][^>]+content=["']([^"']{3,60})["']/i
   );
   if (metaAuthor) {
     const name = metaAuthor[1].trim();
-    if (/^[A-Z][a-zÀ-ÿ]+(?: [A-Z][a-zÀ-ÿ]+)+$/.test(name)) return name;
+    if (looksLikePersonName(name)) return name;
   }
 
+  // Mention explicite : « Contact : Marie Durand », « Gérant : … », « Geschäftsführer: … »
   const contactLine = html.match(
-    /(?:Contact|Owner|Manager|Director|CEO|Founder|Gérant|Directeur)\s*[:\-–]\s*([A-Z][a-zÀ-ÿ]+(?: [A-Z][a-zÀ-ÿ]+){1,3})/
+    /(?:Contact|Owner|Manager|Managing Director|Director|CEO|Founder|Gérant|Gérante|Directeur|Directrice|Inhaber|Inhaberin|Geschäftsführer|Geschäftsführerin)\s*[:\-–]\s*([A-Z][a-zÀ-ÿ]+(?: [A-Z][a-zÀ-ÿ]+){1,3})/
   );
-  if (contactLine) return contactLine[1];
+  if (contactLine && looksLikePersonName(contactLine[1])) return contactLine[1];
 
   const emails = extractEmails(html);
   for (const em of emails) {

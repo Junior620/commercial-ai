@@ -2,6 +2,7 @@ import Anthropic from "@anthropic-ai/sdk";
 import { zodOutputFormat } from "@anthropic-ai/sdk/helpers/zod";
 import OpenAI from "openai";
 import { z } from "zod";
+import { raiseAlert } from "@/lib/alerts";
 
 // ─── Types ───────────────────────────────────────────────────────
 
@@ -261,6 +262,13 @@ async function runWithOpenAI<T>(
   return result.data;
 }
 
+/** Le compte Anthropic est inutilisable (crédit épuisé, clé refusée, accès interdit). */
+export function isAccountError(err: unknown): boolean {
+  if (err instanceof Anthropic.AuthenticationError || err instanceof Anthropic.PermissionDeniedError) return true;
+  const message = err instanceof Error ? err.message : String(err);
+  return /credit balance is too low|billing|purchase credits|insufficient.?(credit|funds|quota)/i.test(message);
+}
+
 /** Erreurs pour lesquelles un autre fournisseur a une chance de réussir. */
 function isTransient(err: unknown): boolean {
   if (err instanceof AIOutputError) return true;
@@ -268,7 +276,7 @@ function isTransient(err: unknown): boolean {
   if (err instanceof Anthropic.InternalServerError) return true;
   if (err instanceof Anthropic.APIConnectionError) return true; // inclut les timeouts
   if (err instanceof Anthropic.APIError && (err.status ?? 0) >= 500) return true;
-  return false;
+  return isAccountError(err);
 }
 
 async function runLLM<T>(prompt: string, schema: z.ZodType<T>): Promise<T> {
@@ -285,11 +293,24 @@ async function runLLM<T>(prompt: string, schema: z.ZodType<T>): Promise<T> {
     try {
       return await runWithAnthropic(prompt, schema);
     } catch (err) {
-      if (!hasOpenAI || !isTransient(err)) throw err;
+      if (!hasOpenAI || !isTransient(err)) {
+        if (isAccountError(err)) {
+          throw new Error(
+            "Compte Anthropic inutilisable (crédit épuisé ou clé refusée) : rechargez le crédit sur console.anthropic.com, ou configurez OPENAI_API_KEY en secours."
+          );
+        }
+        throw err;
+      }
       console.warn(
         "[AI] Anthropic indisponible, bascule sur OpenAI :",
         err instanceof Error ? err.message : err
       );
+      if (isAccountError(err)) {
+        await raiseAlert(
+          "generate",
+          "Crédit Anthropic épuisé ou clé refusée : les emails sont rédigés par OpenAI en secours. Rechargez le crédit sur console.anthropic.com."
+        );
+      }
     }
   }
 

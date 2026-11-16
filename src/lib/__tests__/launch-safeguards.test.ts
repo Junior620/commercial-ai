@@ -198,3 +198,17 @@ describe("recherche de prospects", () => {
     expect(friendlyApifyError("Autre erreur")).toBe("Autre erreur");
   });
 });
+
+import Anthropic from "@anthropic-ai/sdk";
+import { isAccountError } from "@/lib/claude";
+
+describe("bascule vers OpenAI", () => {
+  it("reconnaît un compte Anthropic sans crédit ou une clé refusée", () => {
+    expect(isAccountError(new Error('400 {"type":"error","error":{"type":"invalid_request_error","message":"Your credit balance is too low to access the Anthropic API."}}'))).toBe(true);
+    expect(isAccountError(new Anthropic.AuthenticationError(401, undefined, "invalid x-api-key", new Headers()))).toBe(true);
+  });
+
+  it("ne bascule pas pour une demande réellement invalide", () => {
+    expect(isAccountError(new Error("400 messages: text content blocks must be non-empty"))).toBe(false);
+  });
+});

@@ -26,7 +26,7 @@ import { deduplicateItems, normalizeDomain } from "@/lib/dedup";
 import { classifyTarget } from "@/lib/targeting";
 import { validateEmailAddresses } from "@/lib/email-validation";
 import { inferProspectLanguageFromCountry, normalizeCountryToIso2 } from "@/lib/prospect-language";
-import { emailMatchesDomain, extractEmails, fetchAndExtractFromSite, getBestEmail } from "@/lib/email-extractor";
+import { emailMatchesDomain, extractEmails, fetchAndExtractFromSite, getBestEmail, looksLikePersonName } from "@/lib/email-extractor";
 
 // ─── Plafonds de coût et de charge ───────────────────────────────
 
@@ -420,7 +420,7 @@ export function mergeWorkerResults(places: EnrichedPlace[], results: WorkerSiteR
     if (!entry.domain) continue;
     const r = byDomain.get(entry.domain);
     if (!r) continue;
-    if (!entry.contactName && r.contactName && r.contactName.toLowerCase() !== entry.place.title.toLowerCase()) {
+    if (!entry.contactName && looksLikePersonName(r.contactName, entry.place.title)) {
       entry.contactName = r.contactName;
     }
     if (!entry.place.phone && r.phone) entry.place.phone = r.phone;
@@ -445,7 +445,7 @@ export function mergeFallback(
     if (!entry.domain) continue;
     const r = results[entry.domain];
     if (!r) continue;
-    if (!entry.contactName && r.contactName && r.contactName.toLowerCase() !== entry.place.title.toLowerCase()) {
+    if (!entry.contactName && looksLikePersonName(r.contactName, entry.place.title)) {
       entry.contactName = r.contactName;
     }
     if (entry.emails.length === 0 && r.emails.length) {
