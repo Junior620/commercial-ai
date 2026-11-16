@@ -19,7 +19,7 @@
     "worker:build": "esbuild worker/src/server.ts --bundle --platform=node --target=node22 --format=esm --external:playwright-core --outfile=worker/dist/server.mjs"
   },
   "dependencies": {
-    "@anthropic-ai/sdk": "^0.137.0",
+    "@anthropic-ai/sdk": "^1.8.0",
     "@base-ui/react": "^1.4.0",
     "@prisma/adapter-pg": "^7.10.1",
     "@prisma/client": "^7.10.1",
